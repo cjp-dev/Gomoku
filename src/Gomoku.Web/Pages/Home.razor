@@ -1,0 +1,121 @@
+@page "/"
+@inject MainViewModel Vm
+@inject BrowserDialogService Dialogs
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Gomoku .NET – Play Five in a Row Online</PageTitle>
+
+<div class="app-layout">
+    <!-- Navigation Header -->
+    <header class="app-header">
+        <div class="brand">
+            <span class="brand-stone black"></span>
+            <span class="brand-stone white"></span>
+            <h1 class="brand-title">Gomoku .NET</h1>
+        </div>
+        <div class="nav-actions">
+            <button class="nav-btn" @onclick="() => Vm.NewGameCommand.Execute(null)">New Game</button>
+            <button class="nav-btn" @onclick="() => Vm.UndoCommand.Execute(null)" disabled="@(!Vm.CanUndo)">Undo</button>
+            <button class="nav-btn" @onclick="() => Vm.RedoCommand.Execute(null)" disabled="@(!Vm.CanRedo)">Redo</button>
+            <button class="nav-btn" @onclick="OpenSettings">Settings</button>
+            <button class="nav-btn" @onclick="() => Vm.SaveFileCommand.Execute(null)">Save SGF</button>
+            <button class="nav-btn" @onclick="() => Vm.OpenFileCommand.Execute(null)">Open SGF</button>
+            <button class="nav-btn" @onclick="OpenAbout">About</button>
+            <a class="nav-btn docs-btn" href="docs">Docs 📖</a>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="app-body">
+        <!-- Board Section -->
+        <main class="board-section">
+            <Board />
+        </main>
+
+        <!-- Sidebar Section -->
+        <aside class="sidebar-section">
+            <!-- Game Status Card -->
+            <div class="card status-card">
+                <h3 class="card-title">Game Status</h3>
+                <div class="status-main">@Vm.StatusText</div>
+                <div class="status-details">
+                    <span>Turn: <strong class="highlight-turn">@Vm.SideToMove</strong></span>
+                    <span>Move: <strong>#@Vm.MoveCount</strong></span>
+                </div>
+                @if (Vm.IsThinking)
+                {
+                    <div class="thinking-bar"><div class="thinking-indicator"></div></div>
+                }
+            </div>
+
+            <!-- AI Telemetry Card -->
+            <div class="card telemetry-card">
+                <h3 class="card-title">AI Engine Telemetry</h3>
+                <div class="telemetry-grid">
+                    <span class="t-label">Depth:</span>
+                    <span class="t-val">@Vm.Analysis.Depth</span>
+
+                    <span class="t-label">Score:</span>
+                    <span class="t-val score-val">@Vm.Analysis.Score</span>
+
+                    <span class="t-label">Best:</span>
+                    <span class="t-val best-val">@Vm.Analysis.BestMove</span>
+
+                    <span class="t-label">Nodes:</span>
+                    <span class="t-val">@Vm.Analysis.Nodes</span>
+
+                    <span class="t-label">Speed:</span>
+                    <span class="t-val">@Vm.Analysis.Speed</span>
+                </div>
+            </div>
+
+            <!-- Move History Card -->
+            <div class="card history-card">
+                <h3 class="card-title">Move History</h3>
+                <div class="history-content">
+                    <pre>@Vm.MoveHistoryText</pre>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Status Bar Footer -->
+    <footer class="app-footer">
+        <span>@Vm.StatusText</span>
+        <span class="footer-sep">|</span>
+        <span>Size: @Vm.Settings.BoardSize</span>
+        <span class="footer-sep">|</span>
+        <span>Rules: @Vm.Settings.Variant</span>
+        <span class="footer-sep">|</span>
+        <span>Engine: @Vm.Settings.AiEngine</span>
+    </footer>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Vm.PropertyChanged += OnVmPropertyChanged;
+    }
+
+    private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenSettings()
+    {
+        await Vm.OpenSettingsAsync();
+    }
+
+    private async Task OpenAbout()
+    {
+        await Vm.OpenAboutAsync();
+    }
+
+    public void Dispose()
+    {
+        Vm.PropertyChanged -= OnVmPropertyChanged;
+    }
+}
+

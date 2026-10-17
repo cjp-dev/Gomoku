@@ -1,0 +1,158 @@
+@inject BrowserDialogService DialogService
+@inject MainViewModel MainVm
+@implements IDisposable
+
+@if (DialogService.IsVisible)
+{
+    <div class="modal-backdrop" @onclick="() => DialogService.Dismiss(false)">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            @if (DialogService.ActiveViewModel is SettingsViewModel settingsVm)
+            {
+                <h3 class="modal-title">Settings</h3>
+
+                <div class="form-group">
+                    <label>Board Size:</label>
+                    <select class="form-control" @bind="SelectedBoardSizeIndex">
+                        @for (int i = 0; i < settingsVm.AvailableBoardSizes.Count; i++)
+                        {
+                            <option value="@i">@settingsVm.AvailableBoardSizes[i].ToString()</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Variant:</label>
+                    <select class="form-control" @bind="settingsVm.SelectedVariant">
+                        @foreach (var v in settingsVm.AvailableVariants)
+                        {
+                            <option value="@v">@v</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Game Mode:</label>
+                    <select class="form-control" @bind="settingsVm.SelectedMode">
+                        @foreach (var m in settingsVm.AvailableModes)
+                        {
+                            <option value="@m">@m</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>AI Engine:</label>
+                    <select class="form-control" @bind="settingsVm.SelectedAiEngine">
+                        @foreach (var e in settingsVm.AvailableAiEngines)
+                        {
+                            <option value="@e">@e</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Search Depth: @settingsVm.SearchDepth plies</label>
+                    <input type="range" min="1" max="14" @bind="settingsVm.SearchDepth" class="form-range" />
+                </div>
+
+                <div class="form-group">
+                    <label>Time per Move: @settingsVm.MoveTimeSeconds s</label>
+                    <input type="range" min="1" max="20" @bind="settingsVm.MoveTimeSeconds" class="form-range" />
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="settingsVm.UseOpeningBook" />
+                        Carbon Opening Book (67 symmetry patterns)
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="settingsVm.SoundEnabled" />
+                        Sound Effects
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="settingsVm.CoordinatesVisible" />
+                        Coordinate Labels (A-T, 1-N)
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="settingsVm.GhostStoneEnabled" />
+                        Ghost Stone on Hover
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" @onclick="() => DialogService.Dismiss(false)">Cancel</button>
+                    <button class="btn btn-primary" @onclick="() => SaveSettings(settingsVm)">Save</button>
+                </div>
+            }
+            else if (DialogService.ActiveViewModel is AboutInfo about)
+            {
+                <div class="about-card">
+                    <img src="images/claus-pedersen.jpg" class="about-avatar" alt="Claus Pedersen" />
+                    <h3 class="about-title">@about.Title</h3>
+                    <p class="about-version">Version @about.Version</p>
+                    <p class="about-author">Developed by <strong>@about.Author</strong> (@about.Year)</p>
+                    <p class="about-desc">@about.Description</p>
+                    <p class="about-credits">Engine inspiration &amp; algorithms: Michał Czardybon (Carbon Gomoku)</p>
+                    <div class="modal-actions" style="justify-content: center; margin-top: 1.5rem;">
+                        <button class="btn btn-primary" @onclick="() => DialogService.Dismiss(true)">Close</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <h3 class="modal-title">@DialogService.Title</h3>
+                <p class="modal-body">@DialogService.Message</p>
+                <div class="modal-actions">
+                    @if (DialogService.IsConfirm)
+                    {
+                        <button class="btn btn-secondary" @onclick="() => DialogService.Dismiss(false)">Cancel</button>
+                        <button class="btn btn-primary" @onclick="() => DialogService.Dismiss(true)">OK</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" @onclick="() => DialogService.Dismiss(true)">OK</button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private int SelectedBoardSizeIndex { get; set; }
+
+    protected override void OnInitialized()
+    {
+        DialogService.StateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged()
+    {
+        if (DialogService.ActiveViewModel is SettingsViewModel vm)
+        {
+            SelectedBoardSizeIndex = vm.AvailableBoardSizes.ToList().IndexOf(vm.SelectedBoardSize);
+            if (SelectedBoardSizeIndex < 0) SelectedBoardSizeIndex = 0;
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void SaveSettings(SettingsViewModel vm)
+    {
+        vm.SelectedBoardSize = vm.AvailableBoardSizes[SelectedBoardSizeIndex];
+        vm.SaveCommand.Execute(null);
+
+        // Apply to MainVm
+        if (MainVm.Settings.BoardSize != MainVm.Session.CurrentState.Size || MainVm.Settings.Variant != MainVm.Session.CurrentState.Variant)
+        {
+            MainVm.ResetBoard(MainVm.Settings.BoardSize);
+        }
+
+        DialogService.Dismiss(true);
+    }
+
+    public void Dispose()
+    {
+        DialogService.StateChanged -= OnStateChanged;
+    }
+}
+

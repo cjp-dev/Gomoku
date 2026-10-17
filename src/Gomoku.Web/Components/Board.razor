@@ -1,0 +1,156 @@
+@inject MainViewModel ViewModel
+@implements IDisposable
+
+<div class="board-container">
+    <svg viewBox="0 0 640 640" class="gomoku-board-svg">
+        <defs>
+            <linearGradient id="wood-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#E8C99B" />
+                <stop offset="50%" stop-color="#DCB985" />
+                <stop offset="100%" stop-color="#D2A673" />
+            </linearGradient>
+
+            <radialGradient id="black-stone" cx="32%" cy="32%" r="68%">
+                <stop offset="0%" stop-color="#555555" />
+                <stop offset="55%" stop-color="#222222" />
+                <stop offset="100%" stop-color="#080808" />
+            </radialGradient>
+
+            <radialGradient id="white-stone" cx="32%" cy="32%" r="68%">
+                <stop offset="0%" stop-color="#FFFFFF" />
+                <stop offset="60%" stop-color="#EEEEEE" />
+                <stop offset="100%" stop-color="#D0D0D0" />
+            </radialGradient>
+
+            <filter id="stone-shadow" x="-20%" y="-20%" width="150%" height="150%">
+                <feDropShadow dx="2" dy="3" stdDeviation="3" flood-opacity="0.4" />
+            </filter>
+        </defs>
+
+        <!-- Board Background & Border -->
+        <rect x="0" y="0" width="640" height="640" rx="6" fill="#7A5229" />
+        <rect x="8" y="8" width="624" height="624" rx="4" fill="url(#wood-gradient)" />
+
+        @{
+            int cols = ViewModel.Settings.BoardSize.Width;
+            int rows = ViewModel.Settings.BoardSize.Height;
+            double margin = 36.0;
+            double inner = 640.0 - 2 * margin;
+            double cellW = inner / (cols - 1);
+            double cellH = inner / (rows - 1);
+            double stoneR = Math.Min(cellW, cellH) * 0.44;
+        }
+
+        <!-- Grid Lines -->
+        <g stroke="#4A3018" stroke-width="1.3">
+            @for (int y = 0; y < rows; y++)
+            {
+                double cy = margin + y * cellH;
+                <line x1="@margin" y1="@cy" x2="@(margin + (cols - 1) * cellW)" y2="@cy"
+                      stroke-width="@(y == 0 || y == rows - 1 ? 2.0 : 1.2)" />
+
+                @if (ViewModel.Settings.CoordinatesVisible)
+                {
+                    @((MarkupString)$"<text x=\"16\" y=\"{cy + 4}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
+                    @((MarkupString)$"<text x=\"624\" y=\"{cy + 4}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
+                }
+            }
+
+            @for (int x = 0; x < cols; x++)
+            {
+                double cx = margin + x * cellW;
+                <line x1="@cx" y1="@margin" x2="@cx" y2="@(margin + (rows - 1) * cellH)"
+                      stroke-width="@(x == 0 || x == cols - 1 ? 2.0 : 1.2)" />
+
+                @if (ViewModel.Settings.CoordinatesVisible)
+                {
+                    char colChar = (char)('A' + x);
+                    @((MarkupString)$"<text x=\"{cx}\" y=\"22\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
+                    @((MarkupString)$"<text x=\"{cx}\" y=\"630\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
+                }
+            }
+        </g>
+
+        <!-- Star Points -->
+        <g fill="#3A2210">
+            @foreach (var sp in ViewModel.Settings.BoardSize.GetStarPoints())
+            {
+                double cx = margin + sp.X * cellW;
+                double cy = margin + sp.Y * cellH;
+                <circle cx="@cx" cy="@cy" r="4" />
+            }
+        </g>
+
+        <!-- Interactive Intersections & Stones -->
+        @foreach (var cell in ViewModel.Intersections)
+        {
+            double cx = margin + cell.X * cellW;
+            double cy = margin + cell.Y * cellH;
+
+            <g @onclick="() => OnIntersectionClick(cell)"
+               @onmouseenter="() => OnCellHover(cell, true)"
+               @onmouseleave="() => OnCellHover(cell, false)"
+               style="cursor: pointer;">
+                
+                <!-- Transparent Hit Target -->
+                <circle cx="@cx" cy="@cy" r="@(cellW * 0.48)" fill="transparent" />
+
+                <!-- Ghost Preview Stone -->
+                @if (cell.IsHovered && !cell.HasPiece && ViewModel.Settings.GhostStoneEnabled)
+                {
+                    <circle cx="@cx" cy="@cy" r="@stoneR"
+                            fill="@(ViewModel.Session.CurrentState.SideToMove == PieceColor.Black ? "url(#black-stone)" : "url(#white-stone)")"
+                            opacity="0.45" />
+                }
+
+                <!-- Placed Stone -->
+                @if (cell.HasPiece)
+                {
+                    <circle cx="@cx" cy="@cy" r="@stoneR"
+                            fill="@(cell.IsBlack ? "url(#black-stone)" : "url(#white-stone)")"
+                            filter="url(#stone-shadow)" />
+
+                    <!-- Last Move Marker -->
+                    @if (cell.IsLastMove && ViewModel.Settings.LastMoveHighlightEnabled)
+                    {
+                        <circle cx="@cx" cy="@cy" r="4" fill="#E74C3C" />
+                    }
+
+                    <!-- Winning Line Gold Ring -->
+                    @if (cell.IsWinningLine && ViewModel.Settings.WinLineHighlightEnabled)
+                    {
+                        <circle cx="@cx" cy="@cy" r="@(stoneR + 2)" stroke="#F1C40F" stroke-width="3" fill="none" />
+                    }
+                }
+            </g>
+        }
+    </svg>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnIntersectionClick(IntersectionViewModel cell)
+    {
+        ViewModel.OnIntersectionClicked(cell);
+        StateHasChanged();
+    }
+
+    private void OnCellHover(IntersectionViewModel cell, bool isHovered)
+    {
+        cell.IsHovered = isHovered;
+    }
+
+    public void Dispose()
+    {
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    }
+}

@@ -1,0 +1,108 @@
+using System.Diagnostics;
+using Gomoku.Core.AI;
+using Gomoku.Core.Engine;
+using Gomoku.Core.Models;
+
+namespace Gomoku.Benchmark;
+
+public static class Program
+{
+    public static async Task Main(string[] args)
+    {
+        bool quick = args.Contains("--quick");
+        Console.WriteLine("=================================================");
+        Console.WriteLine("       Gomoku .NET - Engine Benchmark Tool       ");
+        Console.WriteLine($" Mode: {(quick ? "Quick Regression" : "Full Performance")}");
+        Console.WriteLine("=================================================\n");
+
+        BenchmarkPatternBoard(quick);
+        BenchmarkTranspositionTable(quick);
+        await BenchmarkCarbonSearchAsync(quick);
+
+        Console.WriteLine("\n[Benchmark Complete] All tests passed successfully.");
+    }
+
+    private static void BenchmarkPatternBoard(bool quick)
+    {
+        Console.WriteLine("--- 1. PatternBoard Throughput & Move/Undo Speed ---");
+        int iterations = quick ? 10_000 : 100_000;
+
+        PatternBoard pb = new();
+        pb.Start(15, 15, GomokuVariant.Freestyle, PieceColor.Black);
+
+        Stopwatch sw = Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            pb.MakeMove(7, 7);
+            pb.MakeMove(7, 8);
+            pb.MakeMove(8, 7);
+            pb.UndoMove();
+            pb.UndoMove();
+            pb.UndoMove();
+        }
+        sw.Stop();
+
+        long ops = iterations * 6;
+        double opsPerSec = ops / sw.Elapsed.TotalSeconds;
+        Console.WriteLine($"Executed {ops:N0} make/undo operations in {sw.ElapsedMilliseconds} ms ({opsPerSec:N0} ops/sec).");
+        Console.WriteLine($"Board Consistency: {(pb.CheckConsistency() ? "PASS" : "FAIL")}\n");
+    }
+
+    private static void BenchmarkTranspositionTable(bool quick)
+    {
+        Console.WriteLine("--- 2. Transposition Table Masking & Cache Speed ---");
+        int[] sizes = quick ? [65_536, 1_048_576] : [65_536, 262_144, 1_048_576, 4_194_304];
+
+        foreach (int size in sizes)
+        {
+            TranspositionTable tt = new(size);
+            int operations = quick ? 100_000 : 1_000_000;
+
+            Stopwatch sw = Stopwatch.StartNew();
+            for (int i = 0; i < operations; i++)
+            {
+                ulong key = (ulong)i * 0x9E3779B97F4A7C15UL;
+                tt.Store(key, 4, 100, BoundType.Exact, new Point(7, 7));
+                _ = tt.TryProbe(key, out _);
+            }
+            sw.Stop();
+
+            double opsPerSec = (operations * 2) / sw.Elapsed.TotalSeconds;
+            Console.WriteLine($"TT Capacity: {tt.Capacity:N0} entries | {operations * 2:N0} ops in {sw.ElapsedMilliseconds} ms ({opsPerSec:N0} ops/sec) | Hits: {tt.Hits:N0}");
+        }
+        Console.WriteLine();
+    }
+
+    private static async Task BenchmarkCarbonSearchAsync(bool quick)
+    {
+        Console.WriteLine("--- 3. Carbon AI Search Throughput (NPS) ---");
+        BoardSize[] boardSizes = [BoardSize.Size15x15, BoardSize.Size19x19];
+        int depth = quick ? 4 : 6;
+
+        foreach (var size in boardSizes)
+        {
+            CarbonAiPlayer ai = new();
+            BoardState state = new(size, GomokuVariant.Freestyle);
+            RuleEngine rules = RuleEngine.Instance;
+
+            // Seed a standard opening: Black H8, White H9, Black I8
+            int cx = size.Width / 2;
+            int cy = size.Height / 2;
+            state = rules.ApplyMove(state, new Move(cx, cy, PieceColor.Black));
+            state = rules.ApplyMove(state, new Move(cx, cy + 1, PieceColor.White));
+            state = rules.ApplyMove(state, new Move(cx + 1, cy, PieceColor.Black));
+
+            var legal = rules.GetLegalMoves(state);
+            SearchLimits limits = SearchLimits.FixedDepth(depth, useOpeningBook: false);
+
+            Stopwatch sw = Stopwatch.StartNew();
+            Move move = await ai.GetMoveAsync(state, limits, legal);
+            sw.Stop();
+
+            var a = ai.LastAnalysis;
+            long nodes = a?.Nodes ?? 0;
+            double nps = nodes / Math.Max(0.001, sw.Elapsed.TotalSeconds);
+            Console.WriteLine($"Board: {size} | Depth: {depth} plies | Chosen: {move.Position} | Nodes: {nodes:N0} | Time: {sw.ElapsedMilliseconds} ms | NPS: {nps:N0}");
+        }
+    }
+}

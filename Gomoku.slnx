@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Gomoku.App/Gomoku.App.csproj" />
+    <Project Path="src/Gomoku.Core/Gomoku.Core.csproj" />
+    <Project Path="src/Gomoku.Web/Gomoku.Web.csproj" />
+    <Project Path="src/Gomoku.Wpf/Gomoku.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Gomoku.App.Tests/Gomoku.App.Tests.csproj" />
+    <Project Path="tests/Gomoku.Core.Tests/Gomoku.Core.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj" />
+  </Folder>
+</Solution>
+
