@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Play Gomoku in Web Browser (Blazor)",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/src/Gomoku.Web/Gomoku.Web.csproj"
+    },
+    {
+      "name": "Play Gomoku Desktop (WPF)",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/src/Gomoku.Wpf/Gomoku.Wpf.csproj"
+    }
+  ]
+}
+
