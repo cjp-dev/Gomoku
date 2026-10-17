@@ -7,10 +7,10 @@ The project follows **Clean Architecture** to ensure complete decoupling between
 - **Engine Library:** High-performance, zero-UI class library (`Gomoku.Core`).
 - **Shared App Layer:** Shared ViewModels, game loop, file persistence, and settings (`Gomoku.App`), shared between all clients.
 - **Primary Desktop Client:** Modern .NET 10 WPF desktop application (`Gomoku.Wpf`) featuring:
-  - 60 FPS board rendering of a 19x19 wooden board with traditional star points (*hoshi*), stone drop shadows, and winning 5-in-a-row highlight indicators.
+  - 60 FPS board rendering with a wood grain board texture, customizable board dimensions (**15x15**, **19x19**, **20x20**), dynamic star points (*hoshi*), stone drop shadows, last move indicator, and winning 5-in-a-row highlight indicators.
   - Full Game Save / Load system supporting both **SGF (Smart Game Format)** and standard Gomoku coordinate notation with metadata headers.
   - Live Analysis telemetry pane (Move, Depth, Score, Best Move, Nodes, Evaluations/s, Time) matching Stello and Connect-4.
-  - Computer Settings modal dialog and time controls matching Stello and Connect-4 (`Fixed depth`, `Time per move`, `Time per game`, AI Engine selection).
+  - Computer Settings modal dialog and time controls matching Stello and Connect-4 (`Board size`, `Fixed depth`, `Time per move`, `Time per game`, AI Engine selection).
 - **Web Client:** Blazor WebAssembly application (`Gomoku.Web`) with Ahead-Of-Time (AOT) compilation, sharing the exact same core engine and app layer.
 - **Deployment:** Automated CI/CD deploying the Blazor WebAssembly static files to **Azure Static Web Apps** via GitHub Actions, following the deployment method in `C:\Udvikling\Spil\Stello\.github\workflows\azure-static-web-apps.yml`.
 - **Documentation:** Comprehensive architectural and engine documentation in `docs/brain/`, following the numbered chapter format and technical depth of `C:\Udvikling\Spil\Connect-4\docs\brain` and `C:\Udvikling\Spil\Stello\docs\brain`. The documentation is served directly inside the web client via Markdig markdown rendering.
@@ -18,19 +18,30 @@ The project follows **Clean Architecture** to ensure complete decoupling between
 ### 1.1 Inspiration & Engine Heritage: Carbon Gomoku
 The AI engine architecture draws direct inspiration from **Carbon Gomoku**, an acclaimed, highly optimized Gomoku program created by Polish developer **Michał Czardybon** (located in the project folder under `Carbon-Gomoku-master`). 
 
-Carbon Gomoku was recognized as one of the strongest Gomoku engines in the world at its inception (dominating other engines and competing in the Gomocup tournaments). The engine is documented extensively in Polish within the `Carbon-Gomoku-master/Documentation_PL` subfolder. Key insights and mathematical formalisms translated and synthesized from that documentation include:
-- **Directional Pattern Bitboards (`pattern[4][2]`):** Encoding the 8 neighboring cells across 4 directions into fast 8-bit masks.
-- **Precomputed Directional Lookups:**
+Carbon Gomoku was recognized as one of the strongest Gomoku engines in the world at its inception (dominating other contemporary engines and competing in the annual Gomocup tournaments). The engine is documented extensively in Polish within the `Carbon-Gomoku-master/Documentation_PL` subfolder. 
+
+#### Native Multi-Size Board Architecture in Carbon Gomoku
+A forensic analysis of the `Carbon-Gomoku-master` codebase confirms that the AI engine is **completely board-size agnostic**:
+* **No Hardwired 19x19 in AI Engine:** The literal `19` was only hardcoded as the default in the legacy WinAPI sample dialog (`OXMain.cpp:53: const int boardSize = 19;`).
+* **Arbitrary Board Dimension Support:** The core engine methods `AICarbon::start(int width, int height)` and `OXGame::start(int bsize)` accept arbitrary dimensions up to `MAX_BOARD_WIDTH = 64` and `MAX_BOARD_HEIGHT = 32`. In the Gomocup tournaments, Carbon Gomoku competed on **20x20 boards** via `pisqpipe.cpp` and `AIwrapper.cpp` without any engine modifications.
+* **Directional Pattern Bitboards (`pattern[4][2]`):** Gomoku is governed by local 5-stone alignments. Carbon inspects 4 cells forward and 4 cells backward across 4 directions (horizontal, vertical, diagonal, anti-diagonal), encoding this 8-cell window into an 8-bit mask. The board array is bordered by a 4-cell safety margin initialized to `WRONG`, causing board edges to naturally act as blocked boundaries regardless of board size.
+* **Precomputed Lookup Tables (100% Size-Agnostic):**
   - `STATUS1.CPP`: 256x256 table classifying single-direction ray configurations into 10 pattern classes (0..9).
   - `CONFIG.CPP`: 256x256 table mapping 8-bit pattern combinations of both players to 107 canonical configuration types.
   - `COUNT5.CPP`: 107x5 table tabulating the exact count of 5-in-a-row formations achievable in 1, 2, 3, 4, or 5 moves.
   - `PRIOR3.CPP`: 256x256 table providing fast heuristic cell priority scoring for move ordering.
   - `STATUS4`: 4-dimensional tensor ($10 \times 10 \times 10 \times 10$) mapping the 4 directional statuses into tactical threat categories: Class A (five-in-a-row), Class B (open four), Class C (four + open three), Class D (four + blocked three), Class E (blocked four), Class F (double open three / 3x3 threat), Class G (open three + blocked two), Class H (single open three).
-- **Fast Tactical Pruning & Forced Moves (`ONE_CAND`):** Instant recognition and execution of immediate wins (status A), opponent four-blocks (status A), open-four creations (status B), and open-three defensive move restrictions.
-- **Quick Win Search (`quickWinSearch`):** Specialized Victory-by-Continuous-Fours (VCF) / tactical threat search executing outside full minimax to instantly verify terminal combinations and mate sequences.
-- **Triple-Hash Transposition Table:** Multi-word hash signatures (`hashValA`, `hashValB`, `hashValC` creating an 80-bit collision-free signature) with best-move caching for next-ply move ordering.
-- **Iterative Deepening & Dynamic Time Management:** Smooth depth progression from 2 to 50 plies, time-out prevention heuristics (`TIMEOUT_PREVENT = 5`), and game-clock allocation (`MATCH_SPARE = 7`).
-- **Baseline AI (`AISimple`):** Fast, non-searching pattern-evaluation AI for casual play.
+* **Transposition Table Hash Offsets:**
+  The Zobrist hash key offset formula in `AICarbonHash.h` is:
+  $$\text{offset} = x + (y \ll 6) + (\text{who} \ll 11)$$
+  Because bits 0–5 span $X \in [0, 63]$, bits 6–10 span $Y \in [0, 31]$, and bit 11 represents player color, the precomputed hash arrays `hashValA[4096]`, `hashValB[4096]`, `hashValC[4096]` naturally accommodate all board sizes up to $56 \times 24$ (accounting for the 4-cell border margin) without collision or modification.
+* **Adaptive Candidate Bounding Box:**
+  Search is strictly restricted to an adaptive bounding box (`upperLeftCand`, `lowerRightCand`) expanded by 2 cells around existing stones and clamped dynamically to $[4, \text{width} + 3] \times [4, \text{height} + 3]$.
+* **Center Opening Calculation:**
+  The first move dynamically targets the geometric center of any board: `x = boardWidth / 2; y = boardHeight / 2;`.
+* **Fast Tactical Pruning & Forced Moves (`ONE_CAND`):** Instant recognition and execution of immediate wins (status A), opponent four-blocks (status A), open-four creations (status B), and open-three defensive move restrictions.
+* **Quick Win Search (`quickWinSearch`):** Specialized Victory-by-Continuous-Fours (VCF) / tactical threat search executing outside full minimax to instantly verify terminal combinations and mate sequences.
+* **Baseline AI (`AISimple`):** Fast, non-searching pattern-evaluation AI for casual play.
 
 UI and client application patterns are adapted from `C:\Udvikling\Spil\Stello` and `C:\Udvikling\Spil\Connect-4`.
 
@@ -38,13 +49,26 @@ UI and client application patterns are adapted from `C:\Udvikling\Spil\Stello` a
 
 ## 2. Game Rules & Mechanics
 
-The game implements the standard rules of Gomoku matching **Carbon Gomoku**:
+### 2.1 Configurable Board Dimensions & Markings
+The application supports the three prominent standard Gomoku board sizes:
+1. **15x15 (Official International Standard):**
+   * Total intersections: 225 (`(0, 0)` to `(14, 14)`).
+   * Official tournament size for International Gomoku and Renju.
+   * **5 Star Points (*hoshi*):** `(3, 3)`, `(11, 3)`, `(7, 7)` (*tengen*), `(3, 11)`, `(11, 11)`.
+2. **19x19 (Traditional Go Board Size - Carbon Demo Default):**
+   * Total intersections: 361 (`(0, 0)` to `(18, 18)`).
+   * Standard Asian board format (borrowed from Go/Weiqi/Baduk) and default in Carbon Gomoku's original WinAPI UI.
+   * **9 Star Points (*hoshi*):** `(3, 3)`, `(9, 3)`, `(15, 3)`, `(3, 9)`, `(9, 9)` (*tengen*), `(15, 9)`, `(3, 15)`, `(9, 15)`, `(15, 15)`.
+3. **20x20 (Gomocup Tournament Standard):**
+   * Total intersections: 400 (`(0, 0)` to `(19, 19)`).
+   * The official competition standard of the annual AI Gomocup tournament.
+   * **Star Points:** Clean grid or optional 4 corner markers at `(3, 3)`, `(16, 3)`, `(3, 16)`, `(16, 16)`.
 
-### 2.1 Board & Pieces
-* **Board:** 19x19 grid with 361 intersections total (`(x, y)` coordinates from `(0, 0)` to `(18, 18)`).
-* **Grid Markings:** 9 traditional star points (*hoshi*) located at intersections `(3, 3)`, `(3, 9)`, `(3, 15)`, `(9, 3)`, `(9, 9)`, `(9, 15)`, `(15, 3)`, `(15, 9)`, and `(15, 15)` (using 0-based indexing).
 * **Pieces:** Black stones and White stones placed on the grid intersections (not inside the squares).
-* **First Move:** Black moves first. The first move is typically placed at the center star point `(9, 9)` (*tengen*).
+* **First Move:** Black moves first. The first move is typically placed at the center star point (*tengen*):
+  - On 15x15: `(7, 7)` (`H8` in coordinate notation)
+  - On 19x19: `(9, 9)` (`K10` in coordinate notation)
+  - On 20x20: `(10, 10)` (`K11` in coordinate notation)
 
 ### 2.2 Gameplay Rules
 1. Players alternate placing one stone of their color on any vacant intersection.
@@ -53,7 +77,7 @@ The game implements the standard rules of Gomoku matching **Carbon Gomoku**:
    * The first player to form an unbroken horizontal, vertical, diagonal, or antidiagonal line of **five or more consecutive stones** of their color immediately wins the game.
    * Overlines (lines of 6, 7, or more consecutive stones) count as a win in standard Freestyle Gomoku.
 4. **Draw Condition:**
-   * If all 361 intersections are filled without either player achieving 5 in a row, the game is declared a draw.
+   * If all intersections on the board are filled without either player achieving 5 in a row, the game is declared a draw.
    * Players may also agree to a mutual draw.
 
 ### 2.3 Rule Configuration Flags (Mirroring Carbon Gomoku)
@@ -71,18 +95,18 @@ Configurable via the Game Settings dialog:
 Dual support for standard Gomoku formats:
 1. **SGF (Smart Game Format, `.sgf`):**
    * The universal standard for Go, Gomoku, and Renju games.
-   * Stores game tree metadata (`GM[11]` for Gomoku, `SZ[19]`, `PB[PlayerBlack]`, `PW[PlayerWhite]`, `KM[0]`, `RU[Freestyle]`), and moves in standard column/row letter notation (e.g. `;B[jj];W[ih];B[ji]...`).
+   * Stores game tree metadata (`GM[11]` for Gomoku, `SZ[15]` / `SZ[19]` / `SZ[20]`, `PB[PlayerBlack]`, `PW[PlayerWhite]`, `KM[0]`, `RU[Freestyle]`), and moves in standard column/row letter notation (e.g. `;B[hh];W[hi];B[ih]...`).
 2. **Standard Gomoku Coordinate Notation (`.gomoku` / `.txt`):**
-   * Human-readable coordinate move list (e.g., `1. J10  2. H9  3. K11 ...` or coordinate pairs `9,9  8,8  10,10`), matching the header tag structure of Stello and Connect-4:
+   * Human-readable coordinate move list (e.g., `1. H8  2. H9  3. I9 ...` or coordinate pairs `7,7  7,8  8,8`), matching the header tag structure of Stello and Connect-4:
      - `[Game "Gomoku"]`
-     - `[Size "19x19"]`
+     - `[Size "15x15"]` (or `"19x19"`, `"20x20"`)
      - `[Variant "Freestyle"]` (or `"Exact5"`, `"Renju"`)
      - `[GameMode "HumanVsComputer"]`
      - `[AIPlayer "CarbonAI"]`
      - `[Depth "6"]`
      - `[SecondsPerMove "5"]`
      - `[MinutesPerGame "5"]`
-3. **File Operations:** Standard `New`, `Open...`, `Save`, and `Save As...` with dirty tracking, file dialogs, and window title integration.
+3. **File Operations:** Standard `New`, `Open...`, `Save`, and `Save As...` with dirty tracking, file dialogs, and window title integration. Changing board size initiates a prompt to start a New Game.
 
 ---
 
@@ -101,7 +125,7 @@ Gomoku/
 │       ├── README.md                  # The Gomoku brain on one page + chapter index
 │       ├── images/                    # SVG architectural, board, pattern, search, and tensor diagrams
 │       ├── 01-overview.md             # Projects, core abstractions, move lifecycle
-│       ├── 02-board-and-coordinates.md# 19x19 grid, star points, indexing, neighbor directions
+│       ├── 02-board-and-coordinates.md# 15x15, 19x19, 20x20 grids, star points, indexing, neighbor directions
 │       ├── 03-rules-and-patterns.md   # Win conditions, 5-in-a-row, overlines, exact 5, Renju fouls
 │       ├── 04-game-record.md          # GameSession, undo/redo, SGF format & Gomoku notation
 │       ├── 05-evaluation-and-heuristics.md # Pattern tensors, CONFIG, COUNT5, 1..5 move 5-in-a-row potential
@@ -115,7 +139,7 @@ Gomoku/
 │
 ├── src/
 │   ├── Gomoku.Core/                   # Pure Game Engine & Logic (.NET 10)
-│   │   ├── Models/                    # Piece, Point, Move, BoardState, GameStatus, CandidateMove
+│   │   ├── Models/                    # Piece, Point, Move, BoardSize, BoardState, GameStatus, CandidateMove
 │   │   ├── Engine/                    # RuleEngine, PatternEngine, ZobristHash, GameSession
 │   │   ├── Formats/                   # SgfFormat, GomokuRecordFormat
 │   │   └── AI/                        # IPlayer, HumanPlayer, SimpleAiPlayer, CarbonAiPlayer,
@@ -129,7 +153,7 @@ Gomoku/
 │   │
 │   ├── Gomoku.Wpf/                    # Desktop Presentation Layer (.NET 10 WPF)
 │   │   ├── Views/                     # MainWindow, BoardView, SettingsWindow, LogWindow
-│   │   ├── Controls/                  # GomokuBoardControl (vector rendering, star points, stones)
+│   │   ├── Controls/                  # GomokuBoardControl (vector rendering for 15x15/19x19/20x20, star points)
 │   │   ├── Services/                  # WpfDialogService, WpfGameFileService, SoundPlayerService
 │   │   └── Converters/                # Value converters for XAML bindings
 │   │
@@ -139,7 +163,7 @@ Gomoku/
 │       └── wwwroot/                   # CSS, audio, icons, board textures, static web assets
 │
 ├── tests/
-│   ├── Gomoku.Core.Tests/             # Unit tests: Rules, 5-in-a-row, Exact5, Renju fouls, SGF, Search, TT
+│   ├── Gomoku.Core.Tests/             # Unit tests: Rules, 15x15/19x19/20x20, Exact5, Renju, SGF, Search, TT
 │   └── Gomoku.App.Tests/              # Unit tests: ViewModels, GameSession, File I/O, Settings, Clocks
 │
 └── tools/
@@ -148,7 +172,7 @@ Gomoku/
 
 ### 3.1 `Gomoku.Core` (Engine & Logic)
 * **Zero UI Dependencies:** Pure C# 13 / .NET 10 base class libraries only.
-* **Deterministic & Pure:** State transitions produce verifiable, cloneable states.
+* **Configurable Board Geometry:** `BoardSize` record struct supporting standard dimensions ($15 \times 15$, $19 \times 19$, $20 \times 20$) and arbitrary rectangular bounds up to $64 \times 32$.
 * **Key Components:**
   * `RuleEngine`: Fast board state tracking, legal move verification, incremental 5-in-a-row detection in all 4 directions, and terminal status evaluation.
   * `PatternEngine`: Incremental directional pattern maintenance ported from Carbon's `AICarbonMove.cpp`:
@@ -156,7 +180,7 @@ Gomoku/
     - Precalculated tables (`CONFIG`, `COUNT5`, `PRIOR`, `STATUS1`, `STATUS4`).
   * `IPlayer`: Player abstraction implemented by `HumanPlayer`, `SimpleAiPlayer` (AISimple ported from Carbon), and `CarbonAiPlayer` (AICarbon ported from Carbon).
   * `CarbonAiPlayer`: Alpha-Beta search with **Iterative Deepening**, Zobrist Transposition Table, `quickWinSearch` (VCF), expert tactical heuristics (`ONE_CAND`), time management, and real-time `IProgress<SearchAnalysis>` telemetry streaming.
-  * `SgfFormat` & `GomokuRecordFormat`: Comprehensive parser and serializer for SGF collections and coordinate notation.
+  * `SgfFormat` & `GomokuRecordFormat`: Comprehensive parser and serializer for SGF collections and coordinate notation across all supported board sizes.
 
 ### 3.2 `Gomoku.App` (Shared Application Layer)
 * Shared between `Gomoku.Wpf` and `Gomoku.Web`.
@@ -167,14 +191,14 @@ Gomoku/
 
 ### 3.3 `Gomoku.Wpf` (Desktop UI)
 * Native Windows desktop UI using WPF and modern clean styling matching Stello and Connect-4.
-* 60 FPS responsive vector board rendering with wood grain texture, star points, smooth stone drop animations, last move marker, and winning line highlights.
+* 60 FPS responsive vector board rendering with wood grain texture, star points dynamically drawn for 15x15 (5 points), 19x19 (9 points), and 20x20, smooth stone drop animations, last move marker, and winning line highlights.
 * Dedicated **Analysis** pane displaying engine telemetry (Move, Depth, Score, Best Move, Nodes, Evaluations/sec, Time) updated live while the computer thinks.
-* **Settings Window** dialog with radio toggles and sliders matching Stello and Connect-4.
+* **Settings Window** dialog with radio toggles and sliders matching Stello and Connect-4, including Board Size selection.
 * Visual indicators: active player badge, chess clocks, thinking progress bar, and evaluation sparklines.
 
 ### 3.4 `Gomoku.Web` (Blazor WebAssembly)
 * High-performance browser client using Blazor WebAssembly targeting .NET 10 with Ahead-Of-Time (AOT) compilation enabled for Release builds (`<RunAOTCompilation>true</RunAOTCompilation>`).
-* Responsive board design inspired by Stello and Connect-4, supporting both desktop and touch devices.
+* Responsive SVG/HTML5 board design inspired by Stello and Connect-4, automatically scaling to 15x15, 19x19, or 20x20.
 * Integrated `/docs` route rendering `docs/brain` markdown chapters using Markdig.
 * Targets Azure Static Web Apps with automated GitHub Actions deployment.
 
@@ -196,7 +220,7 @@ Following the architecture of Carbon Gomoku documented in `Documentation_PL/Anal
      - Low nibble (bits 0..3): 4 cells backward (distances 1 to 4).
      - High nibble (bits 4..7): 4 cells forward (distances 1 to 4).
    * Incremental updates on stone placement and undo ensure $O(1)$ maintenance (updating only the 8 cells along each of the 4 lines through $(x, y)$).
-3. **Lookup Tables:**
+3. **Board Size Independence of Lookups:**
    * **`STATUS1[256][256]` (Single-Direction Status):** Classifies the ray pattern into 10 fundamental classes (0 to 9):
      - `9`: Open Four (`.OOOO.`)
      - `8`: Open Three (`..OOO.`)
@@ -238,10 +262,10 @@ Ported from `AICarbon::evaluate()`:
 * Terminal scores: $\text{WIN\_MAX} = 30,000$ points. A win in $n$ plies evaluates to $\text{WIN\_MAX} - n$ to favor rapid victories and delay inevitable defeats.
 
 ### 4.3 Move Generation, Bounding Box & Expert Pruning
-To prevent exploring all 361 intersections at every node:
+To prevent exploring hundreds of intersections at every node:
 1. **Dynamic Bounding Box:**
    * Search is strictly confined to a bounding box extending **2 cells beyond the outermost occupied stones**:
-     $$\text{SearchBox} = [\min(X) - 2, \max(X) + 2] \times [\min(Y) - 2, \max(Y) + 2]$$
+     $$\text{SearchBox} = [\max(0, \min(X) - 2), \min(\text{Width}-1, \max(X) + 2)] \times [\max(0, \min(Y) - 2), \min(\text{Height}-1, \max(Y) + 2)]$$
    * Bounding coordinates (`upperLeftCand`, `lowerRightCand`) are incrementally expanded on moves and contracted on undos.
 2. **Adjacency Requirement:**
    * Only empty cells with `adj1 > 0` (neighbor at distance 1) or `adj2 > 0` (neighbor at distance 2) are admitted as candidate moves.
@@ -273,6 +297,7 @@ Ported from `AICarbon::quickWinSearch()`:
 To handle transpositions resulting from identical stone configurations reached via different move permutations:
 * **Multi-Hash Zobrist Signatures:**
   - 3 independent pseudo-random numbers per intersection and player color: `hashValA`, `hashValB`, `hashValC` (each 32-bit).
+  - Offset calculation: $\text{offset} = x + (y \ll 6) + (\text{who} \ll 11)$, natively accommodating board sizes up to $56 \times 24$ (spanning 15x15, 19x19, 20x20).
   - `hashValA % tableSize` indexes the table bucket.
   - `hashValB` and `hashValC` form a combined 64-bit verification signature to ensure virtually zero hash collisions.
 * **Compact Transposition Entry:**
@@ -294,18 +319,23 @@ Ported from Carbon Gomoku's timing heuristics:
 
 ### 4.8 Computer Options & Settings Dialog (Matching Stello & Connect-4)
 Configurable via `Game -> Settings...` dialog:
-1. **AI Opponent Engine**:
+1. **Board Size**:
+   - Radio / Dropdown selection:
+     - **15x15 (International Tournament Standard)** - 5 star points, fast tactical combat.
+     - **19x19 (Traditional Go Board Size)** - 9 star points, deep strategic maneuvering.
+     - **20x20 (Gomocup Tournament Standard)** - competition standard for AI tournaments.
+2. **AI Opponent Engine**:
    - **Carbon AI (Advanced Minimax):** Full Alpha-Beta engine with iterative deepening, TT, pattern bitboards, and quickWinSearch.
    - **Simple AI (Heuristic Baseline):** Fast non-searching pattern evaluator ported from Carbon's `AISimple`.
-2. **Fixed Depth**:
+3. **Fixed Depth**:
    - Slider: 1 to 20 plies (default: 6 plies).
-3. **Time per Move**:
+4. **Time per Move**:
    - Slider: 1 to 60 seconds (default: 5 seconds).
-4. **Time per Game**:
+5. **Time per Game**:
    - Slider: 1 to 60 minutes (default: 5 minutes) with live chess clock countdown and refund on Undo.
-5. **Transposition Table Size**:
+6. **Transposition Table Size**:
    - Slider: $2^{16}$ ($65,536$) up to $2^{24}$ ($16,777,216$) entries (default: $2^{20} = 1,048,576$ entries).
-6. **Rule Variant**:
+7. **Rule Variant**:
    - Freestyle Gomoku (Default, 5+ wins)
    - Exact 5 (Overlines do not count)
    - Renju Mode (Black foul restrictions)
@@ -316,12 +346,12 @@ Configurable via `Game -> Settings...` dialog:
 
 | Phase | Milestone | Deliverables | Status |
 | :--- | :--- | :--- | :--- |
-| **Phase 1** | **Core Domain & Rule Engine** | • 19x19 board representation & coordinate models<br>• Incremental 5-in-a-row detection in all 4 directions<br>• Win/loss/draw terminal condition verification<br>• Variant rules: Exact 5 and Renju foul detection (`checkForbid`)<br>• 100% test coverage on move edge cases and overlines | **PLANNED** |
-| **Phase 1.5** | **Engine Documentation (`docs/brain`)** | • Create `docs/brain/` structure matching Stello & Connect-4<br>• `README.md` (The Gomoku brain on one page)<br>• `01-overview.md` (Architecture, life of a move)<br>• `02-board-and-coordinates.md` (19x19 grid, star points, indexing)<br>• `03-rules-and-patterns.md` (Win conditions, Exact 5, Renju fouls)<br>• `04-game-record.md` (GameSession, history, SGF format) | **PLANNED** |
-| **Phase 2** | **Shared App Layer & WPF Desktop GUI** | • `Gomoku.App` shared ViewModels & game coordinator<br>• `Gomoku.Wpf` desktop application<br>• Responsive 19x19 wooden board with star points & stone rendering<br>• Click-to-place, hover preview, last move marker & winning line highlight<br>• Turn management, Undo/Redo, and sound effects | **PLANNED** |
-| **Phase 3** | **AI Engines, Analysis & Game Records** | • Port `SimpleAiPlayer` from Carbon's `AISimple`<br>• Port `PatternEngine` (`pattern[4][2]`, `CONFIG`, `COUNT5`, `PRIOR`, `STATUS1`, `STATUS4`)<br>• Port `CarbonAiPlayer` with Alpha-Beta, Iterative Deepening & `quickWinSearch`<br>• Real-time **Analysis Pane** (Move, Depth, Score, Best Move, Nodes, Speed, Time)<br>• Full **Save & Load** system (SGF and coordinate format)<br>• Document chapters `05-evaluation-and-heuristics.md`, `06-move-ordering-and-candidates.md`, `07-search-and-quickwin.md` | **PLANNED** |
-| **Phase 4** | **Computer Settings, Time Controls & Engine Polish** | • **Computer Settings Dialog** matching Stello & Connect-4 (Engine, Depth, Time per move, Time per game, TT size, Variant)<br>• **Chess clock / time management** (`MATCH_SPARE`, `TIMEOUT_PREVENT`, clock refund on undo)<br>• **Transposition Table** (Triple-hash Zobrist signatures, 80-bit keys, replacement policies)<br>• **Empirical benchmark runner** (`tools/Gomoku.Benchmark`) verifying node cutoffs and speedup<br>• Document chapters `08-transposition-table.md`, `09-time-control.md` | **PLANNED** |
-| **Phase 5** | **Blazor WebAssembly Client & Deployment** | • `Gomoku.Web` project with .NET 10 WebAssembly AOT<br>• Responsive Web board UI inspired by Stello and Connect-4<br>• Integrated `/docs` viewer rendering `docs/brain` using Markdig<br>• CI/CD pipeline: `.github/workflows/azure-static-web-apps.yml`<br>• Automated deployment to Azure Static Web Apps | **PLANNED** |
+| **Phase 1** | **Core Domain & Multi-Size Rule Engine** | • Board representation supporting 15x15, 19x19, 20x20<br>• Incremental 5-in-a-row detection in all 4 directions<br>• Win/loss/draw terminal condition verification<br>• Variant rules: Exact 5 and Renju foul detection (`checkForbid`)<br>• 100% test coverage on move edge cases, center moves, and overlines | **PLANNED** |
+| **Phase 1.5** | **Engine Documentation (`docs/brain`)** | • Create `docs/brain/` structure matching Stello & Connect-4<br>• `README.md` (The Gomoku brain on one page)<br>• `01-overview.md` (Architecture, life of a move)<br>• `02-board-and-coordinates.md` (15x15, 19x19, 20x20 grids, star points, indexing)<br>• `03-rules-and-patterns.md` (Win conditions, Exact 5, Renju fouls)<br>• `04-game-record.md` (GameSession, history, SGF format) | **PLANNED** |
+| **Phase 2** | **Shared App Layer & WPF Desktop GUI** | • `Gomoku.App` shared ViewModels & game coordinator<br>• `Gomoku.Wpf` desktop application<br>• Responsive vector board rendering with dynamic star points for 15x15, 19x19, 20x20<br>• Click-to-place, hover preview, last move marker & winning line highlight<br>• Turn management, Undo/Redo, and sound effects | **PLANNED** |
+| **Phase 3** | **AI Engines, Analysis & Game Records** | • Port `SimpleAiPlayer` from Carbon's `AISimple`<br>• Port `PatternEngine` (`pattern[4][2]`, `CONFIG`, `COUNT5`, `PRIOR`, `STATUS1`, `STATUS4`)<br>• Port `CarbonAiPlayer` with Alpha-Beta, Iterative Deepening & `quickWinSearch`<br>• Real-time **Analysis Pane** (Move, Depth, Score, Best Move, Nodes, Speed, Time)<br>• Full **Save & Load** system (SGF and coordinate format supporting all board sizes)<br>• Document chapters `05-evaluation-and-heuristics.md`, `06-move-ordering-and-candidates.md`, `07-search-and-quickwin.md` | **PLANNED** |
+| **Phase 4** | **Computer Settings, Time Controls & Engine Polish** | • **Computer Settings Dialog** matching Stello & Connect-4 (Board Size, Engine, Depth, Time per move, Time per game, TT size, Variant)<br>• **Chess clock / time management** (`MATCH_SPARE`, `TIMEOUT_PREVENT`, clock refund on undo)<br>• **Transposition Table** (Triple-hash Zobrist signatures, 80-bit keys, replacement policies)<br>• **Empirical benchmark runner** (`tools/Gomoku.Benchmark`) verifying node cutoffs across 15x15 and 19x19<br>• Document chapters `08-transposition-table.md`, `09-time-control.md` | **PLANNED** |
+| **Phase 5** | **Blazor WebAssembly Client & Deployment** | • `Gomoku.Web` project with .NET 10 WebAssembly AOT<br>• Responsive Web board UI dynamically scaling to 15x15, 19x19, 20x20<br>• Integrated `/docs` viewer rendering `docs/brain` using Markdig<br>• CI/CD pipeline: `.github/workflows/azure-static-web-apps.yml`<br>• Automated deployment to Azure Static Web Apps | **PLANNED** |
 
 ---
 
@@ -330,6 +360,6 @@ Configurable via `Game -> Settings...` dialog:
 - **Platform:** .NET 10 (C# 13)
 - **Compiler Warnings:** 0 warnings across all projects (Debug & Release builds)
 - **Automated Unit Testing Target:** > 100 tests across core and app layers
-  - `Gomoku.Core.Tests`: Board operations, 5-in-a-row detection in 4 directions, overline handling, Exact5 flag, Renju forbidden moves, pattern tables, candidate generator, quickWinSearch, Alpha-Beta minimax, TT consistency, SGF parser/serializer.
-  - `Gomoku.App.Tests`: ViewModels, GameSession, Turn coordination, Clock refund on Undo, File I/O, Settings persistence.
+  - `Gomoku.Core.Tests`: Board operations for 15x15, 19x19, and 20x20, 5-in-a-row detection in 4 directions, overline handling, Exact5 flag, Renju forbidden moves, pattern tables, candidate generator, quickWinSearch, Alpha-Beta minimax, TT consistency, SGF parser/serializer.
+  - `Gomoku.App.Tests`: ViewModels, GameSession, Turn coordination, Clock refund on Undo, File I/O, Settings persistence across board sizes.
 - **Search Performance Target:** > 500,000 nodes/sec in .NET 10 Release builds, achieving deep tactical play (depth 6–10) within 1–3 seconds per move.
