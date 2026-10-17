@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 320" width="820" height="320" font-family="Segoe UI, system-ui, sans-serif">
+  <defs>
+    <marker id="vcfArr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64B5F6"/>
+    </marker>
+  </defs>
+  <rect width="820" height="320" rx="12" fill="#14191D" stroke="#2B3842" stroke-width="2"/>
+  <text x="410" y="32" text-anchor="middle" fill="#ECEFF1" font-size="18" font-weight="700">Victory by Continuous Fours (VCF) Forcing Sequence</text>
+
+  <!-- Step 1 -->
+  <rect x="40" y="60" width="220" height="130" rx="6" fill="#1C252B" stroke="#42A5F5"/>
+  <text x="150" y="85" text-anchor="middle" fill="#90CAF9" font-size="13" font-weight="700">Ply 1: Attack Four</text>
+  <text x="56" y="112" fill="#CFD8DC" font-size="11">• Attacker plays (X1, Y1)</text>
+  <text x="56" y="132" fill="#CFD8DC" font-size="11">• Creates a Half-Open Four</text>
+  <text x="56" y="152" fill="#A5D6A7" font-size="11">• Threatens immediate win!</text>
+  <text x="56" y="172" fill="#FFB74D" font-size="11">• Branching factor: b ≈ 2</text>
+
+  <!-- Step 2 -->
+  <rect x="300" y="60" width="220" height="130" rx="6" fill="#1C252B" stroke="#EF5350"/>
+  <text x="410" y="85" text-anchor="middle" fill="#EF9A9A" font-size="13" font-weight="700">Ply 2: Forced Defense</text>
+  <text x="316" y="112" fill="#CFD8DC" font-size="11">• Defender has no choice!</text>
+  <text x="316" y="132" fill="#CFD8DC" font-size="11">• Must block at (B1)</text>
+  <text x="316" y="152" fill="#EF9A9A" font-size="11">• If not, Defender loses</text>
+  <text x="316" y="172" fill="#81D4FA" font-size="11">• Branching factor: b = 1</text>
+
+  <!-- Step 3 -->
+  <rect x="560" y="60" width="220" height="130" rx="6" fill="#1C252B" stroke="#4CAF50"/>
+  <text x="670" y="85" text-anchor="middle" fill="#A5D6A7" font-size="13" font-weight="700">Ply 3: Checkmate Fork</text>
+  <text x="576" y="112" fill="#CFD8DC" font-size="11">• Attacker plays (X2, Y2)</text>
+  <text x="576" y="132" fill="#CFD8DC" font-size="11">• Creates an Open Four or</text>
+  <text x="576" y="152" fill="#CFD8DC" font-size="11">  double-threat 4×3 / 4×4</text>
+  <text x="576" y="172" fill="#A5D6A7" font-size="11">• Defender cannot block both!</text>
+
+  <line x1="260" y1="125" x2="295" y2="125" stroke="#64B5F6" stroke-width="2" marker-end="url(#vcfArr)"/>
+  <line x1="520" y1="125" x2="555" y2="125" stroke="#64B5F6" stroke-width="2" marker-end="url(#vcfArr)"/>
+
+  <!-- Bottom Insight -->
+  <rect x="40" y="210" width="740" height="90" rx="8" fill="#192026" stroke="#37474F"/>
+  <text x="60" y="235" fill="#FFD54F" font-size="13" font-weight="700">Algorithmic Consequence in QuickWinSearch():</text>
+  <text x="60" y="258" fill="#CFD8DC" font-size="12">Because the defender's branching factor is strictly 1, a 16-ply VCF attack generates only ~2^8 = 256 nodes,</text>
+  <text x="60" y="278" fill="#CFD8DC" font-size="12">compared to standard minimax which would evaluate 20^16 ≈ 65,000,000,000,000,000,000 nodes!</text>
+</svg>
+

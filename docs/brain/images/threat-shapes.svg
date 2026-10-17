@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 380" width="840" height="380" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="840" height="380" rx="12" fill="#14191D" stroke="#2B3842" stroke-width="2"/>
+  <text x="420" y="32" text-anchor="middle" fill="#ECEFF1" font-size="18" font-weight="700">Gomoku &amp; Renju Tactical Threat Classifications</text>
+
+  <!-- Threat A: Five -->
+  <g transform="translate(40, 55)">
+    <rect width="365" height="65" rx="6" fill="#1E2824" stroke="#4CAF50"/>
+    <text x="14" y="24" fill="#A5D6A7" font-size="12" font-weight="700">Threat A: Five in a Row (Status 9)</text>
+    <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">· [●] [●] [●] [●] [●] ·</text>
+    <text x="210" y="44" fill="#81C784" font-size="11">Immediate victory!</text>
+  </g>
+
+  <!-- Threat B: Open Four -->
+  <g transform="translate(435, 55)">
+    <rect width="365" height="65" rx="6" fill="#1E2824" stroke="#4CAF50"/>
+    <text x="14" y="24" fill="#A5D6A7" font-size="12" font-weight="700">Threat B: Open Four (Status 8)</text>
+    <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">_ [●] [●] [●] [●] _</text>
+    <text x="200" y="44" fill="#81C784" font-size="11">Unstoppable win in 1 move!</text>
+  </g>
+
+  <!-- Threat B-: Half-Open Four -->
+  <g transform="translate(40, 130)">
+    <rect width="365" height="65" rx="6" fill="#2A241C" stroke="#FFA726"/>
+    <text x="14" y="24" fill="#FFCC80" font-size="12" font-weight="700">Threat B- / C: Half-Open Four (Status 7)</text>
+    <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">X [●] [●] [●] [●] _</text>
+    <text x="200" y="44" fill="#FFB74D" font-size="11">Forces opponent to block.</text>
+  </g>
+
+  <!-- Threat C: Open Three -->
+  <g transform="translate(435, 130)">
+    <rect width="365" height="65" rx="6" fill="#2A241C" stroke="#FFA726"/>
+    <text x="14" y="24" fill="#FFCC80" font-size="12" font-weight="700">Threat C: Open Three (Status 6)</text>
+    <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">_ [●] [●] [●] _ _</text>
+    <text x="200" y="44" fill="#FFB74D" font-size="11">Can become an open four.</text>
+  </g>
+
+  <!-- Renju Foul 1: Double-Three (3x3) -->
+  <g transform="translate(40, 205)">
+    <rect width="365" height="75" rx="6" fill="#2D1C1E" stroke="#EF5350"/>
+    <text x="14" y="24" fill="#EF9A9A" font-size="12" font-weight="700">Renju Foul: Double-Three (3×3)</text>
+    <text x="14" y="46" fill="#CFD8DC" font-size="11">Creating two simultaneous open threes</text>
+    <text x="14" y="64" fill="#FF8A80" font-size="11" font-weight="600">FORBIDDEN for Black • Legal for White</text>
+  </g>
+
+  <!-- Renju Foul 2: Double-Four (4x4) -->
+  <g transform="translate(435, 205)">
+    <rect width="365" height="75" rx="6" fill="#2D1C1E" stroke="#EF5350"/>
+    <text x="14" y="24" fill="#EF9A9A" font-size="12" font-weight="700">Renju Foul: Double-Four (4×4)</text>
+    <text x="14" y="46" fill="#CFD8DC" font-size="11">Creating two simultaneous fours</text>
+    <text x="14" y="64" fill="#FF8A80" font-size="11" font-weight="600">FORBIDDEN for Black • Legal for White</text>
+  </g>
+
+  <!-- Renju Foul 3: Overline (6+) -->
+  <g transform="translate(40, 290)">
+    <rect width="760" height="65" rx="6" fill="#2D1C1E" stroke="#EF5350"/>
+    <text x="14" y="24" fill="#EF9A9A" font-size="12" font-weight="700">Renju Foul: Overline (6+ consecutive stones)</text>
+    <text x="14" y="48" fill="#CFD8DC" font-size="11" font-family="Consolas, monospace">[●][●][●][●][●][●] (6+)</text>
+    <text x="280" y="46" fill="#FF8A80" font-size="11">Illegal foul for Black! Legal &amp; winning for White! (Wins in Freestyle, ignored in Exact5).</text>
+  </g>
+</svg>
+

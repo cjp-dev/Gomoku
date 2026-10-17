@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 340" width="840" height="340" font-family="Segoe UI, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#182026"/>
+      <stop offset="100%" stop-color="#101418"/>
+    </linearGradient>
+  </defs>
+  <rect width="840" height="340" rx="12" fill="url(#bg)" stroke="#2C3B47" stroke-width="2"/>
+  <text x="420" y="32" text-anchor="middle" fill="#ECEFF1" font-size="18" font-weight="700">8-Bit Directional Ray Layout &amp; Bit Positions</text>
+
+  <!-- Ray Diagram for Horizontal Axis -->
+  <g transform="translate(40, 60)">
+    <rect width="760" height="110" rx="8" fill="#1E2A32" stroke="#37474F"/>
+    <text x="20" y="28" fill="#81D4FA" font-size="13" font-weight="700">Horizontal Ray (k = 0): dx = +1, dy = 0</text>
+
+    <!-- Cells along the ray -->
+    <!-- -4 -->
+    <rect x="20" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="52" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x - 4</text>
+    <text x="52" y="84" text-anchor="middle" fill="#EF9A9A" font-size="12" font-weight="700">Bit 0 (1)</text>
+
+    <!-- -3 -->
+    <rect x="95" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="127" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x - 3</text>
+    <text x="127" y="84" text-anchor="middle" fill="#EF9A9A" font-size="12" font-weight="700">Bit 1 (2)</text>
+
+    <!-- -2 -->
+    <rect x="170" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="202" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x - 2</text>
+    <text x="202" y="84" text-anchor="middle" fill="#EF9A9A" font-size="12" font-weight="700">Bit 2 (4)</text>
+
+    <!-- -1 -->
+    <rect x="245" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="277" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x - 1</text>
+    <text x="277" y="84" text-anchor="middle" fill="#EF9A9A" font-size="12" font-weight="700">Bit 3 (8)</text>
+
+    <!-- CENTER (x, y) -->
+    <rect x="325" y="40" width="105" height="58" rx="6" fill="#1565C0" stroke="#64B5F6" stroke-width="2"/>
+    <text x="377" y="64" text-anchor="middle" fill="#FFFFFF" font-size="13" font-weight="700">Center (x, y)</text>
+    <text x="377" y="84" text-anchor="middle" fill="#BBDEFB" font-size="11">Candidate Move</text>
+
+    <!-- +1 -->
+    <rect x="445" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="477" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x + 1</text>
+    <text x="477" y="84" text-anchor="middle" fill="#A5D6A7" font-size="12" font-weight="700">Bit 4 (16)</text>
+
+    <!-- +2 -->
+    <rect x="520" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="552" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x + 2</text>
+    <text x="552" y="84" text-anchor="middle" fill="#A5D6A7" font-size="12" font-weight="700">Bit 5 (32)</text>
+
+    <!-- +3 -->
+    <rect x="595" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="627" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x + 3</text>
+    <text x="627" y="84" text-anchor="middle" fill="#A5D6A7" font-size="12" font-weight="700">Bit 6 (64)</text>
+
+    <!-- +4 -->
+    <rect x="670" y="44" width="65" height="50" rx="4" fill="#263238" stroke="#455A64"/>
+    <text x="702" y="66" text-anchor="middle" fill="#90A4AE" font-size="11">x + 4</text>
+    <text x="702" y="84" text-anchor="middle" fill="#A5D6A7" font-size="12" font-weight="700">Bit 7 (128)</text>
+  </g>
+
+  <!-- 4 Directions Summary -->
+  <g transform="translate(40, 190)">
+    <rect width="760" height="120" rx="8" fill="#1C242B" stroke="#37474F"/>
+    <text x="20" y="26" fill="#FFD54F" font-size="13" font-weight="700">Four Discrete Ray Directions (DX[k], DY[k])</text>
+
+    <text x="30" y="55" fill="#81D4FA" font-weight="600" font-size="12">k = 0: Horizontal (—)</text>
+    <text x="30" y="75" fill="#CFD8DC" font-size="11">dx = 1, dy = 0</text>
+    <text x="30" y="95" fill="#90A4AE" font-size="11">Negative: Left, Positive: Right</text>
+
+    <text x="220" y="55" fill="#81D4FA" font-weight="600" font-size="12">k = 1: Vertical (|)</text>
+    <text x="220" y="75" fill="#CFD8DC" font-size="11">dx = 0, dy = 1</text>
+    <text x="220" y="95" fill="#90A4AE" font-size="11">Negative: Up, Positive: Down</text>
+
+    <text x="400" y="55" fill="#81D4FA" font-weight="600" font-size="12">k = 2: Main Diagonal (\)</text>
+    <text x="400" y="75" fill="#CFD8DC" font-size="11">dx = 1, dy = 1</text>
+    <text x="400" y="95" fill="#90A4AE" font-size="11">Negative: Up-Left, Positive: Down-Right</text>
+
+    <text x="600" y="55" fill="#81D4FA" font-weight="600" font-size="12">k = 3: Anti-Diagonal (/)</text>
+    <text x="600" y="75" fill="#CFD8DC" font-size="11">dx = 1, dy = -1</text>
+    <text x="600" y="95" fill="#90A4AE" font-size="11">Negative: Down-Left, Positive: Up-Right</text>
+  </g>
+</svg>
+

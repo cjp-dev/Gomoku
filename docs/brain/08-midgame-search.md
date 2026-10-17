@@ -1,0 +1,270 @@
+# 08 – Midgame search
+
+[Back to the index](README.md)
+
+## In short
+
+When no immediate tactical mate can be resolved by `QuickWinSearch`, Carbon Gomoku initiates its midgame search engine. The search is based on **Closed-Interval Negamax Alpha-Beta with Principal Variation Search (PVS)**, executed inside an **Iterative Deepening** loop with dynamic time control.
+
+The midgame search combines:
+1. **Closed-Interval $[\alpha, \beta]$ Bounds:** Uses the exact interval semantics from original Carbon C++ where bounds are inclusive and fail-soft returns exceed bounds by $\pm 1$.
+2. **Principal Variation / Null Window Probing:** The first candidate is searched with a full window $[-\beta, -\alpha]$; subsequent candidates are probed with a zero-width window $[-\beta, -(\text{best} + 1)]$ and only re-searched on refutation.
+3. **Even-Ply Iterative Deepening:** Explores depths $d = 2, 4, 6, 8, \dots, 20$. In Gomoku, even depths maintain move parity (equal turns for both players), eliminating horizon bias.
+4. **Mate-Distance Score Decay:** Scales tactical winning scores $(\ge 25,000)$ at each ply so that the search prefers the shortest forced win and longest defensive resistance.
+5. **Periodic Time Polling (`TimeoutPrevent`):** Checks elapsed wall-clock time every $1,000$ nodes to guarantee zero engine forfeits on hard tournament time limits.
+
+![PV Search Tree and Null Window Cutoffs](images/pv-search-tree.svg)
+
+---
+
+## Closed-interval Negamax formulation
+
+Traditional alpha-beta implementations define the search window as an open interval $(\alpha, \beta)$. Carbon Gomoku defines search over a **closed interval** $[\alpha, \beta]$.
+
+### Mathematical Properties:
+1. **Window Inversion:** When descending into a child node, the window is negated and swapped:
+   $$[\alpha_{\text{child}}, \beta_{\text{child}}] = [-\beta, -\alpha]$$
+2. **Beta Cutoff Condition:**
+   A cutoff occurs when an evaluation strictly exceeds $\beta$:
+   $$\text{Score} > \beta \implies \text{Return } (\beta + 1)$$
+3. **Fail Low Condition:**
+   When all children score strictly below $\alpha$:
+   $$\text{Score} < \alpha \implies \text{Return } (\alpha - 1)$$
+4. **Initial Root Window:**
+   $$[\alpha_{\text{root}}, \beta_{\text{root}}] = [-\text{Inf}, \text{Inf}] = [-32000, 32000]$$
+
+```csharp
+private Cand Minimax(int h, bool root, int alpha, int beta, CancellationToken cancellationToken)
+{
+    // Closed interval [alpha, beta] boundary check
+    if (alpha > beta + 1) return new Cand(0, 0, beta + 1);
+    Cand best = new(0, 0, alpha - 1);
+
+    // Periodically poll time limit and cancellation token
+    if (--_nodeCheckCounter <= 0)
+    {
+        _nodeCheckCounter = 1000;
+        if (Environment.TickCount64 >= _stopTime || cancellationToken.IsCancellationRequested)
+        {
+            _terminate = true;
+        }
+    }
+    if (_terminate) return best;
+
+    // Tactical quick win check
+    int q = QuickWinSearch();
+    if (q != 0)
+    {
+        if (!root) return new Cand(0, 0, (q > 0 ? WinMax : -WinMax) - q);
+        // ... handle immediate root win
+    }
+
+    // Leaf evaluation at depth h = 0
+    if (h == 0) return new Cand(0, 0, Evaluate());
+
+    h--;
+    // ... candidate generation, sorting, and recursion
+```
+
+---
+
+## Principal variation search (Null window probes)
+
+Move ordering in Carbon places the most promising move (hash move or highest static priority) at index 0. If move ordering is accurate, the first move is very likely the best move, and all subsequent alternative moves will fail to exceed it.
+
+Instead of searching every move with the wide window $[-\beta, -\alpha]$, Carbon tests all moves after the first with a **null window** of width 1:
+
+$$v_A = -\beta$$
+$$v_B = -(\text{best} + 1)$$
+
+```mermaid
+flowchart TD
+    FirstMove["1. Search First Candidate (i = 0)<br/>Full window [-beta, -alpha]"] --> BestScore["best = value"]
+    BestScore --> LoopNext["2. For next candidate i = 1 .. n-1:"]
+    LoopNext --> NullWindow["Probe with Null Window:<br/>[vA, vB] = [-beta, -(best + 1)]"]
+    NullWindow --> DidBeat{"value &gt; best?"}
+    DidBeat -- "No (Fail Low)" --> Pruned["Alternative refuted.<br/>No re-search needed."]
+    DidBeat -- "Yes (Refutation)" --> FullReSearch["Re-search with Full Window:<br/>[-beta, -best]"]
+    FullReSearch --> UpdateBest["Update best = value<br/>bestMove = cand[i]"]
+    Pruned --> HasMore{"More candidates?"}
+    UpdateBest --> CutoffCheck{"best &gt; beta?"}
+    CutoffCheck -- "Yes" --> BetaCutoff["Beta Cutoff!<br/>Return beta + 1 immediately"]
+    CutoffCheck -- "No" --> HasMore
+    HasMore -- "Yes" --> LoopNext
+    HasMore -- "No" --> StoreTT["Store best in Transposition Table<br/>Return best"]
+```
+
+### The C# Null-Window Loop:
+```csharp
+for (int i = 0; i < nCnd; i++)
+{
+    _pb.MakePaddedMove(cnd[i].X, cnd[i].Y);
+
+    int value;
+    if (i == 0)
+    {
+        // First move: full search window
+        value = -Minimax(h, false, -beta, -alpha, cancellationToken).Value;
+    }
+    else
+    {
+        // Alternative moves: null window probe
+        int vA = -beta;
+        int vB = -(best.Value + 1);
+        if (vB >= WinMin) vB++;
+        if (vA <= -WinMin) vA--;
+
+        value = -Minimax(h, false, vA, vB, cancellationToken).Value;
+
+        // If move refutes best, re-search with full window
+        if (value > best.Value && value <= beta)
+        {
+            value = -Minimax(h, false, -beta, -best.Value, cancellationToken).Value;
+        }
+    }
+
+    _pb.UndoMove();
+    if (_terminate) break;
+
+    // Decay winning/losing distance
+    if (value >= WinMin) value--;
+    if (value <= -WinMin) value++;
+
+    if (value > best.Value)
+    {
+        best = new Cand(cnd[i].X, cnd[i].Y, value);
+        if (value > alpha) alpha = value;
+        if (value > beta)
+        {
+            // Beta cutoff: refutation proven
+            best = new Cand(cnd[i].X, cnd[i].Y, beta + 1);
+            break;
+        }
+    }
+}
+```
+
+---
+
+## Iterative deepening with even-ply step
+
+The engine never launches an arbitrary deep search (such as $d = 14$) from scratch. Instead, it begins at depth $d = 2$ and increases by $+2$ plies on each iteration:
+
+```csharp
+for (int depth = 2; depth <= maxDepth; depth += 2)
+{
+    Cand result = Minimax(depth, true, -Inf, Inf, cancellationToken);
+    if (_terminate) break;
+
+    bestMovePoint = new Point(result.X - PatternBoard.Margin, result.Y - PatternBoard.Margin);
+    currentScore = result.Value;
+
+    // Immediate terminal mate found
+    if (Math.Abs(currentScore) >= WinMin)
+    {
+        break;
+    }
+}
+```
+
+### Why Even Plies in Gomoku?
+In chess or checkers, both players start with equal piece counts and alternating turns. In Gomoku, Black starts with 1 stone, White has 0; after Black's move 3, Black has 2 stones and White has 1.
+
+An **odd-ply search** ($d = 3, 5, 7$) ends on a node where the searching player has placed one more stone than their opponent without the opponent having responded. This creates artificial optimism and positional distortion. Searching in **even plies** ($d = 2, 4, 6, 8$) ensures that every leaf node represents a state where both sides have had an equal number of opportunities to place stones, producing stable and balanced evaluations.
+
+---
+
+## Time management & `TimeoutPrevent`
+
+Tournament Gomoku requires rigid adherence to time limits. Exceeding the clock by even 1 millisecond results in an instant forfeit.
+
+Carbon implements a three-part defensive timing strategy:
+1. **Clock Allocation:**
+   - **`TimePerMove` Mode:** Allocates $T_{\text{move}} = \text{TimeLimit} - 30\text{ ms}$.
+   - **`TimePerGame` Mode:** Allocates $T_{\text{turn}} = \frac{T_{\text{remaining}}}{\text{MatchSpare}} - 30\text{ ms}$ (where $\text{MatchSpare} = 50$).
+2. **`TimeoutPrevent` Buffer:**
+   A fixed $30\text{ ms}$ safety buffer is deducted from every turn budget to account for OS thread scheduling, GC pauses, and UI event marshaling:
+   $$\text{StopTime} = \text{StartTime} + T_{\text{allocated}} - 30\text{ ms}$$
+3. **Decoupled Polling Counter:**
+   Querying `Environment.TickCount64` on every node incurs noticeable CPU overhead ($2\text{ to }5\%$ NPS penalty). Carbon amortizes this cost using a countdown latch:
+   ```csharp
+   if (--_nodeCheckCounter <= 0)
+   {
+       _nodeCheckCounter = 1000;
+       if (Environment.TickCount64 >= _stopTime || cancellationToken.IsCancellationRequested)
+       {
+           _terminate = true;
+       }
+   }
+   ```
+   At $> 1,000,000$ nodes/second, time is polled approximately once every millisecond. When $\text{TickCount64} \ge \text{StopTime}$, `_terminate` is set, causing all active recursion frames to unwind immediately and return the best move from the last fully completed iterative deepening depth.
+
+---
+
+## Worked example: search progression on depth 4
+
+Consider searching move 15 for Black.
+1. **Depth 2 Completed:**
+   - Evaluated 42 nodes in $0.3\text{ ms}$.
+   - Best move found: **H9** with score $+120$.
+   - **H9** is stored in the Transposition Table.
+2. **Depth 4 Commences:**
+   - `GenerateCand()` retrieves **H9** from TT and places it at `cnd[0]` with score $10,000$.
+   - **H9** is searched first with full window $[-32000, 32000]$.
+   - At ply 1, White's replies are evaluated. White plays **H8**, Black replies **I10**, White replies **G10**.
+   - **H9** returns a score of $+240$.
+   - `best = Cand(H9, +240)`. Alpha advances to $+240$.
+3. **Null Window Probing on Candidates 1 through 15:**
+   - Candidate 1 (**I8**): Searched with window $[v_A, v_B] = [-32000, -241]$.
+     - Subtree returns $+80 \le 240$. Pruned!
+   - Candidate 2 (**J10**): Searched with window $[-32000, -241]$.
+     - Subtree returns $-110 \le 240$. Pruned!
+   - Candidates 3 through 15 are all refuted by the null window without expanding full trees.
+4. **Result:**
+   - 14 out of 15 candidate branches were pruned after exploring only shallow refutation nodes.
+   - Depth 4 completes in $4.2\text{ ms}$ evaluating only $4,120$ nodes instead of $> 50,000$.
+
+---
+
+## Data structures
+
+| Member | Type | Memory | Role |
+|---|---|:---:|---|
+| `_stopTime` | `long` | 8 bytes | Absolute `TickCount64` timestamp when search must abort |
+| `_nodeCheckCounter` | `int` | 4 bytes | Latch counter counting down from 1000 between time queries |
+| `_terminate` | `bool` | 1 byte | Flag set when time limit expires or cancellation is signaled |
+| `Cand` | `struct (X, Y, Value)` | 12 bytes | Search return value carrying coordinates and evaluation |
+| `SearchLimits` | `record` | 24 bytes | User-specified search parameters (Depth, Time, Mode) |
+
+---
+
+## Where in the code
+
+| File | Member / Method | Description |
+|---|---|---|
+| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Root driver executing iterative deepening and clock management |
+| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Core recursive closed-interval Negamax Alpha-Beta with PVS |
+| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `SetupTimeControl()` | Configures time limits and calculates `_stopTime` |
+| [SearchLimits.cs](../../src/Gomoku.Core/AI/SearchLimits.cs) | `SearchLimits` | Time control domain models (`FixedDepth`, `TimePerMove`, `TimePerGame`) |
+
+---
+
+## Tests
+
+- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+  - Iterative deepening depth progression: verifies search reaches targeted depth.
+  - Cancellation token responsiveness: tests that search halts cleanly within $50\text{ ms}$ of cancellation.
+  - Mate distance preference: verifies AI chooses mate-in-1 over mate-in-3.
+
+---
+
+## Further reading
+
+- Marsland, T. A. (1986). *A Review of Game-Tree Pruning*. ICGA Journal, 9(1), 10–20.
+- Campbell, M. S., & Marsland, T. A. (1983). *A Comparison of Minimax and Principal Variation Search*. Artificial Intelligence, 21(3), 347–367.
+- Brockington, M. (1996). *Asynchronous Time Management in Game-Tree Search*. Ph.D. thesis, University of Alberta.
+
+---
+
+Previous: [07 Tactical VCF search](07-tactical-vcf-search.md) · Next: [09 Transposition table](09-transposition-table.md)
+
