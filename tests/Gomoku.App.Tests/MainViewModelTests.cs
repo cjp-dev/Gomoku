@@ -93,4 +93,61 @@ public class MainViewModelTests
         vm.MoveCount.Should().Be(2);
         cell2.Piece.Should().Be(PieceColor.White);
     }
+
+    [Fact]
+    public async Task OpenSettingsAsync_WhenSaved_ShouldPersistBoardSizeVariantSoundAndTimeControl()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsHuman, SoundEnabled = true };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        _dialog.CustomDialogResult = true;
+        _dialog.OnShowCustomDialog = obj =>
+        {
+            var svm = (SettingsViewModel)obj;
+            svm.SelectedBoardSize = BoardSize.Size20x20;
+            svm.SelectedVariant = GomokuVariant.Renju;
+            svm.SelectedTimeControl = Gomoku.Core.AI.TimeControlMode.FixedDepth;
+            svm.SearchDepth = 8;
+            svm.SoundEnabled = false;
+            svm.SaveCommand.Execute(null);
+        };
+
+        await vm.OpenSettingsAsync();
+
+        vm.Settings.BoardSize.Should().Be(BoardSize.Size20x20);
+        vm.Settings.Variant.Should().Be(GomokuVariant.Renju);
+        vm.Settings.TimeControl.Should().Be(Gomoku.Core.AI.TimeControlMode.FixedDepth);
+        vm.Settings.SearchDepth.Should().Be(8);
+        vm.Settings.SoundEnabled.Should().BeFalse();
+        _sound.IsMuted.Should().BeTrue();
+        vm.Intersections.Count.Should().Be(400);
+    }
+
+    [Fact]
+    public void RenjuMode_ShouldPopulateIsForbiddenOnDoubleThreeIntersection()
+    {
+        GameSettings settings = new()
+        {
+            BoardSize = BoardSize.Size15x15,
+            Variant = GomokuVariant.Renju,
+            Mode = GameMode.HumanVsHuman
+        };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        void Play(int x, int y) => vm.Intersections.First(i => i.X == x && i.Y == y).ClickCommand.Execute(null);
+
+        Play(7, 5); // Black
+        Play(0, 0); // White
+        Play(7, 6); // Black
+        Play(0, 1); // White
+        Play(5, 7); // Black
+        Play(0, 2); // White
+        Play(6, 7); // Black
+        Play(0, 3); // White
+
+        // Now it is Black's turn and (7, 7) is a double-three (3x3) foul
+        var center = vm.Intersections.First(i => i.X == 7 && i.Y == 7);
+        center.IsForbidden.Should().BeTrue();
+        center.ShowForbiddenMarker.Should().BeTrue();
+    }
 }

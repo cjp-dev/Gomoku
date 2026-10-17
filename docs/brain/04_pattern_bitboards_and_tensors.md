@@ -70,5 +70,7 @@ This resolves combinations in $O(1)$ time:
 - If one direction is grade 7 and another is grade 6 $\implies$ **Threat C** (Four-Three).
 - If two directions are grade 6 $\implies$ **Threat F** (Double Open Three).
 
-In Renju mode, `CheckForbid(x, y)` inspects these status grades to immediately identify 3x3 and 4x4 fouls for Black.
+In Renju mode, `CheckForbid(x, y)` inspects these status grades to immediately identify 3x3, 4x4, and 6+ overline fouls for Black.
+
+![Pattern & Threat Tensor Pipeline](images/pattern-threat-pipeline.svg)
 

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Gomoku.App.Models;
@@ -19,10 +20,14 @@ public sealed partial class MainViewModel : ObservableObject
     private CarbonAiPlayer _carbonPlayer;
     private SimpleAiPlayer _simplePlayer;
     private CancellationTokenSource? _aiCts;
+    private CancellationTokenSource? _clockCts;
+    private long _lastClockTickMs;
 
     public GameSession Session { get; }
     public GameSettings Settings { get; }
     public AnalysisViewModel Analysis { get; } = new();
+
+    public event Action? BoardLayoutChanged;
 
     public ObservableCollection<IntersectionViewModel> Intersections { get; } = [];
     private IntersectionViewModel[,] _grid = new IntersectionViewModel[0, 0];
@@ -51,8 +56,12 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private TimeSpan _whiteRemainingTime;
 
+    public string BlackTimeFormatted => BlackRemainingTime.ToString(@"mm\:ss");
+    public string WhiteTimeFormatted => WhiteRemainingTime.ToString(@"mm\:ss");
+
     public bool CanUndo => Session.CanUndo && !IsThinking;
     public bool CanRedo => Session.CanRedo && !IsThinking;
+    public bool CanHoverMove => !IsThinking && !GameStatus.IsGameOver() && IsHumanTurn();
 
     public IRelayCommand NewGameCommand { get; }
     public IRelayCommand UndoCommand { get; }
@@ -73,6 +82,7 @@ public sealed partial class MainViewModel : ObservableObject
         _fileService = fileService;
         _soundService = soundService;
         Settings = settings ?? new GameSettings();
+        _soundService.IsMuted = !Settings.SoundEnabled;
 
         Session = new GameSession(Settings.BoardSize, Settings.Variant);
         _carbonPlayer = new CarbonAiPlayer(new TranspositionTable(Settings.TranspositionTableEntries));
@@ -90,10 +100,27 @@ public sealed partial class MainViewModel : ObservableObject
         ResetBoard(Settings.BoardSize);
     }
 
-    public void ResetBoard(BoardSize size)
+    partial void OnBlackRemainingTimeChanged(TimeSpan value) => OnPropertyChanged(nameof(BlackTimeFormatted));
+    partial void OnWhiteRemainingTimeChanged(TimeSpan value) => OnPropertyChanged(nameof(WhiteTimeFormatted));
+
+    partial void OnIsThinkingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+        OnPropertyChanged(nameof(CanHoverMove));
+        UndoCommand?.NotifyCanExecuteChanged();
+        RedoCommand?.NotifyCanExecuteChanged();
+    }
+
+    public void ResetBoard(BoardSize size, bool triggerAi = true)
     {
         CancelAiSearch();
+        StopClock();
         Session.Reset(size, Settings.Variant, PieceColor.Black);
+
+        TimeSpan initialClock = TimeSpan.FromMinutes(Math.Max(1, Settings.GameTimeMinutes));
+        BlackRemainingTime = initialClock;
+        WhiteRemainingTime = initialClock;
 
         Intersections.Clear();
         _grid = new IntersectionViewModel[size.Width, size.Height];
@@ -112,9 +139,93 @@ public sealed partial class MainViewModel : ObservableObject
 
         Analysis.Reset();
         UpdateUiState();
+        BoardLayoutChanged?.Invoke();
         _ = _soundService.PlaySoundAsync(SoundType.GameStart);
 
-        CheckAndTriggerAiMove();
+        if (Settings.TimeControl == TimeControlMode.TimePerGame)
+        {
+            StartClock();
+        }
+
+        if (triggerAi)
+        {
+            CheckAndTriggerAiMove();
+        }
+    }
+
+    private void StartClock()
+    {
+        StopClock();
+        _lastClockTickMs = Environment.TickCount64;
+        _clockCts = new CancellationTokenSource();
+        CancellationToken token = _clockCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            using PeriodicTimer timer = new(TimeSpan.FromMilliseconds(250));
+            try
+            {
+                while (await timer.WaitForNextTickAsync(token))
+                {
+                    if (GameStatus.IsGameOver())
+                    {
+                        StopClock();
+                        break;
+                    }
+
+                    long now = Environment.TickCount64;
+                    long elapsedMs = now - _lastClockTickMs;
+                    _lastClockTickMs = now;
+                    if (elapsedMs <= 0) continue;
+
+                    if (SideToMove == PieceColor.Black)
+                    {
+                        TimeSpan next = BlackRemainingTime - TimeSpan.FromMilliseconds(elapsedMs);
+                        if (next <= TimeSpan.Zero)
+                        {
+                            BlackRemainingTime = TimeSpan.Zero;
+                            HandleTimeout(PieceColor.Black);
+                            break;
+                        }
+                        BlackRemainingTime = next;
+                    }
+                    else if (SideToMove == PieceColor.White)
+                    {
+                        TimeSpan next = WhiteRemainingTime - TimeSpan.FromMilliseconds(elapsedMs);
+                        if (next <= TimeSpan.Zero)
+                        {
+                            WhiteRemainingTime = TimeSpan.Zero;
+                            HandleTimeout(PieceColor.White);
+                            break;
+                        }
+                        WhiteRemainingTime = next;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, token);
+    }
+
+    private void StopClock()
+    {
+        if (_clockCts != null)
+        {
+            _clockCts.Cancel();
+            _clockCts.Dispose();
+            _clockCts = null;
+        }
+    }
+
+    private void HandleTimeout(PieceColor timedOutPlayer)
+    {
+        CancelAiSearch();
+        StopClock();
+        GameStatus = timedOutPlayer == PieceColor.Black ? GameStatus.WhiteWon : GameStatus.BlackWon;
+        StatusText = $"{timedOutPlayer} ran out of time! {timedOutPlayer.Opponent()} won!";
+        OnPropertyChanged(nameof(CanHoverMove));
+        _ = _soundService.PlaySoundAsync(SoundType.Loss);
     }
 
     public void OnIntersectionClicked(IntersectionViewModel cell)
@@ -144,7 +255,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private bool IsHumanTurn() => Settings.Mode switch
+    public bool IsHumanTurn() => Settings.Mode switch
     {
         GameMode.HumanVsAi => Session.CurrentState.SideToMove == PieceColor.Black,
         GameMode.AiVsHuman => Session.CurrentState.SideToMove == PieceColor.White,
@@ -172,6 +283,22 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    private SearchLimits CreateSearchLimits()
+    {
+        return Settings.TimeControl switch
+        {
+            TimeControlMode.FixedDepth => SearchLimits.FixedDepth(
+                Math.Max(1, Settings.SearchDepth),
+                Settings.UseOpeningBook),
+            TimeControlMode.TimePerGame => SearchLimits.TimePerGame(
+                Session.CurrentState.SideToMove == PieceColor.Black ? BlackRemainingTime : WhiteRemainingTime,
+                Settings.UseOpeningBook),
+            _ => SearchLimits.TimePerMove(
+                TimeSpan.FromSeconds(Math.Max(1, Settings.MoveTimeSeconds)),
+                Settings.UseOpeningBook)
+        };
+    }
+
     private async Task RunAiTurnAsync()
     {
         if (IsThinking || GameStatus.IsGameOver()) return;
@@ -190,9 +317,7 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             IPlayer player = Settings.AiEngine == AiEngineType.Carbon ? _carbonPlayer : _simplePlayer;
-            SearchLimits limits = SearchLimits.TimePerMove(
-                TimeSpan.FromSeconds(Settings.MoveTimeSeconds),
-                Settings.UseOpeningBook);
+            SearchLimits limits = CreateSearchLimits();
 
             var progress = new Progress<SearchAnalysis>(a => Analysis.Update(a));
 
@@ -200,7 +325,7 @@ public sealed partial class MainViewModel : ObservableObject
                 async () => await player.GetMoveAsync(Session.CurrentState, limits, legalMoves, progress, _aiCts.Token),
                 _aiCts.Token);
 
-            if (_aiCts.IsCancellationRequested) return;
+            if (_aiCts == null || _aiCts.IsCancellationRequested || GameStatus.IsGameOver()) return;
 
             if (Session.ApplyMove(bestMove))
             {
@@ -306,6 +431,12 @@ public sealed partial class MainViewModel : ObservableObject
         Move? lastMove = Session.MoveHistory.Count > 0 ? Session.MoveHistory[^1] : null;
         HashSet<Point> winningPoints = new(state.WinningLine);
 
+        PatternBoard? renjuBoard = null;
+        if (!state.Status.IsGameOver() && state.Variant == GomokuVariant.Renju && state.SideToMove == state.FirstPlayer)
+        {
+            renjuBoard = RuleEngine.BuildPatternBoard(state);
+        }
+
         // Refresh all grid cells
         for (int y = 0; y < state.Size.Height; y++)
         {
@@ -313,8 +444,14 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 var vm = _grid[x, y];
                 vm.Piece = state.GetCell(x, y);
+                vm.GhostPiece = state.SideToMove;
                 vm.IsLastMove = Settings.LastMoveHighlightEnabled && lastMove.HasValue && lastMove.Value.X == x && lastMove.Value.Y == y;
                 vm.IsWinningLine = Settings.WinLineHighlightEnabled && winningPoints.Contains(new Point(x, y));
+                vm.IsForbidden = renjuBoard != null && vm.Piece == PieceColor.Empty && renjuBoard.IsForbidden(x, y, state.SideToMove);
+                if (!CanHoverMove || vm.HasPiece)
+                {
+                    vm.IsHovered = false;
+                }
             }
         }
 
@@ -322,17 +459,21 @@ public sealed partial class MainViewModel : ObservableObject
         MoveHistoryText = FormatMoveHistory(Session.MoveHistory);
 
         // Status text
-        if (GameStatus == GameStatus.InProgress)
+        if (GameStatus == GameStatus.InProgress && !IsThinking)
         {
             StatusText = $"{SideToMove} to move (Move {MoveCount + 1})";
         }
 
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+        OnPropertyChanged(nameof(CanHoverMove));
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
     }
 
     private void HandleGameOver()
     {
+        StopClock();
         if (GameStatus == GameStatus.BlackWon)
         {
             StatusText = "Black won!";
@@ -378,7 +519,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             Settings.BoardSize = size;
             Settings.Variant = variant;
-            ResetBoard(size);
+            ResetBoard(size, triggerAi: false);
 
             foreach (var m in moves)
             {
@@ -387,6 +528,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             UpdateUiState();
             await _dialogService.ShowMessageAsync("Game Loaded", $"Loaded {moves.Count} moves ({variant}, {size}).");
+            CheckAndTriggerAiMove();
         }
         else
         {
@@ -413,24 +555,52 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task OpenSettingsAsync()
     {
-        var settingsVm = new SettingsViewModel(Settings.Clone());
+        BoardSize prevSize = Settings.BoardSize;
+        GomokuVariant prevVariant = Settings.Variant;
+        TimeControlMode prevTimeControl = Settings.TimeControl;
+        int prevGameMinutes = Settings.GameTimeMinutes;
+
+        var settingsVm = new SettingsViewModel(Settings);
         var result = await _dialogService.ShowCustomDialogAsync<bool?>(settingsVm);
         if (result == true)
         {
-            // Settings applied
-            if (Settings.TranspositionTableEntries != _carbonPlayer.Table.Capacity)
+            ApplyUpdatedSettings(prevSize, prevVariant, prevTimeControl, prevGameMinutes);
+        }
+    }
+
+    public void ApplyUpdatedSettings(BoardSize prevSize, GomokuVariant prevVariant, TimeControlMode prevTimeControl, int prevGameMinutes)
+    {
+        _soundService.IsMuted = !Settings.SoundEnabled;
+
+        if (Settings.TranspositionTableEntries != _carbonPlayer.Table.Capacity)
+        {
+            _carbonPlayer = new CarbonAiPlayer(new TranspositionTable(Settings.TranspositionTableEntries));
+        }
+
+        if (Settings.BoardSize != prevSize || Settings.Variant != prevVariant ||
+            Settings.BoardSize != Session.CurrentState.Size || Settings.Variant != Session.CurrentState.Variant)
+        {
+            ResetBoard(Settings.BoardSize);
+        }
+        else
+        {
+            if (Settings.TimeControl == TimeControlMode.TimePerGame &&
+                (prevTimeControl != TimeControlMode.TimePerGame || prevGameMinutes != Settings.GameTimeMinutes))
             {
-                _carbonPlayer = new CarbonAiPlayer(new TranspositionTable(Settings.TranspositionTableEntries));
+                TimeSpan initialClock = TimeSpan.FromMinutes(Math.Max(1, Settings.GameTimeMinutes));
+                BlackRemainingTime = initialClock;
+                WhiteRemainingTime = initialClock;
+                StartClock();
+            }
+            else if (Settings.TimeControl != TimeControlMode.TimePerGame)
+            {
+                StopClock();
             }
 
-            if (Settings.BoardSize != Session.CurrentState.Size || Settings.Variant != Session.CurrentState.Variant)
-            {
-                ResetBoard(Settings.BoardSize);
-            }
-            else
-            {
-                UpdateUiState();
-            }
+            UpdateUiState();
+            BoardLayoutChanged?.Invoke();
+            OnPropertyChanged(nameof(Settings));
+            CheckAndTriggerAiMove();
         }
     }
 

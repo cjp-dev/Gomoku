@@ -91,8 +91,8 @@ public static class OpeningBook
                         break;
                     }
 
-                    // Compare placed stone color: Black is FirstPlayer (i & 1 == 0), White is SecondPlayer (i & 1 == 1)
-                    PieceColor expectedPiece = (i & 1) == 0 ? PieceColor.Black : PieceColor.White;
+                    // Compare placed stone color against FirstPlayer and SecondPlayer
+                    PieceColor expectedPiece = (i & 1) == 0 ? pb.FirstPlayer : pb.FirstPlayer.Opponent();
                     if (pb.Cells[x, y].Piece != expectedPiece)
                     {
                         break;

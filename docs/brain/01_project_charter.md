@@ -15,6 +15,8 @@ The solution provides:
 ## 1.2 Core Architectural Principles
 The system strictly enforces Clean Architecture and separation of concerns:
 
+![Clean Architecture Layers](images/architecture-layers.svg)
+
 ```mermaid
 graph TD
     UI_WPF[Gomoku.Wpf<br/>Desktop Client] --> App[Gomoku.App<br/>ViewModels & Services]

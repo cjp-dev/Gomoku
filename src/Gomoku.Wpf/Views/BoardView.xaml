@@ -65,11 +65,23 @@
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Grid Background="Transparent">
-                                            <!-- Ghost Stone on hover -->
+                                            <!-- Renju Forbidden Move Marker (X) -->
+                                            <TextBlock Text="✕" FontSize="15" FontWeight="Bold" Foreground="#D32F2F"
+                                                       Visibility="{Binding ShowForbiddenMarker, Converter={StaticResource BoolToVis}}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                            <!-- Black Ghost Stone on hover -->
                                             <Ellipse Width="24" Height="24"
                                                      Opacity="0.45"
                                                      Fill="{StaticResource BlackStoneBrush}"
-                                                     Visibility="{Binding IsHovered, Converter={StaticResource BoolToVis}}"
+                                                     Visibility="{Binding ShowBlackGhost, Converter={StaticResource BoolToVis}}"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                            <!-- White Ghost Stone on hover -->
+                                            <Ellipse Width="24" Height="24"
+                                                     Opacity="0.55"
+                                                     Fill="{StaticResource WhiteStoneBrush}"
+                                                     Visibility="{Binding ShowWhiteGhost, Converter={StaticResource BoolToVis}}"
                                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                             <!-- Placed Black Stone -->

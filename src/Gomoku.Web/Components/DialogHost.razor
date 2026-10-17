@@ -51,6 +51,16 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Time Control:</label>
+                    <select class="form-control" @bind="settingsVm.SelectedTimeControl">
+                        @foreach (var tc in settingsVm.AvailableTimeControls)
+                        {
+                            <option value="@tc">@tc</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label>Search Depth: @settingsVm.SearchDepth plies</label>
                     <input type="range" min="1" max="14" @bind="settingsVm.SearchDepth" class="form-range" />
                 </div>
@@ -58,6 +68,11 @@
                 <div class="form-group">
                     <label>Time per Move: @settingsVm.MoveTimeSeconds s</label>
                     <input type="range" min="1" max="20" @bind="settingsVm.MoveTimeSeconds" class="form-range" />
+                </div>
+
+                <div class="form-group">
+                    <label>Time per Game: @settingsVm.GameTimeMinutes min</label>
+                    <input type="range" min="1" max="30" @bind="settingsVm.GameTimeMinutes" class="form-range" />
                 </div>
 
                 <div class="form-group">
@@ -140,13 +155,6 @@
     {
         vm.SelectedBoardSize = vm.AvailableBoardSizes[SelectedBoardSizeIndex];
         vm.SaveCommand.Execute(null);
-
-        // Apply to MainVm
-        if (MainVm.Settings.BoardSize != MainVm.Session.CurrentState.Size || MainVm.Settings.Variant != MainVm.Session.CurrentState.Variant)
-        {
-            MainVm.ResetBoard(MainVm.Settings.BoardSize);
-        }
-
         DialogService.Dismiss(true);
     }
 

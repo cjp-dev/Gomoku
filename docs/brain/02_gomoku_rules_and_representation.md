@@ -54,7 +54,9 @@ The engine natively supports dynamic board dimensions:
 | **$19 \times 19$** | Traditional Go board & Carbon Gomoku default | `J10` (9, 9) | 9 points: 4 corners, 4 edges, 1 center |
 | **$20 \times 20$** | Gomocup AI competition standard | `K11` (10, 10) | 4 points: symmetric quadrant markers |
 
-### Coordinate Representation
+### Coordinate Representation & Sentinel Padding
 Coordinates use consecutive letters `A` through `T` (including `I`, unlike Go which traditionally skips `I` to avoid confusion with `J` or `1`). Rows are numbered `1` through `N` from top to bottom.
 - Example on $15 \times 15$: Top-left is `A1` $(0, 0)$, center is `H8` $(7, 7)$, bottom-right is `O15` $(14, 14)$.
+
+![Sentinel-Padded PatternBoard Geometry](images/board-indexing.svg)
 

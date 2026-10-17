@@ -184,7 +184,7 @@ public sealed class RuleEngine : IRuleEngine
         return false;
     }
 
-    private static PatternBoard BuildPatternBoard(BoardState state)
+    public static PatternBoard BuildPatternBoard(BoardState state)
     {
         PatternBoard pb = new();
         pb.Start(state.Size.Width, state.Size.Height, state.Variant, state.FirstPlayer);

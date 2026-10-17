@@ -129,6 +129,8 @@ public sealed class PatternBoard
     public PieceColor FirstPlayer { get; private set; }
     public int MoveCount { get; private set; }
     public int RemCount { get; private set; }
+    public ulong ZobristHash { get; private set; }
+    public ulong ZobristKey => Who == PieceColor.White ? ZobristHash ^ Zobrist.SideToMoveKey : ZobristHash;
 
     public int[,] NSt { get; } = new int[2, 10]; // nSt[player, grade]
 
@@ -155,6 +157,7 @@ public sealed class PatternBoard
         Who = firstPlayer;
         MoveCount = 0;
         RemCount = 0;
+        ZobristHash = 0UL;
 
         for (int i = 0; i < 2; i++)
             for (int j = 0; j < 10; j++)
@@ -240,6 +243,7 @@ public sealed class PatternBoard
         NSt[1, Cells[xp, yp].Status4_1]--;
 
         Cells[xp, yp].Piece = Who;
+        ZobristHash ^= Zobrist.GetKey(Who, xp - Margin, yp - Margin);
         _remMove[MoveCount] = new Point(xp, yp);
         RemPlacedPoints[RemCount] = new Point(xp, yp);
         _remULCand[RemCount] = UpperLeftCand;
@@ -327,6 +331,7 @@ public sealed class PatternBoard
         Cells[xp, yp].Piece = PieceColor.Empty;
 
         Who = Who.Opponent();
+        ZobristHash ^= Zobrist.GetKey(Who, xp - Margin, yp - Margin);
         int whoIdx = (int)Who;
 
         for (int k = 0; k < 4; k++)

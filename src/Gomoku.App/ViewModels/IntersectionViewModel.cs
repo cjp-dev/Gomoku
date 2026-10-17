@@ -43,6 +43,9 @@ public sealed partial class IntersectionViewModel : ObservableObject
     public bool HasPiece => Piece is PieceColor.Black or PieceColor.White;
     public bool IsBlack => Piece == PieceColor.Black;
     public bool IsWhite => Piece == PieceColor.White;
+    public bool ShowBlackGhost => IsHovered && !HasPiece && !IsForbidden && GhostPiece == PieceColor.Black;
+    public bool ShowWhiteGhost => IsHovered && !HasPiece && !IsForbidden && GhostPiece == PieceColor.White;
+    public bool ShowForbiddenMarker => IsForbidden && !HasPiece;
 
     public IRelayCommand ClickCommand { get; }
 
@@ -60,6 +63,28 @@ public sealed partial class IntersectionViewModel : ObservableObject
         OnPropertyChanged(nameof(HasPiece));
         OnPropertyChanged(nameof(IsBlack));
         OnPropertyChanged(nameof(IsWhite));
+        OnPropertyChanged(nameof(ShowBlackGhost));
+        OnPropertyChanged(nameof(ShowWhiteGhost));
+        OnPropertyChanged(nameof(ShowForbiddenMarker));
+    }
+
+    partial void OnIsHoveredChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowBlackGhost));
+        OnPropertyChanged(nameof(ShowWhiteGhost));
+    }
+
+    partial void OnGhostPieceChanged(PieceColor value)
+    {
+        OnPropertyChanged(nameof(ShowBlackGhost));
+        OnPropertyChanged(nameof(ShowWhiteGhost));
+    }
+
+    partial void OnIsForbiddenChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowBlackGhost));
+        OnPropertyChanged(nameof(ShowWhiteGhost));
+        OnPropertyChanged(nameof(ShowForbiddenMarker));
     }
 }
 

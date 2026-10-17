@@ -56,20 +56,31 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="8"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="AI Engine:" VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding AvailableAiEngines}" SelectedItem="{Binding SelectedAiEngine}"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Search Depth:" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="20" Value="{Binding SearchDepth}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SearchDepth, StringFormat={}{0} plies}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Time Control:" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding AvailableTimeControls}" SelectedItem="{Binding SelectedTimeControl}"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Time per Move:" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="4" Grid.Column="1" Minimum="1" Maximum="30" Value="{Binding MoveTimeSeconds}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding MoveTimeSeconds, StringFormat={}{0} sec}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Search Depth:" VerticalAlignment="Center"/>
+                    <Slider Grid.Row="4" Grid.Column="1" Minimum="1" Maximum="20" Value="{Binding SearchDepth}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding SearchDepth, StringFormat={}{0} plies}" Margin="8,0,0,0" VerticalAlignment="Center"/>
 
-                    <CheckBox Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Content="Enable Carbon Opening Book (67 symmetry patterns)" IsChecked="{Binding UseOpeningBook}" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Time per Move:" VerticalAlignment="Center"/>
+                    <Slider Grid.Row="6" Grid.Column="1" Minimum="1" Maximum="30" Value="{Binding MoveTimeSeconds}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="6" Grid.Column="2" Text="{Binding MoveTimeSeconds, StringFormat={}{0} sec}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+
+                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Time per Game:" VerticalAlignment="Center"/>
+                    <Slider Grid.Row="8" Grid.Column="1" Minimum="1" Maximum="30" Value="{Binding GameTimeMinutes}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="8" Grid.Column="2" Text="{Binding GameTimeMinutes, StringFormat={}{0} min}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+
+                    <CheckBox Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" Content="Enable Carbon Opening Book (67 symmetry patterns)" IsChecked="{Binding UseOpeningBook}" Margin="0,4,0,0"/>
                 </Grid>
             </GroupBox>
 

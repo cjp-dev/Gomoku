@@ -6,6 +6,8 @@ Welcome to the comprehensive technical documentation for **Gomoku .NET**, a high
 
 ## Architecture Overview
 
+![Clean Architecture Layers](images/architecture-layers.svg)
+
 ```mermaid
 graph TD
     subgraph Presentation Hosts

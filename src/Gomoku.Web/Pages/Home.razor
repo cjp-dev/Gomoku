@@ -43,6 +43,10 @@
                     <span>Turn: <strong class="highlight-turn">@Vm.SideToMove</strong></span>
                     <span>Move: <strong>#@Vm.MoveCount</strong></span>
                 </div>
+                <div class="status-details" style="margin-top: 4px; font-family: monospace;">
+                    <span>● Black: <strong>@Vm.BlackTimeFormatted</strong></span>
+                    <span>○ White: <strong>@Vm.WhiteTimeFormatted</strong></span>
+                </div>
                 @if (Vm.IsThinking)
                 {
                     <div class="thinking-bar"><div class="thinking-indicator"></div></div>
@@ -96,9 +100,16 @@
     protected override void OnInitialized()
     {
         Vm.PropertyChanged += OnVmPropertyChanged;
+        Vm.Analysis.Updated += OnStateUpdated;
+        Vm.BoardLayoutChanged += OnStateUpdated;
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnStateUpdated()
     {
         InvokeAsync(StateHasChanged);
     }
@@ -116,6 +127,8 @@
     public void Dispose()
     {
         Vm.PropertyChanged -= OnVmPropertyChanged;
+        Vm.Analysis.Updated -= OnStateUpdated;
+        Vm.BoardLayoutChanged -= OnStateUpdated;
     }
 }
 

@@ -15,8 +15,21 @@ public partial class BoardView : UserControl
     public BoardView()
     {
         InitializeComponent();
-        DataContextChanged += (_, _) => RedrawGrid();
+        DataContextChanged += OnDataContextChanged;
         Loaded += (_, _) => RedrawGrid();
+    }
+
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.OldValue is MainViewModel oldVm)
+        {
+            oldVm.BoardLayoutChanged -= RedrawGrid;
+        }
+        if (e.NewValue is MainViewModel newVm)
+        {
+            newVm.BoardLayoutChanged += RedrawGrid;
+        }
+        RedrawGrid();
     }
 
     private void RedrawGrid()
@@ -128,7 +141,10 @@ public partial class BoardView : UserControl
 
     private void OnCellMouseEnter(object sender, MouseEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: IntersectionViewModel vm } && !vm.HasPiece && ViewModel != null && ViewModel.Settings.GhostStoneEnabled)
+        if (sender is FrameworkElement { DataContext: IntersectionViewModel vm } &&
+            !vm.HasPiece &&
+            ViewModel is { CanHoverMove: true } &&
+            ViewModel.Settings.GhostStoneEnabled)
         {
             vm.IsHovered = true;
         }

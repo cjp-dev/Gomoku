@@ -95,11 +95,18 @@
                 <!-- Transparent Hit Target -->
                 <circle cx="@cx" cy="@cy" r="@(cellW * 0.48)" fill="transparent" />
 
+                <!-- Renju Forbidden Move Marker -->
+                @if (cell.ShowForbiddenMarker)
+                {
+                    <line x1="@(cx - 5)" y1="@(cy - 5)" x2="@(cx + 5)" y2="@(cy + 5)" stroke="#D32F2F" stroke-width="2.4" stroke-linecap="round" />
+                    <line x1="@(cx + 5)" y1="@(cy - 5)" x2="@(cx - 5)" y2="@(cy + 5)" stroke="#D32F2F" stroke-width="2.4" stroke-linecap="round" />
+                }
+
                 <!-- Ghost Preview Stone -->
-                @if (cell.IsHovered && !cell.HasPiece && ViewModel.Settings.GhostStoneEnabled)
+                @if ((cell.ShowBlackGhost || cell.ShowWhiteGhost) && ViewModel.CanHoverMove && ViewModel.Settings.GhostStoneEnabled)
                 {
                     <circle cx="@cx" cy="@cy" r="@stoneR"
-                            fill="@(ViewModel.Session.CurrentState.SideToMove == PieceColor.Black ? "url(#black-stone)" : "url(#white-stone)")"
+                            fill="@(cell.ShowBlackGhost ? "url(#black-stone)" : "url(#white-stone)")"
                             opacity="0.45" />
                 }
 
@@ -131,9 +138,15 @@
     protected override void OnInitialized()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        ViewModel.BoardLayoutChanged += OnBoardLayoutChanged;
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnBoardLayoutChanged()
     {
         InvokeAsync(StateHasChanged);
     }
@@ -146,11 +159,12 @@
 
     private void OnCellHover(IntersectionViewModel cell, bool isHovered)
     {
-        cell.IsHovered = isHovered;
+        cell.IsHovered = isHovered && ViewModel.CanHoverMove && ViewModel.Settings.GhostStoneEnabled;
     }
 
     public void Dispose()
     {
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        ViewModel.BoardLayoutChanged -= OnBoardLayoutChanged;
     }
 }

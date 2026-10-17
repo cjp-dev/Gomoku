@@ -1,3 +1,5 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using Gomoku.Core.AI;
 using Gomoku.Core.Models;
 
 namespace Gomoku.App.Models;
@@ -5,25 +7,55 @@ namespace Gomoku.App.Models;
 /// <summary>
 /// User-configurable application and gameplay settings.
 /// </summary>
-public sealed class GameSettings
+public sealed partial class GameSettings : ObservableObject
 {
-    public BoardSize BoardSize { get; set; } = BoardSize.Default; // 15x15
-    public GomokuVariant Variant { get; set; } = GomokuVariant.Freestyle;
-    public GameMode Mode { get; set; } = GameMode.HumanVsAi;
-    public AiEngineType AiEngine { get; set; } = AiEngineType.Carbon;
+    [ObservableProperty]
+    private BoardSize _boardSize = BoardSize.Default; // 15x15
 
-    public int SearchDepth { get; set; } = 6;
-    public int MoveTimeSeconds { get; set; } = 5;
-    public int GameTimeMinutes { get; set; } = 5;
-    public int TranspositionTableEntries { get; set; } = 1_048_576; // 2^20 (16 MiB)
-    public bool UseOpeningBook { get; set; } = true;
+    [ObservableProperty]
+    private GomokuVariant _variant = GomokuVariant.Freestyle;
 
-    public bool SoundEnabled { get; set; } = true;
-    public bool CoordinatesVisible { get; set; } = true;
-    public bool GhostStoneEnabled { get; set; } = true;
-    public bool LastMoveHighlightEnabled { get; set; } = true;
-    public bool WinLineHighlightEnabled { get; set; } = true;
-    public string ThemeName { get; set; } = "Wood";
+    [ObservableProperty]
+    private GameMode _mode = GameMode.HumanVsAi;
+
+    [ObservableProperty]
+    private AiEngineType _aiEngine = AiEngineType.Carbon;
+
+    [ObservableProperty]
+    private TimeControlMode _timeControl = TimeControlMode.TimePerMove;
+
+    [ObservableProperty]
+    private int _searchDepth = 6;
+
+    [ObservableProperty]
+    private int _moveTimeSeconds = 5;
+
+    [ObservableProperty]
+    private int _gameTimeMinutes = 5;
+
+    [ObservableProperty]
+    private int _transpositionTableEntries = 1_048_576; // 2^20 (16 MiB)
+
+    [ObservableProperty]
+    private bool _useOpeningBook = true;
+
+    [ObservableProperty]
+    private bool _soundEnabled = true;
+
+    [ObservableProperty]
+    private bool _coordinatesVisible = true;
+
+    [ObservableProperty]
+    private bool _ghostStoneEnabled = true;
+
+    [ObservableProperty]
+    private bool _lastMoveHighlightEnabled = true;
+
+    [ObservableProperty]
+    private bool _winLineHighlightEnabled = true;
+
+    [ObservableProperty]
+    private string _themeName = "Wood";
 
     public GameSettings Clone() => new()
     {
@@ -31,6 +63,7 @@ public sealed class GameSettings
         Variant = Variant,
         Mode = Mode,
         AiEngine = AiEngine,
+        TimeControl = TimeControl,
         SearchDepth = SearchDepth,
         MoveTimeSeconds = MoveTimeSeconds,
         GameTimeMinutes = GameTimeMinutes,

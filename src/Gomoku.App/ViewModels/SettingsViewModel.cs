@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Gomoku.App.Models;
+using Gomoku.Core.AI;
 using Gomoku.Core.Models;
 
 namespace Gomoku.App.ViewModels;
@@ -20,6 +21,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private AiEngineType _selectedAiEngine;
+
+    [ObservableProperty]
+    private TimeControlMode _selectedTimeControl;
 
     [ObservableProperty]
     private int _searchDepth;
@@ -78,6 +82,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         AiEngineType.Simple
     ];
 
+    public IReadOnlyList<TimeControlMode> AvailableTimeControls { get; } = [
+        TimeControlMode.FixedDepth,
+        TimeControlMode.TimePerMove,
+        TimeControlMode.TimePerGame
+    ];
+
     public IReadOnlyList<int> AvailableTtSizes { get; } = [
         65_536,
         262_144,
@@ -106,6 +116,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _selectedVariant = settings.Variant;
         _selectedMode = settings.Mode;
         _selectedAiEngine = settings.AiEngine;
+        _selectedTimeControl = settings.TimeControl;
         _searchDepth = settings.SearchDepth;
         _moveTimeSeconds = settings.MoveTimeSeconds;
         _gameTimeMinutes = settings.GameTimeMinutes;
@@ -129,6 +140,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _original.Variant = SelectedVariant;
         _original.Mode = SelectedMode;
         _original.AiEngine = SelectedAiEngine;
+        _original.TimeControl = SelectedTimeControl;
         _original.SearchDepth = SearchDepth;
         _original.MoveTimeSeconds = MoveTimeSeconds;
         _original.GameTimeMinutes = GameTimeMinutes;
@@ -156,6 +168,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         SelectedVariant = def.Variant;
         SelectedMode = def.Mode;
         SelectedAiEngine = def.AiEngine;
+        SelectedTimeControl = def.TimeControl;
         SearchDepth = def.SearchDepth;
         MoveTimeSeconds = def.MoveTimeSeconds;
         GameTimeMinutes = def.GameTimeMinutes;

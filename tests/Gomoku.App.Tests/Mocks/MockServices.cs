@@ -8,6 +8,7 @@ public sealed class MockDialogService : IDialogService
     public List<string> MessagesShown { get; } = [];
     public bool ConfirmationResult { get; set; } = true;
     public object? CustomDialogResult { get; set; }
+    public Action<object>? OnShowCustomDialog { get; set; }
 
     public Task ShowMessageAsync(string title, string message)
     {
@@ -22,6 +23,7 @@ public sealed class MockDialogService : IDialogService
 
     public Task<T?> ShowCustomDialogAsync<T>(object viewModel)
     {
+        OnShowCustomDialog?.Invoke(viewModel);
         return Task.FromResult((T?)CustomDialogResult);
     }
 }

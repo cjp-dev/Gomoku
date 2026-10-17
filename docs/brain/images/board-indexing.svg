@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 380" width="820" height="380" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="820" height="380" rx="12" fill="#151B1E" stroke="#2E3B43" stroke-width="2"/>
+  <text x="410" y="32" text-anchor="middle" fill="#ECEFF1" font-size="18" font-weight="700">Sentinel-Padded PatternBoard Geometry (W+8) × (H+8)</text>
+
+  <!-- Outer WRONG Margin (4 cells on each side) -->
+  <rect x="55" y="55" width="300" height="300" rx="6" fill="#3E2723" stroke="#EF5350" stroke-width="2"/>
+  <text x="205" y="75" text-anchor="middle" fill="#FFCDD2" font-size="12" font-weight="600">4-Cell WRONG Sentinel Border (0..3, W+4..W+7)</text>
+
+  <!-- Playable Area (4..W+3, 4..H+3) -->
+  <rect x="95" y="95" width="220" height="220" rx="4" fill="#D7B377" stroke="#5D4037" stroke-width="2"/>
+  <text x="205" y="114" text-anchor="middle" fill="#3E2723" font-size="11" font-weight="700">Playable Grid: x, y ∈ [4 .. W+3]</text>
+
+  <!-- Active Candidate Bounding Box -->
+  <rect x="140" y="140" width="130" height="130" rx="3" fill="#4CAF50" fill-opacity="0.22" stroke="#1B5E20" stroke-width="2" stroke-dasharray="4,3"/>
+  <text x="205" y="156" text-anchor="middle" fill="#1B5E20" font-size="10" font-weight="700">UpperLeftCand .. LowerRightCand</text>
+
+  <!-- Stones in center -->
+  <circle cx="195" cy="195" r="10" fill="#111111"/>
+  <circle cx="215" cy="195" r="10" fill="#F5F5F5" stroke="#444" stroke-width="1"/>
+  <circle cx="205" cy="215" r="10" fill="#111111"/>
+
+  <!-- Explanatory Panel -->
+  <rect x="390" y="55" width="395" height="300" rx="8" fill="#1E272C" stroke="#37474F" stroke-width="1.5"/>
+  <text x="412" y="85" fill="#64B5F6" font-size="15" font-weight="700">Why 4-Cell Sentinel Padding?</text>
+  <text x="412" y="110" fill="#CFD8DC" font-size="12">• Every move updates 4 rays × 4 steps in ±(DX[k], DY[k]).</text>
+  <text x="412" y="132" fill="#CFD8DC" font-size="12">• With Margin = 4, rays from any playable square</text>
+  <text x="424" y="150" fill="#CFD8DC" font-size="12">(4..W+3, 4..H+3) never go out of array bounds.</text>
+  <text x="412" y="174" fill="#CFD8DC" font-size="12">• Border cells have Piece = Wrong, pre-populating</text>
+  <text x="424" y="192" fill="#CFD8DC" font-size="12">opponent block bits in Pattern00..Pattern31 at Start().</text>
+
+  <text x="412" y="226" fill="#81C784" font-size="15" font-weight="700">2-Ring Proximity Filter (Adj1 &amp; Adj2)</text>
+  <text x="412" y="250" fill="#CFD8DC" font-size="12">• Adj1 tracks 8 Chebyshev distance-1 neighbors.</text>
+  <text x="412" y="272" fill="#CFD8DC" font-size="12">• Adj2 tracks 8 ray-aligned distance-2 neighbors.</text>
+  <text x="412" y="294" fill="#CFD8DC" font-size="12">• Only empty squares with (Adj1 != 0 || Adj2 != 0)</text>
+  <text x="424" y="312" fill="#CFD8DC" font-size="12">inside [UpperLeftCand..LowerRightCand] are searched.</text>
+</svg>
+

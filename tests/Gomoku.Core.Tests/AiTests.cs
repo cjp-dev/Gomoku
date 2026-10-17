@@ -133,5 +133,60 @@ public class AiTests
 
         ai.Table.Stores.Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public void PatternBoard_IncrementalZobristKey_ShouldMatchBoardStateHashAcrossMakeAndUndo()
+    {
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        PatternBoard pb = new();
+        pb.Start(15, 15, GomokuVariant.Freestyle, PieceColor.Black);
+
+        Point[] moves = [new(7, 7), new(7, 8), new(8, 8), new(6, 6), new(8, 7)];
+        foreach (Point pt in moves)
+        {
+            state = RuleEngine.Instance.ApplyMove(state, new Move(pt.X, pt.Y, state.SideToMove));
+            pb.MakeMove(pt.X, pt.Y);
+            pb.ZobristKey.Should().Be(Zobrist.ComputeHash(state));
+        }
+
+        // Undo two moves and verify ZobristKey reverts identically
+        pb.UndoMove();
+        pb.UndoMove();
+
+        BoardState state3 = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        for (int i = 0; i < 3; i++)
+        {
+            state3 = RuleEngine.Instance.ApplyMove(state3, new Move(moves[i].X, moves[i].Y, state3.SideToMove));
+        }
+
+        pb.ZobristKey.Should().Be(Zobrist.ComputeHash(state3));
+    }
+
+    [Fact]
+    public async Task CarbonAiPlayer_RenjuMode_ShouldNotPlayForbiddenDoubleThree()
+    {
+        CarbonAiPlayer ai = new();
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Renju);
+        RuleEngine rules = RuleEngine.Instance;
+
+        // Construct a position where (7, 7) is a double-three (3x3) foul for Black
+        state = rules.ApplyMove(state, new Move(7, 5, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(0, 0, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(7, 6, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(0, 1, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(5, 7, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(0, 2, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(6, 7, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(0, 3, PieceColor.White));
+
+        var legalMoves = rules.GetLegalMoves(state);
+        legalMoves.Should().NotContain(new Move(7, 7, PieceColor.Black));
+
+        SearchLimits limits = SearchLimits.FixedDepth(4, useOpeningBook: false);
+        Move chosen = await ai.GetMoveAsync(state, limits, legalMoves);
+
+        chosen.Position.Should().NotBe(new Point(7, 7));
+        rules.IsMoveLegal(state, chosen, out _).Should().BeTrue();
+    }
 }
 

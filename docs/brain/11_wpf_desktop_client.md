@@ -3,6 +3,8 @@
 ## 11.1 Presentation Layer Architecture
 `Gomoku.Wpf` targets `net10.0-windows` and uses hardware-accelerated DirectX rendering via WPF.
 
+![UI Layout & Component Structure](images/ui-layout.svg)
+
 ```mermaid
 graph TD
     Window[MainWindow.xaml] --> Menu[Menu Bar: File, Edit, Options, Help]

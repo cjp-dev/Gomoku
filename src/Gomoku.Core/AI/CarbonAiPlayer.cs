@@ -375,6 +375,16 @@ public sealed class CarbonAiPlayer : IPlayer
 
     private void ForceOneCand(Span<Cand> cnd, ref int nCnd, int player, byte targetStatus)
     {
+        for (int i = 0; i < nCnd; i++)
+        {
+            if (_pb.Cells[cnd[i].X, cnd[i].Y].GetStatus4(player) == targetStatus)
+            {
+                cnd[0] = cnd[i];
+                nCnd = 1;
+                return;
+            }
+        }
+
         for (int y = _pb.UpperLeftCand.Y; y <= _pb.LowerRightCand.Y; y++)
         {
             for (int x = _pb.UpperLeftCand.X; x <= _pb.LowerRightCand.X; x++)
@@ -394,6 +404,7 @@ public sealed class CarbonAiPlayer : IPlayer
 
     private Cand Minimax(int h, bool root, int alpha, int beta, CancellationToken cancellationToken)
     {
+        // Closed interval [alpha, beta] as in AICarbon::minimax
         if (alpha > beta + 1) return new Cand(0, 0, beta + 1);
         Cand best = new(0, 0, alpha - 1);
 
@@ -439,20 +450,36 @@ public sealed class CarbonAiPlayer : IPlayer
 
         Span<Cand> cnd = stackalloc Cand[MaxCand];
         Point ttBest = Point.Empty;
-        ulong zobristKey = ComputePatternZobristKey();
+        ulong zobristKey = _pb.ZobristKey;
 
         if (Table.TryProbe(zobristKey, out TranspositionEntry entry))
         {
             ttBest = entry.BestMove;
-            if (!root && entry.Depth >= h)
+            if (!root && ((entry.Depth >= h && ((entry.Depth ^ h) & 1) == 0) || Math.Abs(entry.Score) >= WinMin))
             {
-                if (entry.Bound == BoundType.Exact) return new Cand(0, 0, entry.Score);
-                if (entry.Bound == BoundType.LowerBound && entry.Score >= beta) return new Cand(0, 0, entry.Score);
-                if (entry.Bound == BoundType.UpperBound && entry.Score <= alpha) return new Cand(0, 0, entry.Score);
+                int bx = entry.BestMove.IsValid(_pb.BoardWidth, _pb.BoardHeight) ? entry.BestMove.X + PatternBoard.Margin : 0;
+                int by = entry.BestMove.IsValid(_pb.BoardWidth, _pb.BoardHeight) ? entry.BestMove.Y + PatternBoard.Margin : 0;
+
+                if (entry.Bound == BoundType.Exact)
+                {
+                    if (entry.Score > beta) return new Cand(bx, by, beta + 1);
+                    if (entry.Score < alpha) return new Cand(0, 0, alpha - 1);
+                    return new Cand(bx, by, entry.Score);
+                }
+                if (entry.Bound == BoundType.LowerBound && entry.Score > beta)
+                {
+                    return new Cand(bx, by, beta + 1);
+                }
+                if (entry.Bound == BoundType.UpperBound && entry.Score < alpha)
+                {
+                    return new Cand(0, 0, alpha - 1);
+                }
             }
         }
 
         GenerateCand(cnd, out int nCnd, ttBest);
+
+        bool checkRenjuForbid = _pb.Variant == GomokuVariant.Renju && _pb.Who == _pb.FirstPlayer;
 
         if (nCnd > 1)
         {
@@ -461,21 +488,58 @@ public sealed class CarbonAiPlayer : IPlayer
         }
         else if (nCnd == 1 && root)
         {
-            return new Cand(cnd[0].X, cnd[0].Y, 0);
+            if (!checkRenjuForbid || _pb.Cells[cnd[0].X, cnd[0].Y].GetStatus4((int)_pb.Who) != CarbonTables.ThreatForbid)
+            {
+                return new Cand(cnd[0].X, cnd[0].Y, 0);
+            }
+            nCnd = 0;
         }
-        else if (nCnd == 0)
+
+        bool usedFallback = false;
+
+    noCand:
+        if (nCnd == 0)
         {
-            // Board nearly full fallback
+            usedFallback = true;
+            // Board nearly full or all primary candidates forbidden: include all adjacent candidates
             for (int y = _pb.UpperLeftCand.Y; y <= _pb.LowerRightCand.Y && nCnd < MaxCand; y++)
+            {
                 for (int x = _pb.UpperLeftCand.X; x <= _pb.LowerRightCand.X && nCnd < MaxCand; x++)
-                    if (_pb.Cells[x, y].Piece == PieceColor.Empty)
+                {
+                    ref PatternBoard.Cell c = ref _pb.Cells[x, y];
+                    if (c.Piece == PieceColor.Empty && (c.Adj1 != 0 || c.Adj2 != 0))
+                    {
+                        if (checkRenjuForbid && c.GetStatus4((int)_pb.Who) == CarbonTables.ThreatForbid)
+                            continue;
                         cnd[nCnd++] = new Cand(x, y, 0);
+                    }
+                }
+            }
+
+            // If still empty (e.g. only non-adjacent squares remain legal), scan full board
+            if (nCnd == 0)
+            {
+                for (int y = PatternBoard.Margin; y < _pb.BoardHeight + PatternBoard.Margin && nCnd < MaxCand; y++)
+                {
+                    for (int x = PatternBoard.Margin; x < _pb.BoardWidth + PatternBoard.Margin && nCnd < MaxCand; x++)
+                    {
+                        ref PatternBoard.Cell c = ref _pb.Cells[x, y];
+                        if (c.Piece == PieceColor.Empty)
+                        {
+                            if (checkRenjuForbid && c.GetStatus4((int)_pb.Who) == CarbonTables.ThreatForbid)
+                                continue;
+                            cnd[nCnd++] = new Cand(x, y, 0);
+                        }
+                    }
+                }
+            }
 
             if (nCnd == 0) best.Value = 0; // Board is full draw
         }
 
         BoundType bound = BoundType.UpperBound;
         Point currentBestMove = Point.Empty;
+        int nForbid = 0;
 
         for (int i = 0; i < nCnd; i++)
         {
@@ -483,9 +547,9 @@ public sealed class CarbonAiPlayer : IPlayer
             int cy = cnd[i].Y;
 
             // Renju check: Black cannot play on forbidden squares
-            if (_pb.Variant == GomokuVariant.Renju && _pb.Who == _pb.FirstPlayer &&
-                _pb.Cells[cx, cy].GetStatus4((int)_pb.Who) == CarbonTables.ThreatForbid)
+            if (checkRenjuForbid && _pb.Cells[cx, cy].GetStatus4((int)_pb.Who) == CarbonTables.ThreatForbid)
             {
+                nForbid++;
                 continue;
             }
 
@@ -510,10 +574,10 @@ public sealed class CarbonAiPlayer : IPlayer
                 best = new Cand(cx, cy, value);
                 currentBestMove = new Point(cx - PatternBoard.Margin, cy - PatternBoard.Margin);
 
-                if (value >= beta)
+                if (value > beta)
                 {
                     Table.Store(zobristKey, h, value, BoundType.LowerBound, currentBestMove);
-                    return new Cand(cx, cy, beta + 1); // Beta cutoff
+                    return new Cand(cx, cy, beta + 1); // Closed-interval beta cutoff
                 }
 
                 bound = BoundType.Exact;
@@ -522,28 +586,18 @@ public sealed class CarbonAiPlayer : IPlayer
             if (_terminate || cancellationToken.IsCancellationRequested) break;
         }
 
+        if (checkRenjuForbid && nForbid == nCnd && !usedFallback)
+        {
+            nCnd = 0;
+            goto noCand;
+        }
+
         if (!_terminate && !cancellationToken.IsCancellationRequested)
         {
             Table.Store(zobristKey, h, best.Value, bound, currentBestMove);
         }
 
         return best;
-    }
-
-    private ulong ComputePatternZobristKey()
-    {
-        ulong key = 0UL;
-        for (int i = 0; i < _pb.RemCount; i++)
-        {
-            Point pt = _pb.RemPlacedPoints[i];
-            PieceColor p = _pb.Cells[pt.X, pt.Y].Piece;
-            if (p is PieceColor.Black or PieceColor.White)
-            {
-                key ^= Zobrist.GetKey(p, pt.X - PatternBoard.Margin, pt.Y - PatternBoard.Margin);
-            }
-        }
-        if (_pb.Who == PieceColor.White) key ^= Zobrist.SideToMoveKey;
-        return key;
     }
 }
 
