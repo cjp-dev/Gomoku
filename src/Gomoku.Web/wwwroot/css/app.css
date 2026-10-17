@@ -373,3 +373,36 @@ body {
     .docs-toc { width: 100%; border-right: none; border-bottom: 1px solid #d0d7de; }
 }
 
+/* Blazor Error UI */
+#blazor-error-ui {
+    background: #fff3cd;
+    color: #664d03;
+    border-top: 1px solid #ffe69c;
+    bottom: 0;
+    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 2000;
+    font-size: 0.9rem;
+}
+
+#blazor-error-ui .reload {
+    color: #0d6efd;
+    margin-left: 0.5rem;
+    font-weight: 600;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 1.25rem;
+    top: 0.6rem;
+    font-size: 1.1rem;
+    color: #664d03;
+}
+
+

@@ -27,9 +27,9 @@ public sealed class BrowserSoundService(IJSInProcessRuntime js) : ISoundService
 
             js.InvokeVoid("gomoku.playSound", sound.ToString());
         }
-        catch (JSException)
+        catch (Exception)
         {
-            // Audio silently disabled if browser restricts autoplay
+            // Audio silently disabled if browser restricts autoplay or audio context
         }
 
         return Task.CompletedTask;

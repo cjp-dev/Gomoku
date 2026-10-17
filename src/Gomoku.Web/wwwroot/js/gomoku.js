@@ -12,7 +12,7 @@ window.gomoku = (() => {
             }
         }
         if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume();
+            audioCtx.resume().catch(() => {});
         }
         return audioCtx;
     }
@@ -53,7 +53,20 @@ window.gomoku = (() => {
             try {
                 const ctx = getAudioContext();
                 if (!ctx) return;
-                const buffer = await ctx.decodeAudioData(pcmBytes.buffer.slice(pcmBytes.byteOffset, pcmBytes.byteOffset + pcmBytes.byteLength));
+                let arrayBuffer;
+                if (typeof pcmBytes === 'string') {
+                    const binary = atob(pcmBytes);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    arrayBuffer = bytes.buffer;
+                } else if (pcmBytes instanceof Uint8Array) {
+                    arrayBuffer = pcmBytes.buffer.slice(pcmBytes.byteOffset, pcmBytes.byteOffset + pcmBytes.byteLength);
+                } else if (pcmBytes && pcmBytes.buffer) {
+                    arrayBuffer = pcmBytes.buffer;
+                } else {
+                    return;
+                }
+                const buffer = await ctx.decodeAudioData(arrayBuffer);
                 sounds.set(name, buffer);
             } catch (err) {
                 // Audio decode might fail if permissions suspended

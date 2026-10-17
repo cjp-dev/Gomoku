@@ -1,3 +1,4 @@
+@using System.Globalization
 @inject MainViewModel ViewModel
 @implements IDisposable
 
@@ -46,27 +47,27 @@
             @for (int y = 0; y < rows; y++)
             {
                 double cy = margin + y * cellH;
-                <line x1="@margin" y1="@cy" x2="@(margin + (cols - 1) * cellW)" y2="@cy"
-                      stroke-width="@(y == 0 || y == rows - 1 ? 2.0 : 1.2)" />
+                <line x1="@F(margin)" y1="@F(cy)" x2="@F(margin + (cols - 1) * cellW)" y2="@F(cy)"
+                      stroke-width="@(y == 0 || y == rows - 1 ? "2.0" : "1.2")" />
 
                 @if (ViewModel.Settings.CoordinatesVisible)
                 {
-                    @((MarkupString)$"<text x=\"16\" y=\"{cy + 4}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
-                    @((MarkupString)$"<text x=\"624\" y=\"{cy + 4}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
+                    @((MarkupString)$"<text x=\"16\" y=\"{F(cy + 4)}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
+                    @((MarkupString)$"<text x=\"624\" y=\"{F(cy + 4)}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
                 }
             }
 
             @for (int x = 0; x < cols; x++)
             {
                 double cx = margin + x * cellW;
-                <line x1="@cx" y1="@margin" x2="@cx" y2="@(margin + (rows - 1) * cellH)"
-                      stroke-width="@(x == 0 || x == cols - 1 ? 2.0 : 1.2)" />
+                <line x1="@F(cx)" y1="@F(margin)" x2="@F(cx)" y2="@F(margin + (rows - 1) * cellH)"
+                      stroke-width="@(x == 0 || x == cols - 1 ? "2.0" : "1.2")" />
 
                 @if (ViewModel.Settings.CoordinatesVisible)
                 {
                     char colChar = (char)('A' + x);
-                    @((MarkupString)$"<text x=\"{cx}\" y=\"22\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
-                    @((MarkupString)$"<text x=\"{cx}\" y=\"630\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
+                    @((MarkupString)$"<text x=\"{F(cx)}\" y=\"22\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
+                    @((MarkupString)$"<text x=\"{F(cx)}\" y=\"630\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
                 }
             }
         </g>
@@ -77,7 +78,7 @@
             {
                 double cx = margin + sp.X * cellW;
                 double cy = margin + sp.Y * cellH;
-                <circle cx="@cx" cy="@cy" r="4" />
+                <circle cx="@F(cx)" cy="@F(cy)" r="4" />
             }
         </g>
 
@@ -93,19 +94,19 @@
                style="cursor: pointer;">
                 
                 <!-- Transparent Hit Target -->
-                <circle cx="@cx" cy="@cy" r="@(cellW * 0.48)" fill="transparent" />
+                <circle cx="@F(cx)" cy="@F(cy)" r="@F(cellW * 0.48)" fill="transparent" />
 
                 <!-- Renju Forbidden Move Marker -->
                 @if (cell.ShowForbiddenMarker)
                 {
-                    <line x1="@(cx - 5)" y1="@(cy - 5)" x2="@(cx + 5)" y2="@(cy + 5)" stroke="#D32F2F" stroke-width="2.4" stroke-linecap="round" />
-                    <line x1="@(cx + 5)" y1="@(cy - 5)" x2="@(cx - 5)" y2="@(cy + 5)" stroke="#D32F2F" stroke-width="2.4" stroke-linecap="round" />
+                    <line x1="@F(cx - 5)" y1="@F(cy - 5)" x2="@F(cx + 5)" y2="@F(cy + 5)" stroke="#D32F2F" stroke-width="2.4" stroke-linecap="round" />
+                    <line x1="@F(cx + 5)" y1="@F(cy - 5)" x2="@F(cx - 5)" y2="@F(cy + 5)" stroke="#D32F2F" stroke-width="2.4" stroke-linecap="round" />
                 }
 
                 <!-- Ghost Preview Stone -->
                 @if ((cell.ShowBlackGhost || cell.ShowWhiteGhost) && ViewModel.CanHoverMove && ViewModel.Settings.GhostStoneEnabled)
                 {
-                    <circle cx="@cx" cy="@cy" r="@stoneR"
+                    <circle cx="@F(cx)" cy="@F(cy)" r="@F(stoneR)"
                             fill="@(cell.ShowBlackGhost ? "url(#black-stone)" : "url(#white-stone)")"
                             opacity="0.45" />
                 }
@@ -113,20 +114,20 @@
                 <!-- Placed Stone -->
                 @if (cell.HasPiece)
                 {
-                    <circle cx="@cx" cy="@cy" r="@stoneR"
+                    <circle cx="@F(cx)" cy="@F(cy)" r="@F(stoneR)"
                             fill="@(cell.IsBlack ? "url(#black-stone)" : "url(#white-stone)")"
                             filter="url(#stone-shadow)" />
 
                     <!-- Last Move Marker -->
                     @if (cell.IsLastMove && ViewModel.Settings.LastMoveHighlightEnabled)
                     {
-                        <circle cx="@cx" cy="@cy" r="4" fill="#E74C3C" />
+                        <circle cx="@F(cx)" cy="@F(cy)" r="4" fill="#E74C3C" />
                     }
 
                     <!-- Winning Line Gold Ring -->
                     @if (cell.IsWinningLine && ViewModel.Settings.WinLineHighlightEnabled)
                     {
-                        <circle cx="@cx" cy="@cy" r="@(stoneR + 2)" stroke="#F1C40F" stroke-width="3" fill="none" />
+                        <circle cx="@F(cx)" cy="@F(cy)" r="@F(stoneR + 2)" stroke="#F1C40F" stroke-width="3" fill="none" />
                     }
                 }
             </g>
@@ -135,6 +136,8 @@
 </div>
 
 @code {
+    private static string F(double val) => val.ToString("0.##", CultureInfo.InvariantCulture);
+
     protected override void OnInitialized()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
