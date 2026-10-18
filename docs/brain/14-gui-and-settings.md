@@ -263,3 +263,4 @@ In the browser client (`Gomoku.Web`), execution runs within a single-threaded We
 ---
 
 Previous: [13 UI clients](13-ui-clients.md) · Next: [15 Benchmarks and performance](15-benchmarks-and-performance.md)
+
