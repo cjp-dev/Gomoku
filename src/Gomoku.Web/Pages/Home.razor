@@ -127,7 +127,7 @@
                     <h2>ANALYSIS</h2>
                     <dl class="analysis-grid">
                         <dt>Move:</dt>
-                        <dd>@(Vm.MoveCount + 1)</dd>
+                        <dd>@(Vm.GameStatus.IsGameOver() ? Vm.MoveCount : Vm.MoveCount + 1)</dd>
 
                         <dt>Depth:</dt>
                         <dd>@Vm.Analysis.Depth</dd>

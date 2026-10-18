@@ -378,6 +378,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         else
         {
+            Analysis.ConsumePlyAfterMove();
             CheckAndTriggerAiMove();
         }
     }
@@ -473,10 +474,14 @@ public sealed partial class MainViewModel : ObservableObject
                 {
                     HandleGameOver();
                 }
-                else if (Settings.Mode == GameMode.AiVsAi)
+                else
                 {
-                    await Task.Delay(200);
-                    CheckAndTriggerAiMove();
+                    Analysis.ConsumePlyAfterMove();
+                    if (Settings.Mode == GameMode.AiVsAi)
+                    {
+                        await Task.Delay(200);
+                        CheckAndTriggerAiMove();
+                    }
                 }
             }
         }
@@ -533,6 +538,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         UpdateUiState();
+        Analysis.Reset();
         _ = _soundService.PlaySoundAsync(SoundType.Undo);
     }
 
@@ -632,17 +638,20 @@ public sealed partial class MainViewModel : ObservableObject
             StatusText = "Black won!";
             bool isHumanWin = Settings.Mode == GameMode.HumanVsAi || Settings.Mode == GameMode.HumanVsHuman;
             _ = _soundService.PlaySoundAsync(isHumanWin ? SoundType.Win : SoundType.Loss);
+            Analysis.SetGameOver("Mate!");
         }
         else if (GameStatus == GameStatus.WhiteWon)
         {
             StatusText = "White won!";
             bool isHumanWin = Settings.Mode == GameMode.AiVsHuman || Settings.Mode == GameMode.HumanVsHuman;
             _ = _soundService.PlaySoundAsync(isHumanWin ? SoundType.Win : SoundType.Loss);
+            Analysis.SetGameOver("Mate!");
         }
         else if (GameStatus == GameStatus.Draw)
         {
             StatusText = "Game ended in a draw!";
             _ = _soundService.PlaySoundAsync(SoundType.Draw);
+            Analysis.SetGameOver("Draw");
         }
     }
 

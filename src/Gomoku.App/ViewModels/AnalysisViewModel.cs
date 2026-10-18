@@ -71,6 +71,36 @@ public sealed partial class AnalysisViewModel : ObservableObject
         Updated?.Invoke();
     }
 
+    public void SetGameOver(string result)
+    {
+        Score = result;
+        Status = "Game Over";
+        Updated?.Invoke();
+    }
+
+    public void ConsumePlyAfterMove()
+    {
+        if (Score.StartsWith("Mate in ", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(Score["Mate in ".Length..], out int plies))
+            {
+                int remaining = plies - 1;
+                Score = remaining <= 0 ? "Mate!" : $"Mate in {remaining}";
+            }
+        }
+        else if (Score.StartsWith("-Mate in ", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(Score["-Mate in ".Length..], out int plies))
+            {
+                int remaining = plies - 1;
+                Score = remaining <= 0 ? "Mate!" : $"-Mate in {remaining}";
+            }
+        }
+
+        Status = "Ready";
+        Updated?.Invoke();
+    }
+
     public void Reset()
     {
         Depth = "-";

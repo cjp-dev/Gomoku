@@ -256,4 +256,62 @@ public class MainViewModelTests
         vm.Update(lossAnalysis);
         vm.Score.Should().Be("-Mate in 4");
     }
+
+    [Fact]
+    public void AnalysisViewModel_ConsumePlyAfterMove_ShouldDecrementMatePliesAndPreserveBestMove()
+    {
+        AnalysisViewModel vm = new();
+
+        SearchAnalysis winAnalysis = new(
+            MoveNumber: 22,
+            Depth: 2,
+            Score: CarbonAiPlayer.WinMax - 3,
+            BestMove: new Move(6, 7, PieceColor.White), // G8
+            Nodes: 1,
+            EvaluationsPerSec: 0,
+            Elapsed: TimeSpan.FromMilliseconds(5),
+            StatusMessage: null,
+            IsSearching: false);
+
+        vm.Update(winAnalysis);
+        vm.Score.Should().Be("Mate in 3");
+        vm.BestMove.Should().Be("G8");
+
+        // White plays G8: 1 ply consumed
+        vm.ConsumePlyAfterMove();
+        vm.Score.Should().Be("Mate in 2");
+        vm.BestMove.Should().Be("G8"); // Best move preserved as indicator
+
+        // Black plays defense: 1 ply consumed
+        vm.ConsumePlyAfterMove();
+        vm.Score.Should().Be("Mate in 1");
+        vm.BestMove.Should().Be("G8");
+    }
+
+    [Fact]
+    public void AnalysisViewModel_SetGameOver_ShouldSetMateAndPreserveBestMove()
+    {
+        AnalysisViewModel vm = new();
+
+        SearchAnalysis winAnalysis = new(
+            MoveNumber: 24,
+            Depth: 2,
+            Score: CarbonAiPlayer.WinMax - 1,
+            BestMove: new Move(6, 4, PieceColor.White), // G5
+            Nodes: 1,
+            EvaluationsPerSec: 0,
+            Elapsed: TimeSpan.FromMilliseconds(5),
+            StatusMessage: null,
+            IsSearching: false);
+
+        vm.Update(winAnalysis);
+        vm.Score.Should().Be("Mate in 1");
+        vm.BestMove.Should().Be("G5");
+
+        // Game ends with winning move G5
+        vm.SetGameOver("Mate!");
+        vm.Score.Should().Be("Mate!");
+        vm.BestMove.Should().Be("G5"); // Best move preserved as indicator of winning move
+        vm.Status.Should().Be("Game Over");
+    }
 }
