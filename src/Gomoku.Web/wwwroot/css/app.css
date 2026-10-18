@@ -178,6 +178,12 @@ body {
         min-width: 280px;
         min-height: 280px;
     }
+
+    .side-panels {
+        width: min(92vw, 65vh, 1080px);
+        min-width: 280px;
+        max-width: 100%;
+    }
 }
 
 /* Side Panels */
