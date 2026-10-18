@@ -17,7 +17,7 @@ public sealed class SimpleAiPlayer : IPlayer
     public string Name => "Simple AI";
     public SearchAnalysis? LastAnalysis { get; private set; }
 
-    public ValueTask<Move> GetMoveAsync(
+    public async ValueTask<Move> GetMoveAsync(
         BoardState state,
         SearchLimits limits,
         IReadOnlyList<Move> legalMoves,
@@ -36,14 +36,19 @@ public sealed class SimpleAiPlayer : IPlayer
         {
             Point center = state.Size.Center;
             Move centerMove = new(center.X, center.Y, state.SideToMove);
-            LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, centerMove, 1, 0, sw.Elapsed, "Opening center");
+            LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, centerMove, 1, 0, sw.Elapsed, "Center opening", IsSearching: false);
             progress?.Report(LastAnalysis);
-            return ValueTask.FromResult(centerMove);
+            if (progress != null)
+            {
+                await Task.Delay(250, cancellationToken);
+            }
+            return centerMove;
         }
 
         int bestVal = int.MinValue;
         Move bestMove = legalMoves[0];
         long nodes = 0;
+        long lastReportMs = 0;
 
         PieceColor me = state.SideToMove;
         PieceColor opp = me.Opponent();
@@ -72,6 +77,22 @@ public sealed class SimpleAiPlayer : IPlayer
                 bestVal = val;
                 bestMove = move;
             }
+
+            if (progress != null && sw.ElapsedMilliseconds - lastReportMs >= 150)
+            {
+                lastReportMs = sw.ElapsedMilliseconds;
+                progress.Report(new SearchAnalysis(
+                    state.MoveCount + 1,
+                    1,
+                    bestVal,
+                    bestMove,
+                    nodes,
+                    lastReportMs > 0 ? nodes * 1000 / lastReportMs : 0,
+                    sw.Elapsed,
+                    "Searching...",
+                    IsSearching: true));
+                await Task.Delay(1, cancellationToken);
+            }
         }
 
         sw.Stop();
@@ -82,10 +103,12 @@ public sealed class SimpleAiPlayer : IPlayer
             bestMove,
             nodes,
             sw.ElapsedMilliseconds > 0 ? nodes * 1000 / sw.ElapsedMilliseconds : 0,
-            sw.Elapsed);
+            sw.Elapsed,
+            null,
+            IsSearching: false);
         progress?.Report(LastAnalysis);
 
-        return ValueTask.FromResult(bestMove);
+        return bestMove;
     }
 
     private static bool IsCandidate(BoardState state, int x, int y)

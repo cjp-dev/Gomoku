@@ -426,6 +426,8 @@ public sealed partial class MainViewModel : ObservableObject
         };
     }
 
+    private int _searchId;
+
     private async Task RunAiTurnAsync()
     {
         if (IsThinking || GameStatus.IsGameOver()) return;
@@ -433,6 +435,8 @@ public sealed partial class MainViewModel : ObservableObject
         IsThinking = true;
         StatusText = $"{Session.CurrentState.SideToMove} is thinking...";
         _aiCts = new CancellationTokenSource();
+        int searchId = ++_searchId;
+        Analysis.Reset();
 
         try
         {
@@ -446,7 +450,13 @@ public sealed partial class MainViewModel : ObservableObject
             IPlayer player = Settings.AiEngine == AiEngineType.Carbon ? _carbonPlayer : _simplePlayer;
             SearchLimits limits = CreateSearchLimits();
 
-            var progress = new Progress<SearchAnalysis>(a => Analysis.Update(a));
+            var progress = new Progress<SearchAnalysis>(a =>
+            {
+                if (searchId == _searchId && IsThinking && _aiCts is { IsCancellationRequested: false })
+                {
+                    Analysis.Update(a);
+                }
+            });
 
             Move bestMove = await Task.Run(
                 async () => await player.GetMoveAsync(Session.CurrentState, limits, legalMoves, progress, _aiCts.Token),
@@ -487,6 +497,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public void CancelAiSearch()
     {
+        _searchId++;
         if (_aiCts != null && !_aiCts.IsCancellationRequested)
         {
             _aiCts.Cancel();

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Gomoku.App.Models;
 using Gomoku.App.Tests.Mocks;
 using Gomoku.App.ViewModels;
+using Gomoku.Core.AI;
 using Gomoku.Core.Models;
 using Xunit;
 
@@ -149,5 +150,110 @@ public class MainViewModelTests
         var center = vm.Intersections.First(i => i.X == 7 && i.Y == 7);
         center.IsForbidden.Should().BeTrue();
         center.ShowForbiddenMarker.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AnalysisViewModel_Update_ShouldFormatSearchingAndCompletedDepthsCorrectly()
+    {
+        AnalysisViewModel vm = new();
+        bool updatedFired = false;
+        vm.Updated += () => updatedFired = true;
+
+        SearchAnalysis searchingAnalysis = new(
+            MoveNumber: 5,
+            Depth: 6,
+            Score: 120,
+            BestMove: new Move(7, 7, PieceColor.Black),
+            Nodes: 15420,
+            EvaluationsPerSec: 500000,
+            Elapsed: TimeSpan.FromSeconds(0.45),
+            StatusMessage: null,
+            IsSearching: true);
+
+        vm.Update(searchingAnalysis);
+
+        vm.Depth.Should().Be("6 plies...");
+        vm.Score.Should().Be("+120");
+        vm.BestMove.Should().Be("H8");
+        vm.Nodes.Should().Be("15,420");
+        vm.Speed.Should().Be("500,000 nps");
+        vm.Status.Should().Be("Searching...");
+        updatedFired.Should().BeTrue();
+
+        updatedFired = false;
+        SearchAnalysis completedAnalysis = searchingAnalysis with
+        {
+            IsSearching = false
+        };
+
+        vm.Update(completedAnalysis);
+
+        vm.Depth.Should().Be("6 plies");
+        vm.Status.Should().Be("Ready");
+        updatedFired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AnalysisViewModel_OpeningBookAndCenterOpening_ShouldFormatDepthAsBookOrOpening()
+    {
+        AnalysisViewModel vm = new();
+
+        SearchAnalysis bookAnalysis = new(
+            MoveNumber: 2,
+            Depth: 1,
+            Score: 0,
+            BestMove: new Move(8, 8, PieceColor.White),
+            Nodes: 1,
+            EvaluationsPerSec: 0,
+            Elapsed: TimeSpan.FromMilliseconds(5),
+            StatusMessage: "Opening book",
+            IsSearching: false);
+
+        vm.Update(bookAnalysis);
+        vm.Depth.Should().Be("Book");
+        vm.Status.Should().Be("Opening book");
+
+        SearchAnalysis centerAnalysis = new(
+            MoveNumber: 1,
+            Depth: 1,
+            Score: 0,
+            BestMove: new Move(7, 7, PieceColor.Black),
+            Nodes: 1,
+            EvaluationsPerSec: 0,
+            Elapsed: TimeSpan.FromMilliseconds(2),
+            StatusMessage: "Center opening",
+            IsSearching: false);
+
+        vm.Update(centerAnalysis);
+        vm.Depth.Should().Be("Opening");
+        vm.Status.Should().Be("Center opening");
+    }
+
+    [Fact]
+    public void AnalysisViewModel_MateScores_ShouldFormatAsMateInPlies()
+    {
+        AnalysisViewModel vm = new();
+
+        SearchAnalysis winAnalysis = new(
+            MoveNumber: 10,
+            Depth: 8,
+            Score: CarbonAiPlayer.WinMax - 3,
+            BestMove: new Move(7, 7, PieceColor.Black),
+            Nodes: 50000,
+            EvaluationsPerSec: 100000,
+            Elapsed: TimeSpan.FromSeconds(1),
+            StatusMessage: null,
+            IsSearching: false);
+
+        vm.Update(winAnalysis);
+        vm.Score.Should().Be("Mate in 3");
+
+        SearchAnalysis lossAnalysis = winAnalysis with
+        {
+            Score = -CarbonAiPlayer.WinMax + 4
+        };
+
+        vm.Update(lossAnalysis);
+        vm.Score.Should().Be("-Mate in 4");
     }
 }

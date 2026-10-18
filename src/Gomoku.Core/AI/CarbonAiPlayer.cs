@@ -31,6 +31,17 @@ public sealed class CarbonAiPlayer : IPlayer
     private int _timeoutTurnMs = 1000000;
     private bool _terminate;
 
+    private IProgress<SearchAnalysis>? _activeProgress;
+    private Stopwatch? _activeSw;
+    private long _lastReportMs;
+    private long _lastYieldMs;
+    private int _currentDepth;
+    private int _currentMoveNumber;
+    private PieceColor _currentSideToMove;
+    private Point _activeBestMovePoint;
+    private int _activeBestScore;
+    private readonly Cand[] _rootCnd = new Cand[MaxCand];
+
     public struct Cand
     {
         public int X, Y;
@@ -43,7 +54,7 @@ public sealed class CarbonAiPlayer : IPlayer
         Table = table ?? new TranspositionTable(TranspositionTable.DefaultEntries);
     }
 
-    public ValueTask<Move> GetMoveAsync(
+    public async ValueTask<Move> GetMoveAsync(
         BoardState state,
         SearchLimits limits,
         IReadOnlyList<Move> legalMoves,
@@ -65,9 +76,13 @@ public sealed class CarbonAiPlayer : IPlayer
         {
             Point center = state.Size.Center;
             Move centerMove = new(center.X, center.Y, state.SideToMove);
-            LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, centerMove, 1, 0, sw.Elapsed, "Center opening");
+            LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, centerMove, 1, 0, sw.Elapsed, "Center opening", IsSearching: false);
             progress?.Report(LastAnalysis);
-            return ValueTask.FromResult(centerMove);
+            if (progress != null)
+            {
+                await Task.Delay(250, cancellationToken);
+            }
+            return centerMove;
         }
 
         // Initialize pattern board
@@ -93,9 +108,13 @@ public sealed class CarbonAiPlayer : IPlayer
             Move bookMove = new(bookPoint.X, bookPoint.Y, state.SideToMove);
             if (legalMoves.Contains(bookMove))
             {
-                LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, bookMove, 1, 0, sw.Elapsed, "Opening book");
+                LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, bookMove, 1, 0, sw.Elapsed, "Opening book", IsSearching: false);
                 progress?.Report(LastAnalysis);
-                return ValueTask.FromResult(bookMove);
+                if (progress != null)
+                {
+                    await Task.Delay(250, cancellationToken);
+                }
+                return bookMove;
             }
         }
 
@@ -111,49 +130,74 @@ public sealed class CarbonAiPlayer : IPlayer
         int prevSearched = 0;
         int finalDepth = 1;
 
-        for (int depth = (limits.Mode == TimeControlMode.FixedDepth && limits.Depth == 1 ? 1 : 2); depth <= maxTargetDepth; depth++)
+        _activeProgress = progress;
+        _activeSw = sw;
+        _lastReportMs = 0;
+        _lastYieldMs = 0;
+        _currentMoveNumber = state.MoveCount + 1;
+        _currentSideToMove = state.SideToMove;
+        _activeBestMovePoint = Point.Empty;
+        _activeBestScore = 0;
+
+        try
         {
-            long t0 = Environment.TickCount64;
-            _iterNodes = 0;
-
-            Cand best = Minimax(depth, true, -Inf, Inf, cancellationToken);
-            _totalNodes += _iterNodes;
-
-            if (_terminate || cancellationToken.IsCancellationRequested)
+            for (int depth = (limits.Mode == TimeControlMode.FixedDepth && limits.Depth == 1 ? 1 : 2); depth <= maxTargetDepth; depth++)
             {
-                if (depth > 4) break;
+                _currentDepth = depth;
+                long t0 = Environment.TickCount64;
+                _iterNodes = 0;
+
+                Cand best = await MinimaxRootAsync(depth, cancellationToken);
+                _totalNodes += _iterNodes;
+
+                if (cancellationToken.IsCancellationRequested) break;
+                if (_terminate && depth > 4) break;
+
+                if (best.X >= PatternBoard.Margin && best.Y >= PatternBoard.Margin)
+                {
+                    bestMovePoint = new Point(best.X - PatternBoard.Margin, best.Y - PatternBoard.Margin);
+                    bestScore = best.Value;
+                    finalDepth = depth;
+                    _activeBestMovePoint = bestMovePoint;
+                    _activeBestScore = bestScore;
+                }
+
+                long t1 = Environment.TickCount64;
+                long td = t1 - t0;
+
+                long speed = td > 0 ? _iterNodes * 1000 / td : 0;
+                LastAnalysis = new SearchAnalysis(
+                    state.MoveCount + 1,
+                    depth,
+                    bestScore,
+                    new Move(bestMovePoint.X, bestMovePoint.Y, state.SideToMove),
+                    _totalNodes,
+                    speed,
+                    sw.Elapsed,
+                    StatusMessage: null,
+                    IsSearching: false);
+                progress?.Report(LastAnalysis);
+
+                if (progress != null)
+                {
+                    await Task.Delay(1, cancellationToken);
+                }
+
+                // Win found or search timed out
+                if (Math.Abs(bestScore) >= WinMin) break;
+                if (_terminate || cancellationToken.IsCancellationRequested) break;
+                if (limits.Mode != TimeControlMode.FixedDepth)
+                {
+                    if (t1 + TimeoutPrevent * td >= _stopTime || _iterNodes == prevSearched) break;
+                }
+
+                prevSearched = (int)_iterNodes;
             }
-
-            if (best.X >= PatternBoard.Margin && best.Y >= PatternBoard.Margin)
-            {
-                bestMovePoint = new Point(best.X - PatternBoard.Margin, best.Y - PatternBoard.Margin);
-                bestScore = best.Value;
-                finalDepth = depth;
-            }
-
-            long t1 = Environment.TickCount64;
-            long td = t1 - t0;
-
-            long speed = td > 0 ? _iterNodes * 1000 / td : 0;
-            LastAnalysis = new SearchAnalysis(
-                state.MoveCount + 1,
-                depth,
-                bestScore,
-                new Move(bestMovePoint.X, bestMovePoint.Y, state.SideToMove),
-                _totalNodes,
-                speed,
-                sw.Elapsed);
-            progress?.Report(LastAnalysis);
-
-            // Win found or search timed out
-            if (Math.Abs(bestScore) >= WinMin) break;
-            if (_terminate || cancellationToken.IsCancellationRequested) break;
-            if (limits.Mode != TimeControlMode.FixedDepth)
-            {
-                if (t1 + TimeoutPrevent * td >= _stopTime || _iterNodes == prevSearched) break;
-            }
-
-            prevSearched = (int)_iterNodes;
+        }
+        finally
+        {
+            _activeProgress = null;
+            _activeSw = null;
         }
 
         sw.Stop();
@@ -170,10 +214,12 @@ public sealed class CarbonAiPlayer : IPlayer
             chosenMove,
             _totalNodes,
             sw.ElapsedMilliseconds > 0 ? _totalNodes * 1000 / sw.ElapsedMilliseconds : 0,
-            sw.Elapsed);
+            sw.Elapsed,
+            StatusMessage: null,
+            IsSearching: false);
         progress?.Report(LastAnalysis);
 
-        return ValueTask.FromResult(chosenMove);
+        return chosenMove;
     }
 
     private void ConfigureTimeLimits(SearchLimits limits)
@@ -402,7 +448,192 @@ public sealed class CarbonAiPlayer : IPlayer
 
     private int _nodeCheckCounter = 1000;
 
-    private Cand Minimax(int h, bool root, int alpha, int beta, CancellationToken cancellationToken)
+    private async ValueTask<Cand> MinimaxRootAsync(int h, CancellationToken cancellationToken)
+    {
+        Cand best = new(0, 0, -Inf - 1);
+        int beta = Inf;
+
+        // Quick win recognition
+        int q = QuickWinSearch();
+        if (q == 1) // Immediate win available
+        {
+            int who = (int)_pb.Who;
+            for (int y = _pb.UpperLeftCand.Y; y <= _pb.LowerRightCand.Y; y++)
+            {
+                for (int x = _pb.UpperLeftCand.X; x <= _pb.LowerRightCand.X; x++)
+                {
+                    if (_pb.Cells[x, y].Piece == PieceColor.Empty && _pb.Cells[x, y].GetStatus4(who) == CarbonTables.ThreatA)
+                    {
+                        return new Cand(x, y, WinMax - 1);
+                    }
+                }
+            }
+        }
+
+        if (h == 0)
+        {
+            return new Cand(0, 0, Evaluate());
+        }
+
+        h--;
+
+        Point ttBest = Point.Empty;
+        ulong zobristKey = _pb.ZobristKey;
+
+        if (Table.TryProbe(zobristKey, out TranspositionEntry entry))
+        {
+            ttBest = entry.BestMove;
+        }
+
+        GenerateCand(_rootCnd.AsSpan(), out int nCnd, ttBest);
+
+        bool checkRenjuForbid = _pb.Variant == GomokuVariant.Renju && _pb.Who == _pb.FirstPlayer;
+
+        if (nCnd > 1)
+        {
+            Array.Sort(_rootCnd, 0, nCnd, Comparer<Cand>.Create((a, b) => b.Value.CompareTo(a.Value)));
+        }
+        else if (nCnd == 1)
+        {
+            if (!checkRenjuForbid || _pb.Cells[_rootCnd[0].X, _rootCnd[0].Y].GetStatus4((int)_pb.Who) != CarbonTables.ThreatForbid)
+            {
+                return new Cand(_rootCnd[0].X, _rootCnd[0].Y, 0);
+            }
+            nCnd = 0;
+        }
+
+        bool usedFallback = false;
+
+    noCand:
+        if (nCnd == 0)
+        {
+            usedFallback = true;
+            // Board nearly full or all primary candidates forbidden: include all adjacent candidates
+            for (int y = _pb.UpperLeftCand.Y; y <= _pb.LowerRightCand.Y && nCnd < MaxCand; y++)
+            {
+                for (int x = _pb.UpperLeftCand.X; x <= _pb.LowerRightCand.X && nCnd < MaxCand; x++)
+                {
+                    ref PatternBoard.Cell c = ref _pb.Cells[x, y];
+                    if (c.Piece == PieceColor.Empty && (c.Adj1 != 0 || c.Adj2 != 0))
+                    {
+                        if (checkRenjuForbid && c.GetStatus4((int)_pb.Who) == CarbonTables.ThreatForbid)
+                            continue;
+                        _rootCnd[nCnd++] = new Cand(x, y, 0);
+                    }
+                }
+            }
+
+            // If still empty (e.g. only non-adjacent squares remain legal), scan full board
+            if (nCnd == 0)
+            {
+                for (int y = PatternBoard.Margin; y < _pb.BoardHeight + PatternBoard.Margin && nCnd < MaxCand; y++)
+                {
+                    for (int x = PatternBoard.Margin; x < _pb.BoardWidth + PatternBoard.Margin && nCnd < MaxCand; x++)
+                    {
+                        ref PatternBoard.Cell c = ref _pb.Cells[x, y];
+                        if (c.Piece == PieceColor.Empty)
+                        {
+                            if (checkRenjuForbid && c.GetStatus4((int)_pb.Who) == CarbonTables.ThreatForbid)
+                                continue;
+                            _rootCnd[nCnd++] = new Cand(x, y, 0);
+                        }
+                    }
+                }
+            }
+
+            if (nCnd == 0) best.Value = 0; // Board is full draw
+        }
+
+        BoundType bound = BoundType.UpperBound;
+        Point currentBestMove = Point.Empty;
+        int nForbid = 0;
+
+        for (int i = 0; i < nCnd; i++)
+        {
+            int cx = _rootCnd[i].X;
+            int cy = _rootCnd[i].Y;
+
+            // Renju check: Black cannot play on forbidden squares
+            if (checkRenjuForbid && _pb.Cells[cx, cy].GetStatus4((int)_pb.Who) == CarbonTables.ThreatForbid)
+            {
+                nForbid++;
+                continue;
+            }
+
+            _iterNodes++;
+            _pb.MakePaddedMove(cx, cy);
+
+            int vA = -beta;
+            int vB = -(best.Value + 1);
+            if (vB >= WinMin) vB++;
+            if (vA <= -WinMin) vA--;
+
+            Cand m = Minimax(h, vA, vB, cancellationToken);
+            int value = -m.Value;
+
+            if (value >= WinMin) value--;
+            if (value <= -WinMin) value++;
+
+            _pb.UndoMove();
+
+            if (value > best.Value)
+            {
+                best = new Cand(cx, cy, value);
+                currentBestMove = new Point(cx - PatternBoard.Margin, cy - PatternBoard.Margin);
+                _activeBestMovePoint = currentBestMove;
+                _activeBestScore = value;
+
+                if (value > beta)
+                {
+                    Table.Store(zobristKey, h, value, BoundType.LowerBound, currentBestMove);
+                    return new Cand(cx, cy, beta + 1); // Closed-interval beta cutoff
+                }
+
+                bound = BoundType.Exact;
+            }
+
+            if (_activeProgress != null && _activeSw != null && _activeSw.ElapsedMilliseconds - _lastYieldMs >= 150)
+            {
+                _lastYieldMs = _activeSw.ElapsedMilliseconds;
+                _lastReportMs = _lastYieldMs;
+                long totalCurrentNodes = _totalNodes + _iterNodes;
+                long speed = _lastYieldMs > 0 ? totalCurrentNodes * 1000 / _lastYieldMs : 0;
+                Move? currentBest = _activeBestMovePoint.IsValid(_pb.BoardWidth, _pb.BoardHeight)
+                    ? new Move(_activeBestMovePoint.X, _activeBestMovePoint.Y, _currentSideToMove)
+                    : null;
+
+                _activeProgress.Report(new SearchAnalysis(
+                    _currentMoveNumber,
+                    _currentDepth,
+                    _activeBestScore,
+                    currentBest,
+                    totalCurrentNodes,
+                    speed,
+                    _activeSw.Elapsed,
+                    StatusMessage: "Searching...",
+                    IsSearching: true));
+
+                await Task.Delay(1, cancellationToken);
+            }
+
+            if (_terminate || cancellationToken.IsCancellationRequested) break;
+        }
+
+        if (checkRenjuForbid && nForbid == nCnd && !usedFallback)
+        {
+            nCnd = 0;
+            goto noCand;
+        }
+
+        if (!_terminate && !cancellationToken.IsCancellationRequested)
+        {
+            Table.Store(zobristKey, h, best.Value, bound, currentBestMove);
+        }
+
+        return best;
+    }
+
+    private Cand Minimax(int h, int alpha, int beta, CancellationToken cancellationToken)
     {
         // Closed interval [alpha, beta] as in AICarbon::minimax
         if (alpha > beta + 1) return new Cand(0, 0, beta + 1);
@@ -411,9 +642,31 @@ public sealed class CarbonAiPlayer : IPlayer
         if (--_nodeCheckCounter <= 0)
         {
             _nodeCheckCounter = 1000;
-            if (Environment.TickCount64 >= _stopTime || cancellationToken.IsCancellationRequested)
+            long now = Environment.TickCount64;
+            if (now >= _stopTime || cancellationToken.IsCancellationRequested)
             {
                 _terminate = true;
+            }
+
+            if (_activeProgress != null && _activeSw != null && _activeSw.ElapsedMilliseconds - _lastReportMs >= 200)
+            {
+                _lastReportMs = _activeSw.ElapsedMilliseconds;
+                long totalCurrentNodes = _totalNodes + _iterNodes;
+                long speed = _lastReportMs > 0 ? totalCurrentNodes * 1000 / _lastReportMs : 0;
+                Move? currentBest = _activeBestMovePoint.IsValid(_pb.BoardWidth, _pb.BoardHeight)
+                    ? new Move(_activeBestMovePoint.X, _activeBestMovePoint.Y, _currentSideToMove)
+                    : null;
+
+                _activeProgress.Report(new SearchAnalysis(
+                    _currentMoveNumber,
+                    _currentDepth,
+                    _activeBestScore,
+                    currentBest,
+                    totalCurrentNodes,
+                    speed,
+                    _activeSw.Elapsed,
+                    StatusMessage: "Searching...",
+                    IsSearching: true));
             }
         }
 
@@ -421,24 +674,7 @@ public sealed class CarbonAiPlayer : IPlayer
         int q = QuickWinSearch();
         if (q != 0)
         {
-            if (!root)
-            {
-                return new Cand(0, 0, (q > 0 ? WinMax : -WinMax) - q);
-            }
-            if (q == 1) // Immediate win available
-            {
-                int who = (int)_pb.Who;
-                for (int y = _pb.UpperLeftCand.Y; y <= _pb.LowerRightCand.Y; y++)
-                {
-                    for (int x = _pb.UpperLeftCand.X; x <= _pb.LowerRightCand.X; x++)
-                    {
-                        if (_pb.Cells[x, y].Piece == PieceColor.Empty && _pb.Cells[x, y].GetStatus4(who) == CarbonTables.ThreatA)
-                        {
-                            return new Cand(x, y, WinMax - 1);
-                        }
-                    }
-                }
-            }
+            return new Cand(0, 0, (q > 0 ? WinMax : -WinMax) - q);
         }
 
         if (h == 0)
@@ -455,7 +691,7 @@ public sealed class CarbonAiPlayer : IPlayer
         if (Table.TryProbe(zobristKey, out TranspositionEntry entry))
         {
             ttBest = entry.BestMove;
-            if (!root && ((entry.Depth >= h && ((entry.Depth ^ h) & 1) == 0) || Math.Abs(entry.Score) >= WinMin))
+            if ((entry.Depth >= h && ((entry.Depth ^ h) & 1) == 0) || Math.Abs(entry.Score) >= WinMin)
             {
                 int bx = entry.BestMove.IsValid(_pb.BoardWidth, _pb.BoardHeight) ? entry.BestMove.X + PatternBoard.Margin : 0;
                 int by = entry.BestMove.IsValid(_pb.BoardWidth, _pb.BoardHeight) ? entry.BestMove.Y + PatternBoard.Margin : 0;
@@ -485,14 +721,6 @@ public sealed class CarbonAiPlayer : IPlayer
         {
             // Quicksort candidates descending by value (priority)
             cnd[..nCnd].Sort((a, b) => b.Value.CompareTo(a.Value));
-        }
-        else if (nCnd == 1 && root)
-        {
-            if (!checkRenjuForbid || _pb.Cells[cnd[0].X, cnd[0].Y].GetStatus4((int)_pb.Who) != CarbonTables.ThreatForbid)
-            {
-                return new Cand(cnd[0].X, cnd[0].Y, 0);
-            }
-            nCnd = 0;
         }
 
         bool usedFallback = false;
@@ -561,7 +789,7 @@ public sealed class CarbonAiPlayer : IPlayer
             if (vB >= WinMin) vB++;
             if (vA <= -WinMin) vA--;
 
-            Cand m = Minimax(h, false, vA, vB, cancellationToken);
+            Cand m = Minimax(h, vA, vB, cancellationToken);
             int value = -m.Value;
 
             if (value >= WinMin) value--;

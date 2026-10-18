@@ -13,5 +13,5 @@ public sealed record SearchAnalysis(
     long Nodes,
     long EvaluationsPerSec,
     TimeSpan Elapsed,
-    string? StatusMessage = null);
-
+    string? StatusMessage = null,
+    bool IsSearching = false);

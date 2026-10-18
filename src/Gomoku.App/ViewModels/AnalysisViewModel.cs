@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Gomoku.Core.AI;
 
@@ -33,7 +34,18 @@ public sealed partial class AnalysisViewModel : ObservableObject
 
     public void Update(SearchAnalysis analysis)
     {
-        Depth = analysis.Depth > 0 ? analysis.Depth.ToString() : "-";
+        if (analysis.StatusMessage is "Opening book" or "Center opening")
+        {
+            Depth = analysis.StatusMessage == "Opening book" ? "Book" : "Opening";
+        }
+        else if (analysis.Depth > 0)
+        {
+            Depth = analysis.IsSearching ? $"{analysis.Depth} plies..." : $"{analysis.Depth} plies";
+        }
+        else
+        {
+            Depth = "-";
+        }
 
         if (analysis.Score >= CarbonAiPlayer.WinMin)
         {
@@ -51,10 +63,10 @@ public sealed partial class AnalysisViewModel : ObservableObject
         }
 
         BestMove = analysis.BestMove.HasValue ? analysis.BestMove.Value.Position.ToCoordinateString() : "-";
-        Nodes = analysis.Nodes.ToString("N0");
-        Speed = analysis.EvaluationsPerSec > 0 ? $"{analysis.EvaluationsPerSec:N0} nps" : "-";
+        Nodes = analysis.Nodes.ToString("N0", CultureInfo.InvariantCulture);
+        Speed = analysis.EvaluationsPerSec > 0 ? $"{analysis.EvaluationsPerSec.ToString("N0", CultureInfo.InvariantCulture)} nps" : "-";
         Time = $"{analysis.Elapsed.TotalSeconds:F2}s";
-        Status = analysis.StatusMessage ?? "Searching...";
+        Status = analysis.StatusMessage ?? (analysis.IsSearching ? "Searching..." : "Ready");
 
         Updated?.Invoke();
     }

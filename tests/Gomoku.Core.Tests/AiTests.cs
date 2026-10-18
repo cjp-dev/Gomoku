@@ -188,5 +188,56 @@ public class AiTests
         chosen.Position.Should().NotBe(new Point(7, 7));
         rules.IsMoveLegal(state, chosen, out _).Should().BeTrue();
     }
+
+    [Fact]
+    public async Task CarbonAiPlayer_WithProgress_ShouldEmitSearchAnalysisUpdates()
+    {
+        CarbonAiPlayer ai = new();
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        RuleEngine rules = RuleEngine.Instance;
+        state = rules.ApplyMove(state, new Move(7, 7, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(7, 8, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(8, 7, PieceColor.Black));
+
+        var legalMoves = rules.GetLegalMoves(state);
+        SearchLimits limits = SearchLimits.FixedDepth(4, useOpeningBook: false);
+
+        List<SearchAnalysis> reports = [];
+        var progress = new SyncProgress<SearchAnalysis>(reports.Add);
+
+        Move best = await ai.GetMoveAsync(state, limits, legalMoves, progress);
+        best.Position.Should().NotBe(Point.Empty);
+
+        reports.Should().NotBeEmpty();
+        reports.Any(r => r.Depth >= 2 && !r.IsSearching).Should().BeTrue();
+        reports.Last().IsSearching.Should().BeFalse();
+        reports.Last().Depth.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task CarbonAiPlayer_CenterOpening_ShouldReportCenterOpeningStatus()
+    {
+        CarbonAiPlayer ai = new();
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        var legalMoves = RuleEngine.Instance.GetLegalMoves(state);
+        SearchLimits limits = SearchLimits.FixedDepth(4, useOpeningBook: true);
+
+        List<SearchAnalysis> reports = [];
+        var progress = new SyncProgress<SearchAnalysis>(reports.Add);
+
+        Move centerMove = await ai.GetMoveAsync(state, limits, legalMoves, progress);
+        centerMove.Position.Should().Be(new Point(7, 7));
+
+        reports.Should().HaveCount(1);
+        reports[0].StatusMessage.Should().Be("Center opening");
+        reports[0].IsSearching.Should().BeFalse();
+    }
+
+    private sealed class SyncProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+        public SyncProgress(Action<T> handler) => _handler = handler;
+        public void Report(T value) => _handler(value);
+    }
 }
 
