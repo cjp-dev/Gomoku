@@ -116,6 +116,59 @@ public class AiTests
     }
 
     [Fact]
+    public async Task CarbonAiPlayer_OpenFourCreation_ShouldReportMateIn3()
+    {
+        CarbonAiPlayer ai = new();
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+
+        RuleEngine rules = RuleEngine.Instance;
+        // White to move with an open 3: (5, 7), (6, 7), (7, 7)
+        state = rules.ApplyMove(state, new Move(0, 0, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(5, 7, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(14, 0, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(6, 7, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(0, 14, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(7, 7, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(14, 14, PieceColor.Black));
+
+        var legalMoves = rules.GetLegalMoves(state);
+        SearchLimits limits = SearchLimits.FixedDepth(4, useOpeningBook: false);
+        Move chosen = await ai.GetMoveAsync(state, limits, legalMoves);
+
+        Point pt = chosen.Position;
+        (pt == new Point(4, 7) || pt == new Point(8, 7)).Should().BeTrue();
+        ai.LastAnalysis.Should().NotBeNull();
+        ai.LastAnalysis!.Score.Should().Be(CarbonAiPlayer.WinMax - 3);
+        ai.LastAnalysis.Nodes.Should().BeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task CarbonAiPlayer_DiagonalOpenFour_ShouldReportMateIn3()
+    {
+        CarbonAiPlayer ai = new();
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+
+        RuleEngine rules = RuleEngine.Instance;
+        // White to move with diagonal open 3: (4, 4), (5, 5), (6, 6)
+        state = rules.ApplyMove(state, new Move(0, 0, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(4, 4, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(14, 0, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(5, 5, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(0, 14, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(6, 6, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(14, 14, PieceColor.Black));
+
+        var legalMoves = rules.GetLegalMoves(state);
+        SearchLimits limits = SearchLimits.FixedDepth(4, useOpeningBook: false);
+        Move chosen = await ai.GetMoveAsync(state, limits, legalMoves);
+
+        Point pt = chosen.Position;
+        (pt == new Point(3, 3) || pt == new Point(7, 7)).Should().BeTrue();
+        ai.LastAnalysis.Should().NotBeNull();
+        ai.LastAnalysis!.Score.Should().Be(CarbonAiPlayer.WinMax - 3);
+    }
+
+    [Fact]
     public async Task CarbonAiPlayer_TranspositionTable_ShouldAccumulateEntries()
     {
         CarbonAiPlayer ai = new();

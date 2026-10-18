@@ -464,6 +464,7 @@ public sealed class CarbonAiPlayer : IPlayer
                 {
                     if (_pb.Cells[x, y].Piece == PieceColor.Empty && _pb.Cells[x, y].GetStatus4(who) == CarbonTables.ThreatA)
                     {
+                        _iterNodes = Math.Max(1, _iterNodes);
                         return new Cand(x, y, WinMax - 1);
                     }
                 }
@@ -497,7 +498,36 @@ public sealed class CarbonAiPlayer : IPlayer
         {
             if (!checkRenjuForbid || _pb.Cells[_rootCnd[0].X, _rootCnd[0].Y].GetStatus4((int)_pb.Who) != CarbonTables.ThreatForbid)
             {
-                return new Cand(_rootCnd[0].X, _rootCnd[0].Y, 0);
+                int who = (int)_pb.Who;
+                int opp = (int)_pb.Opp;
+                int score;
+
+                if (_pb.NSt[who, CarbonTables.ThreatA] > 0)
+                {
+                    score = WinMax - 1; // Immediate 5-in-a-row (Mate in 1)
+                }
+                else if (_pb.NSt[who, CarbonTables.ThreatB] > 0)
+                {
+                    score = WinMax - 3; // Open four creates unstoppable win in 3 plies (Mate in 3)
+                }
+                else if (q > 0)
+                {
+                    score = WinMax - q; // QuickWinSearch forced tactical mate
+                }
+                else if (_pb.NSt[opp, CarbonTables.ThreatA] >= 2)
+                {
+                    score = -WinMax + 2; // Opponent has unstoppable double-four threat
+                }
+                else
+                {
+                    // Forced defensive move (e.g. blocking opponent's single four); evaluate resulting position
+                    _pb.MakePaddedMove(_rootCnd[0].X, _rootCnd[0].Y);
+                    score = -Evaluate();
+                    _pb.UndoMove();
+                }
+
+                _iterNodes = Math.Max(1, _iterNodes);
+                return new Cand(_rootCnd[0].X, _rootCnd[0].Y, score);
             }
             nCnd = 0;
         }
