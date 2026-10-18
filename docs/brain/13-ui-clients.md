@@ -10,7 +10,7 @@ Gomoku .NET delivers a modern, high-fidelity user experience across two distinct
 
 Both clients share the exact same view models, game engine, and procedural audio synthesis from `Gomoku.App` and `Gomoku.Core`.
 
-![UI Layout and Components](images/ui-layout.svg)
+![Gomoku .NET User Interface](images/gui.png)
 
 ---
 
