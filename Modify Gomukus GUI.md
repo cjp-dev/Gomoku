@@ -3,9 +3,9 @@
 ## 1. Overview & Objective
 The goal is to modernize the user interface of Gomoku .NET so that its visual design, layout architecture, menu system, and dialogs match the clean, polished light theme of **Checkers** (`c:\Udvikling\Spil\Checkers\src\Checkers.Web`).
 
-The implementation follows a two-phase roadmap:
-- **Phase 1 (Immediate)**: Modernize `Gomoku.Web` to match `Checkers.Web`.
-- **Phase 2 (Follow-up)**: Align `Gomoku.Wpf` with the same menu hierarchy, scoreboard card structure, and light theme.
+The implementation followed a two-phase roadmap (both complete):
+- **Phase 1 (Complete)**: Modernized `Gomoku.Web` to match `Checkers.Web`.
+- **Phase 2 (Complete)**: Aligned `Gomoku.Wpf` with the same menu hierarchy, dual-card scoreboard structure, dialogs, and light theme.
 
 The Gomoku board itself (wood gradient SVG / canvas, stone rendering, star points, coordinates, and intersection interaction handlers) **remains exactly as-is**.
 
@@ -206,11 +206,14 @@ Modelled after Checkers' picture-dialog:
 | `src/Gomoku.Web/wwwroot/js/gomoku.js` | Add keyboard shortcut listener (`registerShortcuts`) for `Ctrl+N`, `Ctrl+O`, `Ctrl+S`, `Ctrl+Z`, `Ctrl+Y`, `Ctrl+A`. |
 | `src/Gomoku.Web/Components/Board.razor` | Preserved as-is (with culture-invariant SVG rendering). |
 
-### Phase 2: Gomoku.Wpf (Follow-up)
+### Phase 2: Gomoku.Wpf (Complete)
 
 | File | Description of Changes |
 | :--- | :--- |
-| `src/Gomoku.Wpf/MainWindow.xaml` | Align WPF native menu items to match (File, Edit, Game with 3 radio modes, Options, Help). |
-| `src/Gomoku.Wpf/MainWindow.xaml` | Update status sidebar to feature the symmetric two-card scoreboard (Black / White cards with active turn border). |
-| `src/Gomoku.Wpf/Views/SettingsDialog.xaml` | Group settings into the same 4 semantic fieldsets. |
-| `src/Gomoku.Wpf/Views/AboutDialog.xaml` | Align portrait layout and typography to match the Checkers picture format. |
+| `src/Gomoku.Wpf/MainWindow.xaml` | Aligned WPF native menu items to match (File, Edit, Game with 3 radio modes, Options, Help). |
+| `src/Gomoku.Wpf/MainWindow.xaml` | Updated status sidebar to feature the symmetric dual-card scoreboard (Black / White cards with active turn border). |
+| `src/Gomoku.Wpf/MainWindow.xaml.cs` | Added `OnDocsClicked` handler. |
+| `src/Gomoku.Wpf/Views/SettingsWindow.xaml` | Grouped settings into the 4 semantic groupboxes matching Web. |
+| `src/Gomoku.Wpf/Views/AboutWindow.xaml` | Aligned portrait layout and typography to match the 2-column picture format. |
+| `src/Gomoku.App/ViewModels/MainViewModel.cs` | Added `SetGameModeCommand`, `IsBlackActiveTurn`, `IsWhiteActiveTurn`, and updated Computer label. |
+| `src/Gomoku.App/ViewModels/SettingsViewModel.cs` | Added radio button and transposition table capacity binding helpers. |

@@ -98,6 +98,9 @@ public sealed partial class MainViewModel : ObservableObject
     public bool IsComputerVsHuman => Settings.Mode == GameMode.AiVsHuman;
     public bool IsHumanVsHuman => Settings.Mode == GameMode.HumanVsHuman;
 
+    public bool IsBlackActiveTurn => SideToMove == PieceColor.Black && !GameStatus.IsGameOver();
+    public bool IsWhiteActiveTurn => SideToMove == PieceColor.White && !GameStatus.IsGameOver();
+
     public bool IsSoundOn => Settings.SoundEnabled;
     public bool IsCoordinatesVisible => Settings.CoordinatesVisible;
     public bool IsGhostStoneOn => Settings.GhostStoneEnabled;
@@ -114,6 +117,7 @@ public sealed partial class MainViewModel : ObservableObject
     public IRelayCommand ToggleSoundCommand { get; }
     public IRelayCommand ToggleCoordinatesCommand { get; }
     public IRelayCommand ToggleGhostStoneCommand { get; }
+    public IRelayCommand<GameMode> SetGameModeCommand { get; }
 
     public MainViewModel(
         IDialogService dialogService,
@@ -157,6 +161,7 @@ public sealed partial class MainViewModel : ObservableObject
             Settings.GhostStoneEnabled = !Settings.GhostStoneEnabled;
             OnPropertyChanged(nameof(IsGhostStoneOn));
         });
+        SetGameModeCommand = new RelayCommand<GameMode>(SetGameMode);
 
         ResetBoard(Settings.BoardSize);
     }
@@ -178,6 +183,20 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsHumanVsHuman));
         OnPropertyChanged(nameof(BlackPlayerLabel));
         OnPropertyChanged(nameof(WhitePlayerLabel));
+        OnPropertyChanged(nameof(CanHoverMove));
+    }
+
+    partial void OnSideToMoveChanged(PieceColor value)
+    {
+        OnPropertyChanged(nameof(IsBlackActiveTurn));
+        OnPropertyChanged(nameof(IsWhiteActiveTurn));
+        OnPropertyChanged(nameof(ClockText));
+    }
+
+    partial void OnGameStatusChanged(GameStatus value)
+    {
+        OnPropertyChanged(nameof(IsBlackActiveTurn));
+        OnPropertyChanged(nameof(IsWhiteActiveTurn));
         OnPropertyChanged(nameof(CanHoverMove));
     }
 
@@ -568,6 +587,8 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanHoverMove));
         OnPropertyChanged(nameof(BlackPiecesCount));
         OnPropertyChanged(nameof(WhitePiecesCount));
+        OnPropertyChanged(nameof(IsBlackActiveTurn));
+        OnPropertyChanged(nameof(IsWhiteActiveTurn));
         OnPropertyChanged(nameof(ClockText));
         OnPropertyChanged(nameof(VariantBadgeText));
         UndoCommand.NotifyCanExecuteChanged();
@@ -645,8 +666,8 @@ public sealed partial class MainViewModel : ObservableObject
             Session.MoveHistory,
             Settings.BoardSize,
             Settings.Variant,
-            blackPlayer: Settings.Mode is GameMode.HumanVsAi or GameMode.HumanVsHuman ? "Human" : "Carbon AI",
-            whitePlayer: Settings.Mode is GameMode.AiVsHuman or GameMode.HumanVsHuman ? "Human" : "Carbon AI");
+            blackPlayer: Settings.Mode is GameMode.HumanVsAi or GameMode.HumanVsHuman ? "Human" : "Computer",
+            whitePlayer: Settings.Mode is GameMode.AiVsHuman or GameMode.HumanVsHuman ? "Human" : "Computer");
 
         string defaultName = $"Gomoku_{DateTime.Now:yyyyMMdd_HHmmss}.sgf";
         bool saved = await _fileService.SaveGameFileAsync(defaultName, sgf, "Smart Game Format (*.sgf)|*.sgf|Gomoku Record (*.gomoku)|*.gomoku");

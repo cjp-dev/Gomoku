@@ -15,5 +15,20 @@ public partial class MainWindow : Window
     {
         Close();
     }
+
+    private void OnDocsClicked(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "https://github.com/clauspedersen/gomoku#rules--documentation",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+        }
+    }
 }
 

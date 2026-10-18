@@ -8,18 +8,43 @@
         d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
         Title="Settings - Gomoku .NET" SizeToContent="WidthAndHeight" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Background="#F8F9FA" TextElement.Foreground="#212529" FontFamily="Segoe UI" FontSize="13">
+        Background="#FFFFFF" TextElement.Foreground="#2C3E50" FontFamily="Segoe UI" FontSize="13">
     <Border Padding="20">
         <StackPanel Width="460">
             <!-- Header -->
             <TextBlock Text="Game Configuration" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16" Foreground="#2C3E50"/>
 
-            <!-- Board & Rules -->
-            <GroupBox Header="Board &amp; Rules" Margin="0,0,0,14" Padding="10">
+            <!-- 1. Board Size & Rules Variant -->
+            <GroupBox Header="Board Size &amp; Rules Variant" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="BOARD SIZE" FontSize="11" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,6"/>
+                        <RadioButton Content="15 × 15 (Standard)" GroupName="BoardSizeGroup" IsChecked="{Binding IsSize15x15}" Margin="0,3,0,3"/>
+                        <RadioButton Content="19 × 19 (Go board)" GroupName="BoardSizeGroup" IsChecked="{Binding IsSize19x19}" Margin="0,3,0,3"/>
+                        <RadioButton Content="20 × 20 (Freestyle)" GroupName="BoardSizeGroup" IsChecked="{Binding IsSize20x20}" Margin="0,3,0,3"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                        <TextBlock Text="RULES VARIANT" FontSize="11" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,6"/>
+                        <RadioButton Content="Freestyle (5+ wins)" GroupName="VariantGroup" IsChecked="{Binding IsFreestyle}" Margin="0,3,0,3"/>
+                        <RadioButton Content="Standard (Exact 5)" GroupName="VariantGroup" IsChecked="{Binding IsExact5}" Margin="0,3,0,3"/>
+                        <RadioButton Content="Renju (Forbidden 3x3/4x4)" GroupName="VariantGroup" IsChecked="{Binding IsRenju}" Margin="0,3,0,3"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- 2. Computer Thinking Limits -->
+            <GroupBox Header="Computer Thinking Limits" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="130"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="80"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -29,79 +54,97 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Board Size:" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailableBoardSizes}" SelectedItem="{Binding SelectedBoardSize}"/>
+                    <RadioButton Grid.Row="0" Grid.Column="0" Content="Fixed depth" GroupName="TimeLimitGroup"
+                                 IsChecked="{Binding IsFixedDepth}" VerticalAlignment="Center"/>
+                    <Slider Grid.Row="0" Grid.Column="1" Minimum="1" Maximum="14" IsSnapToTickEnabled="True"
+                            TickFrequency="1" Value="{Binding SearchDepth}" IsEnabled="{Binding IsFixedDepth}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SearchDepth, StringFormat={}{0} plies}"
+                               Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Gomoku Variant:" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding AvailableVariants}" SelectedItem="{Binding SelectedVariant}"/>
+                    <RadioButton Grid.Row="2" Grid.Column="0" Content="Time per move" GroupName="TimeLimitGroup"
+                                 IsChecked="{Binding IsTimePerMove}" VerticalAlignment="Center"/>
+                    <Slider Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="20" IsSnapToTickEnabled="True"
+                            TickFrequency="1" Value="{Binding MoveTimeSeconds}" IsEnabled="{Binding IsTimePerMove}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding MoveTimeSeconds, StringFormat={}{0} seconds}"
+                               Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Game Mode:" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding AvailableModes}" SelectedItem="{Binding SelectedMode}"/>
+                    <RadioButton Grid.Row="4" Grid.Column="0" Content="Time per game" GroupName="TimeLimitGroup"
+                                 IsChecked="{Binding IsTimePerGame}" VerticalAlignment="Center"/>
+                    <Slider Grid.Row="4" Grid.Column="1" Minimum="1" Maximum="30" IsSnapToTickEnabled="True"
+                            TickFrequency="1" Value="{Binding GameTimeMinutes}" IsEnabled="{Binding IsTimePerGame}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding GameTimeMinutes, StringFormat={}{0} minutes}"
+                               Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
                 </Grid>
             </GroupBox>
 
-            <!-- AI Engine Settings -->
-            <GroupBox Header="AI Engine &amp; Search Limits" Margin="0,0,0,14" Padding="10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="70"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="AI Engine:" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding AvailableAiEngines}" SelectedItem="{Binding SelectedAiEngine}"/>
-
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Time Control:" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding AvailableTimeControls}" SelectedItem="{Binding SelectedTimeControl}"/>
-
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Search Depth:" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="4" Grid.Column="1" Minimum="1" Maximum="20" Value="{Binding SearchDepth}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding SearchDepth, StringFormat={}{0} plies}" Margin="8,0,0,0" VerticalAlignment="Center"/>
-
-                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Time per Move:" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="6" Grid.Column="1" Minimum="1" Maximum="30" Value="{Binding MoveTimeSeconds}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Row="6" Grid.Column="2" Text="{Binding MoveTimeSeconds, StringFormat={}{0} sec}" Margin="8,0,0,0" VerticalAlignment="Center"/>
-
-                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Time per Game:" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="8" Grid.Column="1" Minimum="1" Maximum="30" Value="{Binding GameTimeMinutes}" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Row="8" Grid.Column="2" Text="{Binding GameTimeMinutes, StringFormat={}{0} min}" Margin="8,0,0,0" VerticalAlignment="Center"/>
-
-                    <CheckBox Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" Content="Enable Carbon Opening Book (67 symmetry patterns)" IsChecked="{Binding UseOpeningBook}" Margin="0,4,0,0"/>
-                </Grid>
-            </GroupBox>
-
-            <!-- Board Aesthetics & Audio -->
-            <GroupBox Header="Preferences &amp; Audio" Margin="0,0,0,20" Padding="10">
+            <!-- 3. AI Engine & Transposition Table -->
+            <GroupBox Header="AI Engine &amp; Transposition Table" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0">
                 <StackPanel>
-                    <CheckBox Content="Sound effects enabled" IsChecked="{Binding SoundEnabled}" Margin="0,2,0,6"/>
-                    <CheckBox Content="Show board coordinate labels (A-T, 1-N)" IsChecked="{Binding CoordinatesVisible}" Margin="0,2,0,6"/>
-                    <CheckBox Content="Show ghost stone preview on hover" IsChecked="{Binding GhostStoneEnabled}" Margin="0,2,0,6"/>
-                    <CheckBox Content="Highlight last placed move" IsChecked="{Binding LastMoveHighlightEnabled}" Margin="0,2,0,6"/>
-                    <CheckBox Content="Highlight 5-in-a-row winning line" IsChecked="{Binding WinLineHighlightEnabled}" Margin="0,2,0,2"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="AI ENGINE: " FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <RadioButton Content="Carbon AI (Advanced)" GroupName="EngineGroup" IsChecked="{Binding IsCarbonEngine}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                        <RadioButton Content="Simple AI" GroupName="EngineGroup" IsChecked="{Binding IsSimpleEngine}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <CheckBox Content="Enable Carbon Opening Book (67 symmetry patterns)" IsChecked="{Binding UseOpeningBook}" Margin="0,4,0,10"/>
+
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="110"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Table Capacity:" VerticalAlignment="Center" Foreground="#64748B"/>
+                        <Slider Grid.Column="1" Minimum="{Binding MinTranspositionTablePower}" Maximum="{Binding MaxTranspositionTablePower}"
+                                IsSnapToTickEnabled="True" TickFrequency="1" Value="{Binding TranspositionTablePower}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding TranspositionTableEntriesText}" Margin="8,0,0,0"
+                                   VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
                 </StackPanel>
             </GroupBox>
 
-            <!-- Action Buttons -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Reset Defaults" Command="{Binding ResetDefaultsCommand}" Width="110" Height="30" Margin="0,0,10,0"/>
-                <Button Content="Save" Click="OnSaveClicked" IsDefault="True" Width="85" Height="30" Margin="0,0,10,0" FontWeight="SemiBold"/>
-                <Button Content="Cancel" Click="OnCancelClicked" IsCancel="True" Width="85" Height="30"/>
-            </StackPanel>
+            <!-- 4. Visual & Sound Preferences -->
+            <GroupBox Header="Visual &amp; Sound Preferences" Margin="0,0,0,20" Padding="12,10" BorderBrush="#E2E8F0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="6"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="6"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <CheckBox Grid.Row="0" Grid.Column="0" Content="Sound Effects" IsChecked="{Binding SoundEnabled}"/>
+                    <CheckBox Grid.Row="0" Grid.Column="1" Content="Coordinate Labels" IsChecked="{Binding CoordinatesVisible}"/>
+
+                    <CheckBox Grid.Row="2" Grid.Column="0" Content="Ghost Stone on Hover" IsChecked="{Binding GhostStoneEnabled}"/>
+                    <CheckBox Grid.Row="2" Grid.Column="1" Content="Highlight Last Move" IsChecked="{Binding LastMoveHighlightEnabled}"/>
+
+                    <CheckBox Grid.Row="4" Grid.Column="0" Content="Highlight Winning Line" IsChecked="{Binding WinLineHighlightEnabled}"/>
+                </Grid>
+            </GroupBox>
+
+            <!-- Dialog Actions -->
+            <DockPanel LastChildFill="False">
+                <Button DockPanel.Dock="Left" Content="Reset Defaults" Command="{Binding ResetDefaultsCommand}"
+                        Padding="12,6" Background="#ECEFF1" Foreground="#546E7A" FontWeight="SemiBold"
+                        BorderThickness="0" Cursor="Hand"/>
+
+                <Button DockPanel.Dock="Right" Content="Cancel" Click="OnCancelClicked" IsCancel="True"
+                        Padding="16,6" Margin="8,0,0,0" Background="#ECEFF1" Foreground="#333333"
+                        BorderThickness="0" Cursor="Hand"/>
+
+                <Button DockPanel.Dock="Right" Content="Save" Click="OnSaveClicked" IsDefault="True"
+                        Padding="18,6" Background="#3498DB" Foreground="#FFFFFF" FontWeight="SemiBold"
+                        BorderThickness="0" Cursor="Hand"/>
+            </DockPanel>
         </StackPanel>
     </Border>
 </Window>
-

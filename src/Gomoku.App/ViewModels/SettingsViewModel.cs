@@ -102,6 +102,137 @@ public sealed partial class SettingsViewModel : ObservableObject
         "Classic"
     ];
 
+    public bool IsSize15x15
+    {
+        get => SelectedBoardSize == BoardSize.Size15x15;
+        set { if (value) { SelectedBoardSize = BoardSize.Size15x15; NotifyBoardSizeProperties(); } }
+    }
+
+    public bool IsSize19x19
+    {
+        get => SelectedBoardSize == BoardSize.Size19x19;
+        set { if (value) { SelectedBoardSize = BoardSize.Size19x19; NotifyBoardSizeProperties(); } }
+    }
+
+    public bool IsSize20x20
+    {
+        get => SelectedBoardSize == BoardSize.Size20x20;
+        set { if (value) { SelectedBoardSize = BoardSize.Size20x20; NotifyBoardSizeProperties(); } }
+    }
+
+    private void NotifyBoardSizeProperties()
+    {
+        OnPropertyChanged(nameof(IsSize15x15));
+        OnPropertyChanged(nameof(IsSize19x19));
+        OnPropertyChanged(nameof(IsSize20x20));
+    }
+
+    public bool IsFreestyle
+    {
+        get => SelectedVariant == GomokuVariant.Freestyle;
+        set { if (value) { SelectedVariant = GomokuVariant.Freestyle; NotifyVariantProperties(); } }
+    }
+
+    public bool IsExact5
+    {
+        get => SelectedVariant == GomokuVariant.Exact5;
+        set { if (value) { SelectedVariant = GomokuVariant.Exact5; NotifyVariantProperties(); } }
+    }
+
+    public bool IsRenju
+    {
+        get => SelectedVariant == GomokuVariant.Renju;
+        set { if (value) { SelectedVariant = GomokuVariant.Renju; NotifyVariantProperties(); } }
+    }
+
+    private void NotifyVariantProperties()
+    {
+        OnPropertyChanged(nameof(IsFreestyle));
+        OnPropertyChanged(nameof(IsExact5));
+        OnPropertyChanged(nameof(IsRenju));
+    }
+
+    public bool IsCarbonEngine
+    {
+        get => SelectedAiEngine == AiEngineType.Carbon;
+        set { if (value) { SelectedAiEngine = AiEngineType.Carbon; NotifyEngineProperties(); } }
+    }
+
+    public bool IsSimpleEngine
+    {
+        get => SelectedAiEngine == AiEngineType.Simple;
+        set { if (value) { SelectedAiEngine = AiEngineType.Simple; NotifyEngineProperties(); } }
+    }
+
+    private void NotifyEngineProperties()
+    {
+        OnPropertyChanged(nameof(IsCarbonEngine));
+        OnPropertyChanged(nameof(IsSimpleEngine));
+    }
+
+    public bool IsFixedDepth
+    {
+        get => SelectedTimeControl == TimeControlMode.FixedDepth;
+        set { if (value) { SelectedTimeControl = TimeControlMode.FixedDepth; NotifyTimeControlProperties(); } }
+    }
+
+    public bool IsTimePerMove
+    {
+        get => SelectedTimeControl == TimeControlMode.TimePerMove;
+        set { if (value) { SelectedTimeControl = TimeControlMode.TimePerMove; NotifyTimeControlProperties(); } }
+    }
+
+    public bool IsTimePerGame
+    {
+        get => SelectedTimeControl == TimeControlMode.TimePerGame;
+        set { if (value) { SelectedTimeControl = TimeControlMode.TimePerGame; NotifyTimeControlProperties(); } }
+    }
+
+    private void NotifyTimeControlProperties()
+    {
+        OnPropertyChanged(nameof(IsFixedDepth));
+        OnPropertyChanged(nameof(IsTimePerMove));
+        OnPropertyChanged(nameof(IsTimePerGame));
+    }
+
+    public int MinTranspositionTablePower => 16;
+    public int MaxTranspositionTablePower => 24;
+
+    public int TranspositionTablePower
+    {
+        get
+        {
+            int power = System.Numerics.BitOperations.Log2((uint)Math.Max(65_536, TranspositionTableEntries));
+            return Math.Clamp(power, MinTranspositionTablePower, MaxTranspositionTablePower);
+        }
+        set
+        {
+            int power = Math.Clamp(value, MinTranspositionTablePower, MaxTranspositionTablePower);
+            TranspositionTableEntries = 1 << power;
+            OnPropertyChanged(nameof(TranspositionTablePower));
+            OnPropertyChanged(nameof(TranspositionTableEntriesText));
+        }
+    }
+
+    public string TranspositionTableEntriesText => TranspositionTableEntries switch
+    {
+        <= 65_536 => "65,536 (1 MB)",
+        <= 262_144 => "262,144 (4 MB)",
+        <= 1_048_576 => "1,048,576 (16 MB)",
+        <= 4_194_304 => "4,194,304 (64 MB)",
+        _ => "16,777,216 (256 MB)"
+    };
+
+    partial void OnSelectedBoardSizeChanged(BoardSize value) => NotifyBoardSizeProperties();
+    partial void OnSelectedVariantChanged(GomokuVariant value) => NotifyVariantProperties();
+    partial void OnSelectedAiEngineChanged(AiEngineType value) => NotifyEngineProperties();
+    partial void OnSelectedTimeControlChanged(TimeControlMode value) => NotifyTimeControlProperties();
+    partial void OnTranspositionTableEntriesChanged(int value)
+    {
+        OnPropertyChanged(nameof(TranspositionTablePower));
+        OnPropertyChanged(nameof(TranspositionTableEntriesText));
+    }
+
     public event Action? Saved;
     public event Action? Cancelled;
 
