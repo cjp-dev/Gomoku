@@ -12,6 +12,8 @@ This chapter documents the visual layout, menu commands, settings configuration,
 
 ## Graphical User Interface layout
 
+![Gomoku .NET UI Layout](images/ui-layout.svg)
+
 ```mermaid
 graph TD
     subgraph UI Layout
