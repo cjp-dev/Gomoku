@@ -106,31 +106,6 @@
                 </StackPanel>
             </GroupBox>
 
-            <!-- 4. Visual & Sound Preferences -->
-            <GroupBox Header="Visual &amp; Sound Preferences" Margin="0,0,0,20" Padding="12,10" BorderBrush="#E2E8F0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="6"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="6"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <CheckBox Grid.Row="0" Grid.Column="0" Content="Sound Effects" IsChecked="{Binding SoundEnabled}"/>
-                    <CheckBox Grid.Row="0" Grid.Column="1" Content="Coordinate Labels" IsChecked="{Binding CoordinatesVisible}"/>
-
-                    <CheckBox Grid.Row="2" Grid.Column="0" Content="Ghost Stone on Hover" IsChecked="{Binding GhostStoneEnabled}"/>
-                    <CheckBox Grid.Row="2" Grid.Column="1" Content="Highlight Last Move" IsChecked="{Binding LastMoveHighlightEnabled}"/>
-
-                    <CheckBox Grid.Row="4" Grid.Column="0" Content="Highlight Winning Line" IsChecked="{Binding WinLineHighlightEnabled}"/>
-                </Grid>
-            </GroupBox>
-
             <!-- Dialog Actions -->
             <DockPanel LastChildFill="False">
                 <Button DockPanel.Dock="Left" Content="Reset Defaults" Command="{Binding ResetDefaultsCommand}"

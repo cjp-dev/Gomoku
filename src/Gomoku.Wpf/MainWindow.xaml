@@ -82,6 +82,7 @@
                           IsChecked="{Binding IsAnalysisVisible}"
                           Command="{Binding ToggleAnalysisCommand}"
                           InputGestureText="Ctrl+A"/>
+                <Separator/>
                 <MenuItem Header="_Sound Effects"
                           IsCheckable="True"
                           IsChecked="{Binding IsSoundOn}"
@@ -94,6 +95,14 @@
                           IsCheckable="True"
                           IsChecked="{Binding IsGhostStoneOn}"
                           Command="{Binding ToggleGhostStoneCommand}"/>
+                <MenuItem Header="_Highlight Last Move"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsLastMoveHighlightOn}"
+                          Command="{Binding ToggleLastMoveHighlightCommand}"/>
+                <MenuItem Header="Highlight _Winning Line"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsWinLineHighlightOn}"
+                          Command="{Binding ToggleWinLineHighlightCommand}"/>
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_Rules &amp; Documentation" Click="OnDocsClicked"/>

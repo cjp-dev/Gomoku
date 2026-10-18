@@ -209,9 +209,11 @@
             new("Options",
             [
                 new("Analysis", Vm.ToggleAnalysisCommand, "Ctrl+A", IsChecked: () => Vm.IsAnalysisVisible),
-                new("Sound", Vm.ToggleSoundCommand, IsChecked: () => Vm.IsSoundOn),
+                new("Sound", Vm.ToggleSoundCommand, IsChecked: () => Vm.IsSoundOn, SeparatorBefore: true),
                 new("Coordinates", Vm.ToggleCoordinatesCommand, IsChecked: () => Vm.IsCoordinatesVisible),
                 new("Ghost Stone", Vm.ToggleGhostStoneCommand, IsChecked: () => Vm.IsGhostStoneOn),
+                new("Highlight Last Move", Vm.ToggleLastMoveHighlightCommand, IsChecked: () => Vm.IsLastMoveHighlightOn),
+                new("Highlight Winning Line", Vm.ToggleWinLineHighlightCommand, IsChecked: () => Vm.IsWinLineHighlightOn),
             ]),
             new("Help",
             [

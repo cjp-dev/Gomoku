@@ -76,7 +76,7 @@
                     <span>@settings.GameTimeMinutes minutes</span>
                 </fieldset>
 
-                <fieldset class="settings" style="margin-bottom: 1rem;">
+                <fieldset class="settings">
                     <legend>AI Engine &amp; Opening Book</legend>
                     <div style="display: flex; gap: 1.5rem; margin-bottom: 0.5rem;">
                         <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Carbon)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Carbon" /> Carbon AI (Advanced)</label>
@@ -95,17 +95,6 @@
                             <option value="4194304">4,194,304 entries (64 MB)</option>
                             <option value="16777216">16,777,216 entries (256 MB)</option>
                         </select>
-                    </div>
-                </fieldset>
-
-                <fieldset class="settings">
-                    <legend>Visual &amp; Sound Preferences</legend>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem;">
-                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.SoundEnabled" /> Sound Effects</label>
-                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.CoordinatesVisible" /> Coordinate Labels</label>
-                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.GhostStoneEnabled" /> Ghost Stone on Hover</label>
-                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.LastMoveHighlightEnabled" /> Highlight Last Move</label>
-                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.WinLineHighlightEnabled" /> Highlight Winning Line</label>
                     </div>
                 </fieldset>
             }

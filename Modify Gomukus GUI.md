@@ -86,9 +86,12 @@ The current top button bar will be replaced by a desktop-grade dropdown MenuBar 
 
 4. **Options**
    - **Analysis Panel** (`✓` Checkbox, `Ctrl+A`)
+   - *--- (Separator) ---*
    - **Sound Effects** (`✓` Checkbox)
    - **Coordinate Labels** (`✓` Checkbox)
    - **Ghost Stone on Hover** (`✓` Checkbox)
+   - **Highlight Last Move** (`✓` Checkbox)
+   - **Highlight Winning Line** (`✓` Checkbox)
 
 5. **Help**
    - **Rules & Documentation** (Opens `/docs` in new tab or route)
@@ -156,24 +159,20 @@ The Settings Dialog is hosted in `DialogHost.razor` using clean semantic fieldse
      - Renju (Black forbidden moves: 3x3, 4x4, overlines; White unrestricted)
      - Caro (Exact 5; lines blocked at both ends do not win)
 
-2. **Fieldset 2: AI Engine & Thinking Limits**
-   - **Engine**: Carbon AI (Advanced Alpha-Beta + Threat VCF) vs Simple AI
-   - **Opening Book**: Checkbox for Carbon Opening Book (67 symmetry patterns)
+2. **Fieldset 2: Computer Thinking Limits**
    - **Search Mode**: Radio options with range sliders:
      - Fixed Depth (1 – 14 plies)
      - Time per move (1 – 20 seconds)
      - Time per game (1 – 30 minutes)
 
-3. **Fieldset 3: Transposition Table**
-   - Range slider for transposition table entries ($2^{18}$ to $2^{22}$ entries, displaying equivalent memory, e.g. "1,048,576 entries (16 MB)").
+3. **Fieldset 3: AI Engine & Transposition Table**
+   - **Engine**: Carbon AI (Advanced Alpha-Beta + Threat VCF) vs Simple AI
+   - **Opening Book**: Checkbox for Carbon Opening Book (67 symmetry patterns)
+   - **Transposition Table**: Capacity selector / slider ($2^{16}$ to $2^{24}$ entries, displaying equivalent memory, e.g. "1,048,576 entries (16 MB)").
 
-4. **Fieldset 4: Visual & Sound Preferences**
-   - Sound Effects (toggle)
-   - Coordinate Labels (toggle)
-   - Ghost Stone on Hover (toggle)
-   - Highlight Last Move & Winning Line (toggle)
+*(Note: Visual & sound preferences are configured directly via the top-level **Options** menu.)*
 
-- **Dialog Actions**: `Cancel` (secondary) and `OK` (default primary blue).
+- **Dialog Actions**: `Cancel` (secondary) and `OK` / `Save` (default primary blue).
 
 ---
 

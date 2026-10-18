@@ -104,6 +104,8 @@ public sealed partial class MainViewModel : ObservableObject
     public bool IsSoundOn => Settings.SoundEnabled;
     public bool IsCoordinatesVisible => Settings.CoordinatesVisible;
     public bool IsGhostStoneOn => Settings.GhostStoneEnabled;
+    public bool IsLastMoveHighlightOn => Settings.LastMoveHighlightEnabled;
+    public bool IsWinLineHighlightOn => Settings.WinLineHighlightEnabled;
 
     public IRelayCommand NewGameCommand { get; }
     public IRelayCommand UndoCommand { get; }
@@ -117,6 +119,8 @@ public sealed partial class MainViewModel : ObservableObject
     public IRelayCommand ToggleSoundCommand { get; }
     public IRelayCommand ToggleCoordinatesCommand { get; }
     public IRelayCommand ToggleGhostStoneCommand { get; }
+    public IRelayCommand ToggleLastMoveHighlightCommand { get; }
+    public IRelayCommand ToggleWinLineHighlightCommand { get; }
     public IRelayCommand<GameMode> SetGameModeCommand { get; }
 
     public MainViewModel(
@@ -160,6 +164,20 @@ public sealed partial class MainViewModel : ObservableObject
         {
             Settings.GhostStoneEnabled = !Settings.GhostStoneEnabled;
             OnPropertyChanged(nameof(IsGhostStoneOn));
+        });
+        ToggleLastMoveHighlightCommand = new RelayCommand(() =>
+        {
+            Settings.LastMoveHighlightEnabled = !Settings.LastMoveHighlightEnabled;
+            OnPropertyChanged(nameof(IsLastMoveHighlightOn));
+            UpdateUiState();
+            BoardLayoutChanged?.Invoke();
+        });
+        ToggleWinLineHighlightCommand = new RelayCommand(() =>
+        {
+            Settings.WinLineHighlightEnabled = !Settings.WinLineHighlightEnabled;
+            OnPropertyChanged(nameof(IsWinLineHighlightOn));
+            UpdateUiState();
+            BoardLayoutChanged?.Invoke();
         });
         SetGameModeCommand = new RelayCommand<GameMode>(SetGameMode);
 
