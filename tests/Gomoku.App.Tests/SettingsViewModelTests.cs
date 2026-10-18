@@ -54,4 +54,24 @@ public class SettingsViewModelTests
         vm.SelectedBoardSize.Should().Be(BoardSize.Size15x15);
         vm.SearchDepth.Should().Be(6);
     }
+
+    [Fact]
+    public void AiEngine_Toggle_ShouldNotifyEngineProperties()
+    {
+        GameSettings settings = new();
+        SettingsViewModel vm = new(settings);
+
+        vm.IsCarbonEngine.Should().BeTrue();
+        vm.IsSimpleEngine.Should().BeFalse();
+
+        List<string> changed = [];
+        vm.PropertyChanged += (s, e) => changed.Add(e.PropertyName!);
+
+        vm.SelectedAiEngine = AiEngineType.Simple;
+
+        vm.IsCarbonEngine.Should().BeFalse();
+        vm.IsSimpleEngine.Should().BeTrue();
+        changed.Should().Contain(nameof(SettingsViewModel.IsCarbonEngine));
+        changed.Should().Contain(nameof(SettingsViewModel.IsSimpleEngine));
+    }
 }

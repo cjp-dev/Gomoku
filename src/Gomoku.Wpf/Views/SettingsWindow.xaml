@@ -9,6 +9,10 @@
         Title="Settings - Gomoku .NET" SizeToContent="WidthAndHeight" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         Background="#FFFFFF" TextElement.Foreground="#2C3E50" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
     <Border Padding="20">
         <StackPanel Width="460">
             <!-- Header -->
@@ -38,8 +42,18 @@
                 </Grid>
             </GroupBox>
 
-            <!-- 2. Computer Thinking Limits -->
-            <GroupBox Header="Computer Thinking Limits" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0">
+            <!-- 2. AI Engine -->
+            <GroupBox Header="AI Engine" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="AI ENGINE: " FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <RadioButton Content="Carbon AI (Advanced)" GroupName="EngineGroup" IsChecked="{Binding IsCarbonEngine}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <RadioButton Content="Simple AI" GroupName="EngineGroup" IsChecked="{Binding IsSimpleEngine}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- 3. Computer Thinking Limits (Carbon AI only) -->
+            <GroupBox Header="Computer Thinking Limits" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0"
+                      Visibility="{Binding IsCarbonEngine, Converter={StaticResource BoolToVis}}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="130"/>
@@ -80,16 +94,11 @@
                 </Grid>
             </GroupBox>
 
-            <!-- 3. AI Engine & Transposition Table -->
-            <GroupBox Header="AI Engine &amp; Transposition Table" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0">
+            <!-- 4. Carbon Opening Book & Transposition Table (Carbon AI only) -->
+            <GroupBox Header="Carbon Opening Book &amp; Transposition Table" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0"
+                      Visibility="{Binding IsCarbonEngine, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="AI ENGINE: " FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <RadioButton Content="Carbon AI (Advanced)" GroupName="EngineGroup" IsChecked="{Binding IsCarbonEngine}" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                        <RadioButton Content="Simple AI" GroupName="EngineGroup" IsChecked="{Binding IsSimpleEngine}" VerticalAlignment="Center"/>
-                    </StackPanel>
-
-                    <CheckBox Content="Enable Carbon Opening Book (67 symmetry patterns)" IsChecked="{Binding UseOpeningBook}" Margin="0,4,0,10"/>
+                    <CheckBox Content="Enable Carbon Opening Book (67 symmetry patterns)" IsChecked="{Binding UseOpeningBook}" Margin="0,0,0,10"/>
 
                     <Grid Margin="0,2,0,0">
                         <Grid.ColumnDefinitions>

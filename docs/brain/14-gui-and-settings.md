@@ -70,8 +70,9 @@ The application header features a clean menu bar providing quick access to all g
 * **Sound Effects:** Toggles procedural audio feedback (stone placement, game start, illegal move buzzer, and undo chimes).
 
 ### 4. Help Menu
-* **Documentation (`F1`):** Opens the interactive architectural manual (at `/docs` in the web client, or browser documentation for desktop).
-* **About Gomoku:** Displays engine version, author credits, and license information.
+* **User guide (`F1`):** Opens this chapter directly, providing immediate access to interface instructions, settings explanations, and shortcut tables.
+* **Rules & Documentation (`Shift+F1`):** Opens the complete Gomoku .NET Architecture and Rules manual (at `/docs` in the web client, or GitHub documentation for desktop).
+* **About Gomoku .NET...:** Displays engine version, author credits, and license information.
 
 ---
 
@@ -96,16 +97,28 @@ Located above the game board, the dual-card scoreboard displays real-time state 
 
 ## Game Settings dialog
 
-Accessed via **Game $\rightarrow$ Settings...** (`Ctrl+,`), the modal settings dialog lets players tailor rules, geometry, opponent difficulty, and tournament limits.
+Accessed via **Game $\rightarrow$ Settings...** (`F2`), the modal settings dialog lets players tailor rules, geometry, opponent difficulty, and tournament limits.
+
+![Gomoku .NET Settings Dialog](images/gui-settings.png)
+
+The dialog is arranged into four sequential sections:
+1. **Board Size & Rules Variant:** Board geometry ($15 \times 15$, $19 \times 19$, $20 \times 20$) and Gomoku victory rules (Freestyle, Exact 5, Renju).
+2. **AI Engine:** Opponent engine selection: **Carbon AI (Advanced)** or **Simple AI**.
+3. **Computer Thinking Limits:** Search depth and clock allocation modes (Fixed depth, Time per move, Time per game). *Visible only when Carbon AI is selected.*
+4. **Carbon Opening Book & Transposition Table:** Opening book activation and memory table allocation. *Visible only when Carbon AI is selected.*
 
 ```mermaid
-graph LR
+graph TD
     Settings["Settings Dialog"]
-    Settings --> BoardSize["Board Size<br/>15x15 • 19x19 • 20x20"]
-    Settings --> Variant["Rule Variant<br/>Freestyle • Exact Five • Renju"]
-    Settings --> Engine["AI Engine<br/>Carbon AI (Advanced) vs. Simple AI"]
-    Settings --> TimeControl["Time Controls<br/>Time per Move • Fixed Depth • Time per Game • Opening Book"]
+    Settings --> Section1["1. Board Size &amp; Rules Variant<br/>15x15 • 19x19 • 20x20 | Freestyle • Exact 5 • Renju"]
+    Settings --> Section2["2. AI Engine<br/>Carbon AI (Advanced) vs. Simple AI"]
+    Section2 -- "Simple AI selected" --> Simplified["Compact Dialog<br/>(Advanced sections removed)"]
+    Section2 -- "Carbon AI selected" --> Section3["3. Computer Thinking Limits<br/>Fixed Depth • Time per Move • Time per Game"]
+    Section2 -- "Carbon AI selected" --> Section4["4. Carbon Opening Book &amp; Transposition Table<br/>67 Symmetry Patterns • 1 MB to 256 MB TT"]
 ```
+
+> [!NOTE] Dynamic AI Settings Visibility
+> When **Simple AI** is selected, the dialog dynamically removes sections 3 and 4 (**Computer Thinking Limits** and **Carbon Opening Book & Transposition Table**). Because Simple AI is an instant 1-ply heuristic evaluator that does not utilize tree search, transposition memory, or opening books, hiding these controls keeps the interface focused, clean, and intuitive for casual play. Switching back to **Carbon AI (Advanced)** immediately restores all tournament search controls.
 
 ### 1. Board Dimensions
 
@@ -236,10 +249,11 @@ In the browser client (`Gomoku.Web`), execution runs within a single-threaded We
 | `Ctrl+2` | Global | Switch to **Computer vs Human** mode |
 | `Ctrl+3` | Global | Switch to **Human vs Human** mode |
 | `Ctrl+A` | Global | Toggle **AI Analysis Panel** visibility |
-| `Ctrl+,` | Global | Open **Settings...** dialog |
+| `F2` | Global | Open **Settings...** dialog |
 | `Ctrl+Z` | Board | Undo last move |
 | `Ctrl+Y` | Board | Redo previously undone move |
-| `F1` | Global | Open Documentation |
+| `F1` | Global | Open **User guide** (this chapter) |
+| `Shift+F1` | Global | Open **Rules & Documentation** (architectural manual) |
 
 ---
 

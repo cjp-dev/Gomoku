@@ -59,44 +59,51 @@
                 </fieldset>
 
                 <fieldset class="settings" style="margin-bottom: 1rem;">
-                    <legend>Computer Thinking Limits</legend>
-                    <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.FixedDepth)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.FixedDepth" /> Fixed depth</label>
-                    <input type="range" min="1" max="14" aria-label="Depth" disabled="@(settings.SelectedTimeControl != TimeControlMode.FixedDepth)"
-                           @bind="settings.SearchDepth" @bind:event="oninput" />
-                    <span>@settings.SearchDepth plies</span>
-
-                    <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.TimePerMove)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.TimePerMove" /> Time per move</label>
-                    <input type="range" min="1" max="20" aria-label="Seconds per move" disabled="@(settings.SelectedTimeControl != TimeControlMode.TimePerMove)"
-                           @bind="settings.MoveTimeSeconds" @bind:event="oninput" />
-                    <span>@settings.MoveTimeSeconds seconds</span>
-
-                    <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.TimePerGame)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.TimePerGame" /> Time per game</label>
-                    <input type="range" min="1" max="30" aria-label="Minutes per game" disabled="@(settings.SelectedTimeControl != TimeControlMode.TimePerGame)"
-                           @bind="settings.GameTimeMinutes" @bind:event="oninput" />
-                    <span>@settings.GameTimeMinutes minutes</span>
-                </fieldset>
-
-                <fieldset class="settings">
-                    <legend>AI Engine &amp; Opening Book</legend>
-                    <div style="display: flex; gap: 1.5rem; margin-bottom: 0.5rem;">
+                    <legend>AI Engine</legend>
+                    <div style="display: flex; gap: 1.5rem;">
                         <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Carbon)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Carbon" /> Carbon AI (Advanced)</label>
                         <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Simple)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Simple" /> Simple AI</label>
                     </div>
-                    <label style="font-weight: normal;">
-                        <input type="checkbox" @bind="settings.UseOpeningBook" />
-                        Carbon Opening Book (67 symmetry patterns)
-                    </label>
-                    <div style="margin-top: 0.75rem;">
-                        <label style="margin-top: 0;">Transposition Table Capacity:</label>
-                        <select class="dialog-text" style="margin: 0.25rem 0;" @bind="settings.TranspositionTableEntries">
-                            <option value="65536">65,536 entries (1 MB)</option>
-                            <option value="262144">262,144 entries (4 MB)</option>
-                            <option value="1048576">1,048,576 entries (16 MB) - Default</option>
-                            <option value="4194304">4,194,304 entries (64 MB)</option>
-                            <option value="16777216">16,777,216 entries (256 MB)</option>
-                        </select>
-                    </div>
                 </fieldset>
+
+                @if (settings.IsCarbonEngine)
+                {
+                    <fieldset class="settings" style="margin-bottom: 1rem;">
+                        <legend>Computer Thinking Limits</legend>
+                        <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.FixedDepth)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.FixedDepth" /> Fixed depth</label>
+                        <input type="range" min="1" max="14" aria-label="Depth" disabled="@(settings.SelectedTimeControl != TimeControlMode.FixedDepth)"
+                               @bind="settings.SearchDepth" @bind:event="oninput" />
+                        <span>@settings.SearchDepth plies</span>
+
+                        <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.TimePerMove)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.TimePerMove" /> Time per move</label>
+                        <input type="range" min="1" max="20" aria-label="Seconds per move" disabled="@(settings.SelectedTimeControl != TimeControlMode.TimePerMove)"
+                               @bind="settings.MoveTimeSeconds" @bind:event="oninput" />
+                        <span>@settings.MoveTimeSeconds seconds</span>
+
+                        <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.TimePerGame)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.TimePerGame" /> Time per game</label>
+                        <input type="range" min="1" max="30" aria-label="Minutes per game" disabled="@(settings.SelectedTimeControl != TimeControlMode.TimePerGame)"
+                               @bind="settings.GameTimeMinutes" @bind:event="oninput" />
+                        <span>@settings.GameTimeMinutes minutes</span>
+                    </fieldset>
+
+                    <fieldset class="settings">
+                        <legend>Carbon Opening Book &amp; Transposition Table</legend>
+                        <label style="font-weight: normal;">
+                            <input type="checkbox" @bind="settings.UseOpeningBook" />
+                            Carbon Opening Book (67 symmetry patterns)
+                        </label>
+                        <div style="margin-top: 0.75rem;">
+                            <label style="margin-top: 0;">Transposition Table Capacity:</label>
+                            <select class="dialog-text" style="margin: 0.25rem 0;" @bind="settings.TranspositionTableEntries">
+                                <option value="65536">65,536 entries (1 MB)</option>
+                                <option value="262144">262,144 entries (4 MB)</option>
+                                <option value="1048576">1,048,576 entries (16 MB) - Default</option>
+                                <option value="4194304">4,194,304 entries (64 MB)</option>
+                                <option value="16777216">16,777,216 entries (256 MB)</option>
+                            </select>
+                        </div>
+                    </fieldset>
+                }
             }
 
             <div class="dialog-buttons">

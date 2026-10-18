@@ -6,6 +6,7 @@
         xmlns:models="clr-namespace:Gomoku.App.Models;assembly=Gomoku.App"
         xmlns:vm="clr-namespace:Gomoku.App.ViewModels;assembly=Gomoku.App"
         xmlns:views="clr-namespace:Gomoku.Wpf.Views"
+        xmlns:local="clr-namespace:Gomoku.Wpf"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="Gomoku .NET"
@@ -30,6 +31,11 @@
         </Style>
     </Window.Resources>
 
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static local:MainWindow.UserGuideCommand}" Executed="OnUserGuideExecuted"/>
+        <CommandBinding Command="{x:Static local:MainWindow.DocumentationCommand}" Executed="OnDocumentationExecuted"/>
+    </Window.CommandBindings>
+
     <Window.InputBindings>
         <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewGameCommand}"/>
         <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenFileCommand}"/>
@@ -38,7 +44,6 @@
         <KeyBinding Key="Y" Modifiers="Ctrl" Command="{Binding RedoCommand}"/>
         <KeyBinding Key="A" Modifiers="Ctrl" Command="{Binding ToggleAnalysisCommand}"/>
         <KeyBinding Key="F2" Command="{Binding OpenSettingsCommand}"/>
-        <KeyBinding Key="F1" Command="{Binding OpenAboutCommand}"/>
     </Window.InputBindings>
 
     <DockPanel>
@@ -105,8 +110,10 @@
                           Command="{Binding ToggleWinLineHighlightCommand}"/>
             </MenuItem>
             <MenuItem Header="_Help">
-                <MenuItem Header="_Rules &amp; Documentation" Click="OnDocsClicked"/>
-                <MenuItem Header="_About Gomoku .NET..." Command="{Binding OpenAboutCommand}" InputGestureText="F1"/>
+                <MenuItem Header="_User Guide" Command="{x:Static local:MainWindow.UserGuideCommand}" InputGestureText="F1"/>
+                <MenuItem Header="_Rules &amp; Documentation" Command="{x:Static local:MainWindow.DocumentationCommand}" InputGestureText="Shift+F1"/>
+                <Separator/>
+                <MenuItem Header="_About Gomoku .NET..." Command="{Binding OpenAboutCommand}"/>
             </MenuItem>
         </Menu>
 

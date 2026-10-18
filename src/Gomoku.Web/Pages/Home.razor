@@ -217,7 +217,8 @@
             ]),
             new("Help",
             [
-                new("Rules & Documentation", new RelayCommand(OpenDocs)),
+                new("User guide", new RelayCommand(OpenUserGuide), "F1"),
+                new("Rules & Documentation", new RelayCommand(OpenDocs), "Shift+F1"),
                 new("About Gomoku .NET...", Vm.OpenAboutCommand),
             ]),
         ];
@@ -278,8 +279,25 @@
         "z" => RunAsync(Vm.UndoCommand),
         "y" => RunAsync(Vm.RedoCommand),
         "a" => RunAsync(Vm.ToggleAnalysisCommand),
+        "f1" => HandleUserGuideShortcut(),
+        "shift+f1" => HandleDocsShortcut(),
         _ => Task.CompletedTask,
     };
+
+    private Task HandleUserGuideShortcut()
+    {
+        OpenUserGuide();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleDocsShortcut()
+    {
+        OpenDocs();
+        return Task.CompletedTask;
+    }
+
+    private void OpenUserGuide() =>
+        ((IJSInProcessRuntime)JS).InvokeVoid("open", "docs/14-gui-and-settings", "_blank", "noopener");
 
     private void OpenDocs() =>
         ((IJSInProcessRuntime)JS).InvokeVoid("open", "docs", "_blank", "noopener");
