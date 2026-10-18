@@ -169,16 +169,16 @@ Suppose White is searching move 12 at depth $h = 4$ with window $[\alpha, \beta]
 
 | File | Member / Method | Description |
 |---|---|---|
-| [TranspositionTable.cs](../../src/Gomoku.Core/AI/TranspositionTable.cs) | `TranspositionTable` | High-performance 16-byte power-of-two cache manager |
-| [TranspositionTable.cs](../../src/Gomoku.Core/AI/TranspositionTable.cs) | `TranspositionEntry` | 16-byte packed struct with bitfield age and bound layout |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `ZobristKey` | Incrementally maintained 64-bit position hash |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Probes TT before move generation; stores results on return |
+| [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | `TranspositionTable` | High-performance 16-byte power-of-two cache manager |
+| [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | `TranspositionEntry` | 16-byte packed struct with bitfield age and bound layout |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `ZobristKey` | Incrementally maintained 64-bit position hash |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Probes TT before move generation; stores results on return |
 
 ---
 
 ## Tests
 
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - Transposition table hit rate verification on symmetric openings.
   - Zobrist incremental hash consistency: verifies $H_{\text{incremental}} == H_{\text{recalculated}}$.
   - Depth parity enforcement: verifies odd-ply entries are never mistakenly applied to even-ply search nodes.

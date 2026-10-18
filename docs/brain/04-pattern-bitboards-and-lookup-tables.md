@@ -158,21 +158,21 @@ Because `NSt` is updated incrementally in $O(1)$ time, `CarbonAiPlayer` can inst
 
 | File | Type / Table | Description |
 |---|---|---|
-| [CarbonTables.Generated.cs](../../src/Gomoku.Core/Engine/CarbonTables.Generated.cs) | `CarbonTables` | Precomputed static tables: `STATUS1`, `STATUS4`, `Prior`, `Rank`, `Config` |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard.Cell` | 8-cell bitmasks (`Pattern00..Pattern31`), `Update1`, `Update4`, `Prior()` |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `MakePaddedMove` | Incremental ray updates and `NSt` threat tracking |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `CheckConsistency` | Verification method ensuring `NSt` matches whole-board scans |
+| [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `CarbonTables` | Precomputed static tables: `STATUS1`, `STATUS4`, `Prior`, `Rank`, `Config` |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard.Cell` | 8-cell bitmasks (`Pattern00..Pattern31`), `Update1`, `Update4`, `Prior()` |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `MakePaddedMove` | Incremental ray updates and `NSt` threat tracking |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `CheckConsistency` | Verification method ensuring `NSt` matches whole-board scans |
 
 ---
 
 ## Tests
 
-- [BoardTests.cs](../../tests/Gomoku.Core.Tests/BoardTests.cs):
+- [BoardAndRulesTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/BoardAndRulesTests.cs):
   - Validates `PatternBoard` initialization and sentinel padding.
   - Verifies incremental bitmask updating and XOR undo consistency across multiple moves.
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - `PatternBoard_IncrementalZobristKey_ShouldMatchBoardStateHashAcrossMakeAndUndo`: Tests exact parity between incremental bitboard hashing and global Zobrist computation.
-- [Benchmark/Program.cs](../../tools/Gomoku.Benchmark/Program.cs):
+- [Benchmark/Program.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/Program.cs):
   - Executes 600,000 make/undo operations, verifying `CheckConsistency()` passes across all threat grades.
 
 ---

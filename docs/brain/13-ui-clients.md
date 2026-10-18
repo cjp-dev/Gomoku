@@ -116,17 +116,17 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 
 | File | Member / Method | Description |
 |---|---|---|
-| [MainWindow.xaml](../../src/Gomoku.Wpf/MainWindow.xaml) | `MainWindow` | WPF primary desktop user interface and canvas bindings |
-| [Board.razor](../../src/Gomoku.Web/Components/Board.razor) | `Board` | Scalable SVG board with wood gradients, stones, and star points |
-| [DialogHost.razor](../../src/Gomoku.Web/Components/DialogHost.razor) | `DialogHost` | Modal dialog manager for game settings and rules |
-| [Docs.razor](../../src/Gomoku.Web/Pages/Docs.razor) | `Docs` | Live browser manual reader with KaTeX math rendering |
-| [BrainDocs.cs](../../src/Gomoku.Web/Services/BrainDocs.cs) | `BrainDocs` | Document discovery service matching chapter regexes |
+| [MainWindow.xaml](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Wpf/MainWindow.xaml) | `MainWindow` | WPF primary desktop user interface and canvas bindings |
+| [Board.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/Board.razor) | `Board` | Scalable SVG board with wood gradients, stones, and star points |
+| [DialogHost.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/DialogHost.razor) | `DialogHost` | Modal dialog manager for game settings and rules |
+| [Docs.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Pages/Docs.razor) | `Docs` | Live browser manual reader with KaTeX math rendering |
+| [BrainDocs.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Services/BrainDocs.cs) | `BrainDocs` | Document discovery service matching chapter regexes |
 
 ---
 
 ## Tests
 
-- [ViewModelTests.cs](../../tests/Gomoku.App.Tests/ViewModelTests.cs):
+- [MainViewModelTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.App.Tests/MainViewModelTests.cs):
   - Star points layout test: verifies 15x15 has 5 star points and 19x19 has 9 star points.
   - Ghost stone reactivity: verifies ghost stone matches active player color.
   - Move numbering toggle: verifies coordinate text visibility binding.

@@ -23,7 +23,7 @@ Gomoku is played on a grid of intersections using black and white stones. Unlike
 Coordinates are represented algebraically using consecutive column letters `A` through `T` (left to right) and row numbers `1` through `N` (top to bottom):
 - Note that unlike the game of Go (which omits the letter `I` to avoid confusion with `J` or `1`), Gomoku standards strictly retain `I`.
 - On a $15 \times 15$ board, the top-left square is `A1` $(0, 0)$, the geometric center is `H8` $(7, 7)$, and the bottom-right square is `O15` $(14, 14)$.
-- Coordinates are encapsulated by the immutable [`Point`](../../src/Gomoku.Core/Models/Point.cs) struct:
+- Coordinates are encapsulated by the immutable [`Point`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/Point.cs) struct:
   ```csharp
   public readonly record struct Point(int X, int Y)
   {
@@ -159,21 +159,21 @@ Isolated squares with no nearby stones are pruned before tactical evaluation beg
 
 | File | Member / Type | Description |
 |---|---|---|
-| [BoardSize.cs](../../src/Gomoku.Core/Models/BoardSize.cs) | `BoardSize` | Board dimensions, validation, and star point calculations |
-| [Point.cs](../../src/Gomoku.Core/Models/Point.cs) | `Point` | 2D coordinate struct and algebraic formatting (`A1` .. `T20`) |
-| [PieceColor.cs](../../src/Gomoku.Core/Models/PieceColor.cs) | `PieceColor` | Cell states (`Empty = 0`, `Black = 0`, `White = 1`, `Wrong = 2`) |
-| [BoardState.cs](../../src/Gomoku.Core/Models/BoardState.cs) | `BoardState` | Immutable game state snapshot and 1D cell indexing |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard`, `Cell` | Sentinel-padded 2D bitboard array, bounding box, and rings |
+| [BoardSize.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardSize.cs) | `BoardSize` | Board dimensions, validation, and star point calculations |
+| [Point.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/Point.cs) | `Point` | 2D coordinate struct and algebraic formatting (`A1` .. `T20`) |
+| [PieceColor.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/PieceColor.cs) | `PieceColor` | Cell states (`Empty = 0`, `Black = 0`, `White = 1`, `Wrong = 2`) |
+| [BoardState.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardState.cs) | `BoardState` | Immutable game state snapshot and 1D cell indexing |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard`, `Cell` | Sentinel-padded 2D bitboard array, bounding box, and rings |
 
 ---
 
 ## Tests
 
-- [BoardTests.cs](../../tests/Gomoku.Core.Tests/BoardTests.cs):
+- [BoardAndRulesTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/BoardAndRulesTests.cs):
   - Validates coordinate string conversions (`A1`, `H8`, `O15`, `S19`).
   - Verifies star points for $15 \times 15$ (5 points), $19 \times 19$ (9 points), and $20 \times 20$ (4 points).
   - Confirms out-of-bounds coordinate rejection.
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - Tests first-move center opening generation across different board sizes.
   - Confirms bounding box expansion and contraction across make/undo sequences.
 

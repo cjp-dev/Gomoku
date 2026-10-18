@@ -163,7 +163,7 @@ flowchart TD
 
 #### Detailed Comparison
 
-| Engine Property | [Simple AI](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | [Carbon AI (Advanced)](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonAiPlayer.cs) |
+| Engine Property | [Simple AI](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | [Carbon AI (Advanced)](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) |
 |---|---|---|
 | **Origin** | Ported from Carbon Gomoku's `AISimple` | Direct port of Michał Czardybon's championship engine |
 | **Search Depth** | **1 ply** (no tree search) | **6 to 16+ plies** (deep tree search) |
@@ -261,12 +261,12 @@ In the browser client (`Gomoku.Web`), execution runs within a single-threaded We
 
 | File | Component | Description |
 |---|---|---|
-| [`MainViewModel.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.App/ViewModels/MainViewModel.cs) | `MainViewModel` | Central orchestrator managing modes, turn dispatching, and telemetry subscriptions |
-| [`AnalysisViewModel.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `AnalysisViewModel` | Observable ViewModel formatting depth strings, centipawn scores, and node rates |
-| [`SettingsViewModel.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.App/ViewModels/SettingsViewModel.cs) | `SettingsViewModel` | Data backing for the Settings dialog (board size, rules, engines, time controls) |
-| [`CarbonAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `CarbonAiPlayer` | Tournament Minimax search engine with iterative deepening and VCF quick-win solver |
-| [`SimpleAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | `SimpleAiPlayer` | Fast 1-ply heuristic pattern evaluator for beginner and casual gameplay |
-| [`SearchAnalysis.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/SearchAnalysis.cs) | `SearchAnalysis` | Immutable record transporting live telemetry snapshots across thread boundaries |
+| [`MainViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | `MainViewModel` | Central orchestrator managing modes, turn dispatching, and telemetry subscriptions |
+| [`AnalysisViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `AnalysisViewModel` | Observable ViewModel formatting depth strings, centipawn scores, and node rates |
+| [`SettingsViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/SettingsViewModel.cs) | `SettingsViewModel` | Data backing for the Settings dialog (board size, rules, engines, time controls) |
+| [`CarbonAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `CarbonAiPlayer` | Tournament Minimax search engine with iterative deepening and VCF quick-win solver |
+| [`SimpleAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | `SimpleAiPlayer` | Fast 1-ply heuristic pattern evaluator for beginner and casual gameplay |
+| [`SearchAnalysis.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchAnalysis.cs) | `SearchAnalysis` | Immutable record transporting live telemetry snapshots across thread boundaries |
 
 ---
 

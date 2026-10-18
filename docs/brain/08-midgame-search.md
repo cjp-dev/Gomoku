@@ -286,16 +286,16 @@ Consider searching move 15 for Black.
 
 | File | Member / Method | Description |
 |---|---|---|
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Root driver executing iterative deepening and clock management |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Core recursive closed-interval Negamax Alpha-Beta with PVS |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `SetupTimeControl()` | Configures time limits and calculates `_stopTime` |
-| [SearchLimits.cs](../../src/Gomoku.Core/AI/SearchLimits.cs) | `SearchLimits` | Time control domain models (`FixedDepth`, `TimePerMove`, `TimePerGame`) |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Root driver executing iterative deepening and clock management |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Core recursive closed-interval Negamax Alpha-Beta with PVS |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `SetupTimeControl()` | Configures time limits and calculates `_stopTime` |
+| [SearchLimits.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchLimits.cs) | `SearchLimits` | Time control domain models (`FixedDepth`, `TimePerMove`, `TimePerGame`) |
 
 ---
 
 ## Tests
 
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - Iterative deepening depth progression: verifies search reaches targeted depth.
   - Cancellation token responsiveness: tests that search halts cleanly within $50\text{ ms}$ of cancellation.
   - Mate distance preference: verifies AI chooses mate-in-1 over mate-in-3.

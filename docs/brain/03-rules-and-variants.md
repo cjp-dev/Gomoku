@@ -176,10 +176,10 @@ Suppose Black has a line of 4 stones horizontally at $(3, 7), (4, 7), (5, 7), (6
 
 | Type | Kind | Role |
 |---|---|---|
-| [`GomokuVariant`](../../src/Gomoku.Core/Models/GomokuVariant.cs) | `enum` | `Freestyle = 0`, `Exact5 = 1`, `Renju = 2` |
-| [`IRuleEngine`](../../src/Gomoku.Core/Engine/IRuleEngine.cs) | `interface` | `GetLegalMoves(state)`, `IsMoveLegal(state, move, out reason)`, `ApplyMove(state, move)`, `CheckWin(...)` |
-| [`RuleEngine`](../../src/Gomoku.Core/Engine/RuleEngine.cs) | `sealed class` | Singleton rule engine implementation |
-| [`PatternBoard`](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `sealed class` | Evaluates `CheckForbid(x, y)` and `IsForbidden(x, y, player)` |
+| [`GomokuVariant`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/GomokuVariant.cs) | `enum` | `Freestyle = 0`, `Exact5 = 1`, `Renju = 2` |
+| [`IRuleEngine`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/IRuleEngine.cs) | `interface` | `GetLegalMoves(state)`, `IsMoveLegal(state, move, out reason)`, `ApplyMove(state, move)`, `CheckWin(...)` |
+| [`RuleEngine`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/RuleEngine.cs) | `sealed class` | Singleton rule engine implementation |
+| [`PatternBoard`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `sealed class` | Evaluates `CheckForbid(x, y)` and `IsForbidden(x, y, player)` |
 
 ---
 
@@ -187,16 +187,16 @@ Suppose Black has a line of 4 stones horizontally at $(3, 7), (4, 7), (5, 7), (6
 
 | File | Member / Method | Description |
 |---|---|---|
-| [RuleEngine.cs](../../src/Gomoku.Core/Engine/RuleEngine.cs) | `CheckWin` | 4-direction stone counting and variant win predicates |
-| [RuleEngine.cs](../../src/Gomoku.Core/Engine/RuleEngine.cs) | `IsMoveLegal` | Turn order, boundary, occupancy, and Renju foul validation |
-| [RuleEngine.cs](../../src/Gomoku.Core/Engine/RuleEngine.cs) | `GetLegalMoves` | Filters out Renju forbidden squares from legal candidate list |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `CheckForbid` | Incremental status evaluation of 3x3, 4x4, and 6+ fouls |
+| [RuleEngine.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/RuleEngine.cs) | `CheckWin` | 4-direction stone counting and variant win predicates |
+| [RuleEngine.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/RuleEngine.cs) | `IsMoveLegal` | Turn order, boundary, occupancy, and Renju foul validation |
+| [RuleEngine.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/RuleEngine.cs) | `GetLegalMoves` | Filters out Renju forbidden squares from legal candidate list |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `CheckForbid` | Incremental status evaluation of 3x3, 4x4, and 6+ fouls |
 
 ---
 
 ## Tests
 
-- [RulesTests.cs](../../tests/Gomoku.Core.Tests/RulesTests.cs):
+- [BoardAndRulesTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/BoardAndRulesTests.cs):
   - Freestyle: 5-in-a-row win and 6-in-a-row overline win for Black and White.
   - Exact5: 5-in-a-row win, 6-in-a-row overline ignored (game continues).
   - Renju: Black 3x3 foul rejection, 4x4 foul rejection, 6+ overline foul rejection.

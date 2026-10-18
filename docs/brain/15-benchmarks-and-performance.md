@@ -138,16 +138,16 @@ flowchart LR
 
 | File | Component | Description |
 |---|---|---|
-| [Program.cs](../../tools/Gomoku.Benchmark/Program.cs) | `Gomoku.Benchmark` | CLI performance benchmark runner and telemetry reporter |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `MakePaddedMove()` | High-throughput $\mathcal{O}(1)$ ray bitmask mutator |
-| [TranspositionTable.cs](../../src/Gomoku.Core/AI/TranspositionTable.cs) | `TryProbe()`, `Store()` | Cache-aligned 16-byte power-of-two hash table |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Zero-allocation recursive PVS search loop |
+| [Program.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/Program.cs) | `Gomoku.Benchmark` | CLI performance benchmark runner and telemetry reporter |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `MakePaddedMove()` | High-throughput $\mathcal{O}(1)$ ray bitmask mutator |
+| [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | `TryProbe()`, `Store()` | Cache-aligned 16-byte power-of-two hash table |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Zero-allocation recursive PVS search loop |
 
 ---
 
 ## Tests
 
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - Benchmarks regression checks.
   - Consistency of `PatternBoard` bitboards after 100,000 random make/undo sequences.
   - Zero memory leak verification over long-running iterative deepening searches.

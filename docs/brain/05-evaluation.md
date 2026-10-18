@@ -129,16 +129,16 @@ If `NSt[who, ThreatB] >= 1` or `NSt[who, ThreatC] >= 1`, `QuickWinSearch` immedi
 
 | File | Member / Method | Description |
 |---|---|---|
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Evaluate()` | Static leaf evaluation function using placed stones and `Rank` |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | VCF tactical mate solver returning ply-adjusted win scores |
-| [CarbonTables.Generated.cs](../../src/Gomoku.Core/Engine/CarbonTables.Generated.cs) | `Rank`, `Config` | Precomputed stone and configuration weight tables |
-| [AnalysisViewModel.cs](../../src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `Update()` | Translates internal mate scores into user-facing `"Mate in K"` text |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Evaluate()` | Static leaf evaluation function using placed stones and `Rank` |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | VCF tactical mate solver returning ply-adjusted win scores |
+| [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `Rank`, `Config` | Precomputed stone and configuration weight tables |
+| [AnalysisViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `Update()` | Translates internal mate scores into user-facing `"Mate in K"` text |
 
 ---
 
 ## Tests
 
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - Immediate win detection: verifies the AI plays five-in-a-row on move 5.
   - Immediate defense: verifies the AI blocks an opponent four threat.
   - Evaluation symmetry: confirms that swapping players negates the static score.

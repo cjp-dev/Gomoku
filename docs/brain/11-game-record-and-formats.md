@@ -202,16 +202,16 @@ stateDiagram-v2
 
 | File | Member / Method | Description |
 |---|---|---|
-| [SgfFormat.cs](../../src/Gomoku.Core/Formats/SgfFormat.cs) | `Serialize()`, `TryParse()` | SGF `GM[11]` parser and serializer |
-| [GomokuRecordFormat.cs](../../src/Gomoku.Core/Formats/GomokuRecordFormat.cs) | `Serialize()`, `TryParse()` | Bracketed tag and algebraic move parser |
-| [GameFileSerializer.cs](../../src/Gomoku.Core/Formats/GameFileSerializer.cs) | `TryParse()` | Sniffing facade distinguishing SGF from text |
-| [GameSession.cs](../../src/Gomoku.Core/Models/GameSession.cs) | `Undo()`, `Redo()`, `MakeMove()` | Game session coordinator managing move stacks |
+| [SgfFormat.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Formats/SgfFormat.cs) | `Serialize()`, `TryParse()` | SGF `GM[11]` parser and serializer |
+| [GomokuRecordFormat.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Formats/GomokuRecordFormat.cs) | `Serialize()`, `TryParse()` | Bracketed tag and algebraic move parser |
+| [GameFileSerializer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Formats/GameFileSerializer.cs) | `TryParse()` | Sniffing facade distinguishing SGF from text |
+| [GameSession.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/GameSession.cs) | `Undo()`, `Redo()`, `MakeMove()` | Game session coordinator managing move stacks |
 
 ---
 
 ## Tests
 
-- [SgfFormatTests.cs](../../tests/Gomoku.Core.Tests/SgfFormatTests.cs):
+- [FormatTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/FormatTests.cs):
   - Round-trip fidelity: verifies serializing and parsing moves results in identical states.
   - SGF metadata extraction: tests extraction of board size, variant, and player names.
   - Malformed SGF resilience: ensures unclosed brackets and invalid characters fail gracefully without exceptions.

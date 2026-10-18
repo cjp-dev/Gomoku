@@ -16,7 +16,7 @@ public sealed partial class BrainDocs(HttpClient http)
     private const string ContentPath = "content/brain/";
     private const string Route = "docs";
 
-    private static readonly Uri RepositoryFolder = new("https://github.com/clauspedersen/gomoku/blob/main/docs/brain/");
+    private static readonly Uri RepositoryFolder = new("https://github.com/cjp-dev/Gomoku/blob/main/docs/brain/");
 
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)

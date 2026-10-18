@@ -235,16 +235,16 @@ Under Renju rules, Black is forbidden from playing Double-Three (3x3), Double-Fo
 
 | File | Member / Method | Description |
 |---|---|---|
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | Recursive VCF mate solver returning ply distance $q$ |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Evaluates $q$ at root and internal nodes, assigning $[\text{WinMin}, \text{WinMax}]$ |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | `NSt` | Live $2 \times 10$ threat state tensor updated incrementally on make/undo |
-| [CarbonTables.Generated.cs](../../src/Gomoku.Core/Engine/CarbonTables.Generated.cs) | `ThreatA` .. `ThreatForbid` | Canonical tactical threat status constants |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | Recursive VCF mate solver returning ply distance $q$ |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Evaluates $q$ at root and internal nodes, assigning $[\text{WinMin}, \text{WinMax}]$ |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `NSt` | Live $2 \times 10$ threat state tensor updated incrementally on make/undo |
+| [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `ThreatA` .. `ThreatForbid` | Canonical tactical threat status constants |
 
 ---
 
 ## Tests
 
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - `Ai_FindsImmediateWin`: verifies AI detects and plays $q = 1$ five-in-a-row.
   - `Ai_BlocksOpponentWinningMove`: verifies AI detects opponent $q = -1$ threat and plays the forced block.
   - `Ai_ExecutesOpenFourWin`: verifies AI plays open four ($q = 3$) for an unstoppable win.

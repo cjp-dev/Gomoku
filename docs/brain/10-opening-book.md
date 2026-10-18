@@ -214,15 +214,15 @@ Consider move 2 for White on a $15 \times 15$ board:
 
 | File | Member / Method | Description |
 |---|---|---|
-| [OpeningBook.cs](../../src/Gomoku.Core/AI/OpeningBook.cs) | `TryGetMove()` | Symmetry-aware opening book lookup and random selection |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Queries `OpeningBook.TryGetMove()` before invoking minimax |
-| [CarbonTables.Generated.cs](../../src/Gomoku.Core/Engine/CarbonTables.Generated.cs) | `OpeningBookData` | Static binary table ported from Carbon Gomoku |
+| [OpeningBook.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) | `TryGetMove()` | Symmetry-aware opening book lookup and random selection |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Queries `OpeningBook.TryGetMove()` before invoking minimax |
+| [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `OpeningBookData` | Static binary table ported from Carbon Gomoku |
 
 ---
 
 ## Tests
 
-- [AiTests.cs](../../tests/Gomoku.Core.Tests/AiTests.cs):
+- [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - `Ai_PlaysCenterOnFirstMove`: verifies Black plays center H8 on move 1.
   - Opening book symmetry test: verifies identical responses across 4 rotations.
   - Edge margin verification: ensures book moves never land within 4 squares of the board border.

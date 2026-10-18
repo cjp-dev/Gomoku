@@ -211,17 +211,17 @@ public interface IDialogService
 
 | File | Member / Method | Description |
 |---|---|---|
-| [MainViewModel.cs](../../src/Gomoku.App/ViewModels/MainViewModel.cs) | `MainViewModel` | Central MVVM controller coordinating board, engine, and turns |
-| [IntersectionViewModel.cs](../../src/Gomoku.App/ViewModels/IntersectionViewModel.cs) | `IntersectionViewModel` | Observable cell representation for data-binding |
-| [AnalysisViewModel.cs](../../src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `AnalysisViewModel` | Real-time AI evaluation dashboard and win-rate bar |
-| [SoundWaves.cs](../../src/Gomoku.App/Services/SoundWaves.cs) | `SoundWaves` | Procedural 16-bit PCM WAV synthesizer |
-| [ISoundService.cs](../../src/Gomoku.App/Services/ISoundService.cs) | `ISoundService` | Audio output abstraction implemented by WPF and Web clients |
+| [MainViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | `MainViewModel` | Central MVVM controller coordinating board, engine, and turns |
+| [IntersectionViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/IntersectionViewModel.cs) | `IntersectionViewModel` | Observable cell representation for data-binding |
+| [AnalysisViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `AnalysisViewModel` | Real-time AI evaluation dashboard and win-rate bar |
+| [SoundWaves.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/Services/SoundWaves.cs) | `SoundWaves` | Procedural 16-bit PCM WAV synthesizer |
+| [ISoundService.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/Services/ISoundService.cs) | `ISoundService` | Audio output abstraction implemented by WPF and Web clients |
 
 ---
 
 ## Tests
 
-- [ViewModelTests.cs](../../tests/Gomoku.App.Tests/ViewModelTests.cs):
+- [MainViewModelTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.App.Tests/MainViewModelTests.cs):
   - Board re-layout verification: confirms switching from 15x15 to 19x19 instantiates 361 cells.
   - Sound synthesis verification: validates that `SoundWaves.Create(SoundType.StonePlaced)` generates valid RIFF header bytes.
   - Renju forbidden cell flagging: verifies `IsForbidden` updates reactively when moves change.

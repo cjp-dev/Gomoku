@@ -10,7 +10,7 @@ Gomoku .NET is an enterprise-grade Gomoku (Five in a Row) system engineered in C
 
 ## The projects
 
-The solution [Gomoku.slnx](../../Gomoku.slnx) consists of seven targeted projects:
+The solution [Gomoku.slnx](https://github.com/cjp-dev/Gomoku/blob/main/Gomoku.slnx) consists of seven targeted projects:
 
 ```mermaid
 flowchart LR
@@ -25,13 +25,13 @@ flowchart LR
 
 | Project | Target Framework | Role & Contents |
 |---|---|---|
-| [Gomoku.Core](../../src/Gomoku.Core) | `net10.0` | Zero-allocation core engine: board geometries, pattern bitboards, precomputed Carbon lookup tables, VCF solver, Negamax Alpha-Beta search, Zobrist transposition table, opening book, SGF and algebraic serializers. Strictly zero UI dependencies. |
-| [Gomoku.App](../../src/Gomoku.App) | `net10.0` | Shared MVVM application layer using [CommunityToolkit.Mvvm](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/): view models (`MainViewModel`, `SettingsViewModel`, `IntersectionViewModel`, `AnalysisViewModel`), service abstractions (`IDialogService`, `IGameFileService`, `ISoundService`), and procedural 16-bit PCM audio synthesis (`SoundWaves`). |
-| [Gomoku.Wpf](../../src/Gomoku.Wpf) | `net10.0-windows` | Hardware-accelerated desktop application: Japanese Kaya wood board rendering, dynamic coordinate grids, interactive hover ghost stones, Renju foul markers, AI telemetry dashboard, and native dialogs. |
-| [Gomoku.Web](../../src/Gomoku.Web) | `net10.0` | Client-side Blazor WebAssembly single-page application: runs the full C# engine in the browser sandbox with Ahead-of-Time (AOT) compilation, offline Progressive Web App (PWA) support, and embedded markdown architecture documentation viewer. |
-| [Gomoku.Benchmark](../../tools/Gomoku.Benchmark) | `net10.0` | Console performance and profiling tool: throughput measurements for make/undo operations, transposition table masking speed, and nodes-per-second (NPS) scaling across depths. |
-| [Gomoku.Core.Tests](../../tests/Gomoku.Core.Tests) | `net10.0` | xUnit test suite for the engine: win detection, Exact5 overline rules, Renju foul algorithms (3x3, 4x4, 6+), Zobrist incremental hash consistency, VCF solving, opening book symmetry, and SGF round-tripping. |
-| [Gomoku.App.Tests](../../tests/Gomoku.App.Tests) | `net10.0` | xUnit test suite for the application layer: board reset, human stone placement, turn sequencing, undo/redo stacks, Settings persistence, sound muting, and Renju forbidden marker UI updates. |
+| [Gomoku.Core](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core) | `net10.0` | Zero-allocation core engine: board geometries, pattern bitboards, precomputed Carbon lookup tables, VCF solver, Negamax Alpha-Beta search, Zobrist transposition table, opening book, SGF and algebraic serializers. Strictly zero UI dependencies. |
+| [Gomoku.App](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App) | `net10.0` | Shared MVVM application layer using [CommunityToolkit.Mvvm](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/): view models (`MainViewModel`, `SettingsViewModel`, `IntersectionViewModel`, `AnalysisViewModel`), service abstractions (`IDialogService`, `IGameFileService`, `ISoundService`), and procedural 16-bit PCM audio synthesis (`SoundWaves`). |
+| [Gomoku.Wpf](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Wpf) | `net10.0-windows` | Hardware-accelerated desktop application: Japanese Kaya wood board rendering, dynamic coordinate grids, interactive hover ghost stones, Renju foul markers, AI telemetry dashboard, and native dialogs. |
+| [Gomoku.Web](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web) | `net10.0` | Client-side Blazor WebAssembly single-page application: runs the full C# engine in the browser sandbox with Ahead-of-Time (AOT) compilation, offline Progressive Web App (PWA) support, and embedded markdown architecture documentation viewer. |
+| [Gomoku.Benchmark](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark) | `net10.0` | Console performance and profiling tool: throughput measurements for make/undo operations, transposition table masking speed, and nodes-per-second (NPS) scaling across depths. |
+| [Gomoku.Core.Tests](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests) | `net10.0` | xUnit test suite for the engine: win detection, Exact5 overline rules, Renju foul algorithms (3x3, 4x4, 6+), Zobrist incremental hash consistency, VCF solving, opening book symmetry, and SGF round-tripping. |
+| [Gomoku.App.Tests](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.App.Tests) | `net10.0` | xUnit test suite for the application layer: board reset, human stone placement, turn sequencing, undo/redo stacks, Settings persistence, sound muting, and Renju forbidden marker UI updates. |
 
 ---
 
@@ -41,11 +41,11 @@ The engine's types are divided into five functional areas:
 
 | Group | Main Types | Role |
 |---|---|---|
-| **Board &amp; Geometry** | [`BoardState`](../../src/Gomoku.Core/Models/BoardState.cs)<br/>[`BoardSize`](../../src/Gomoku.Core/Models/BoardSize.cs)<br/>[`Point`](../../src/Gomoku.Core/Models/Point.cs)<br/>[`PieceColor`](../../src/Gomoku.Core/Models/PieceColor.cs) | Board state representation, standard dimensions ($15 \times 15$, $19 \times 19$, $20 \times 20$), star points, and cell colors (`Empty`, `Black`, `White`, `Wrong`). |
-| **Rules &amp; Legality** | [`IRuleEngine`](../../src/Gomoku.Core/Engine/IRuleEngine.cs)<br/>[`RuleEngine`](../../src/Gomoku.Core/Engine/RuleEngine.cs)<br/>[`GomokuVariant`](../../src/Gomoku.Core/Models/GomokuVariant.cs) | Move validation, winning line detection, and variant enforcement: Freestyle (5+ wins), Exact5 (exact 5 wins), and Renju (asymmetrical foul rules for Black). |
-| **Pattern Bitboards** | [`PatternBoard`](../../src/Gomoku.Core/Engine/PatternBoard.cs)<br/>[`PatternBoard.Cell`](../../src/Gomoku.Core/Engine/PatternBoard.cs)<br/>[`CarbonTables`](../../src/Gomoku.Core/Engine/CarbonTables.Generated.cs) | 4-direction 8-cell ray bitmasks, directional line threat lookups (`STATUS1`), composite 4-way threat tensor (`STATUS4`), tactical candidate scoring (`Prior`), and stone ranking (`Rank`). |
-| **Search &amp; AI** | [`CarbonAiPlayer`](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs)<br/>[`SimpleAiPlayer`](../../src/Gomoku.Core/AI/SimpleAiPlayer.cs)<br/>[`TranspositionTable`](../../src/Gomoku.Core/AI/TranspositionTable.cs)<br/>[`Zobrist`](../../src/Gomoku.Core/Engine/Zobrist.cs)<br/>[`SearchLimits`](../../src/Gomoku.Core/AI/SearchLimits.cs) | Negamax Alpha-Beta search on closed intervals $[\alpha, \beta]$, iterative deepening, VCF solver (`QuickWinSearch`), candidate generation with `ONE_CAND` pruning, 16-byte packed transposition entries, and time control. |
-| **Opening Theory &amp; Formats** | [`OpeningBook`](../../src/Gomoku.Core/AI/OpeningBook.cs)<br/>[`SgfSerializer`](../../src/Gomoku.Core/Serialization/SgfSerializer.cs)<br/>[`GomokuJsonSerializer`](../../src/Gomoku.Core/Serialization/GomokuJsonSerializer.cs)<br/>[`GameFileSerializer`](../../src/Gomoku.Core/Formats/GameFileSerializer.cs) | Dihedral group $D_4$ opening book matching across 67 canonical pattern clusters, SGF `GM[11]` export/import, and human-readable `.gomoku` algebraic coordinate notation. |
+| **Board &amp; Geometry** | [`BoardState`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardState.cs)<br/>[`BoardSize`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardSize.cs)<br/>[`Point`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/Point.cs)<br/>[`PieceColor`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/PieceColor.cs) | Board state representation, standard dimensions ($15 \times 15$, $19 \times 19$, $20 \times 20$), star points, and cell colors (`Empty`, `Black`, `White`, `Wrong`). |
+| **Rules &amp; Legality** | [`IRuleEngine`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/IRuleEngine.cs)<br/>[`RuleEngine`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/RuleEngine.cs)<br/>[`GomokuVariant`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/GomokuVariant.cs) | Move validation, winning line detection, and variant enforcement: Freestyle (5+ wins), Exact5 (exact 5 wins), and Renju (asymmetrical foul rules for Black). |
+| **Pattern Bitboards** | [`PatternBoard`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs)<br/>[`PatternBoard.Cell`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs)<br/>[`CarbonTables`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | 4-direction 8-cell ray bitmasks, directional line threat lookups (`STATUS1`), composite 4-way threat tensor (`STATUS4`), tactical candidate scoring (`Prior`), and stone ranking (`Rank`). |
+| **Search &amp; AI** | [`CarbonAiPlayer`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs)<br/>[`SimpleAiPlayer`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs)<br/>[`TranspositionTable`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs)<br/>[`Zobrist`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/Zobrist.cs)<br/>[`SearchLimits`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchLimits.cs) | Negamax Alpha-Beta search on closed intervals $[\alpha, \beta]$, iterative deepening, VCF solver (`QuickWinSearch`), candidate generation with `ONE_CAND` pruning, 16-byte packed transposition entries, and time control. |
+| **Opening Theory &amp; Formats** | [`OpeningBook`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs)<br/>[`SgfSerializer`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Formats/SgfFormat.cs)<br/>[`GomokuJsonSerializer`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Formats/GomokuRecordFormat.cs)<br/>[`GameFileSerializer`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Formats/GameFileSerializer.cs) | Dihedral group $D_4$ opening book matching across 67 canonical pattern clusters, SGF `GM[11]` export/import, and human-readable `.gomoku` algebraic coordinate notation. |
 
 ---
 
@@ -273,16 +273,16 @@ sequenceDiagram
 
 | File | Description |
 |---|---|
-| [BoardState.cs](../../src/Gomoku.Core/Models/BoardState.cs) | Immutable board state model and cell array |
-| [RuleEngine.cs](../../src/Gomoku.Core/Engine/RuleEngine.cs) | Variant rule definitions and win-line checking |
-| [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | 4-ray pattern bitboard and candidate tracking |
-| [CarbonTables.Generated.cs](../../src/Gomoku.Core/Engine/CarbonTables.Generated.cs) | Precomputed pattern and threat tensors |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | Minimax search, VCF solver, candidate ordering, and live telemetry |
-| [SimpleAiPlayer.cs](../../src/Gomoku.Core/AI/SimpleAiPlayer.cs) | Fast 1-ply heuristic pattern evaluator for casual gameplay |
-| [TranspositionTable.cs](../../src/Gomoku.Core/AI/TranspositionTable.cs) | 16-byte packed hash table |
-| [OpeningBook.cs](../../src/Gomoku.Core/AI/OpeningBook.cs) | Dihedral symmetry opening book matching |
-| [MainViewModel.cs](../../src/Gomoku.App/ViewModels/MainViewModel.cs) | Application state, AI coordination, and clocks |
-| [AnalysisViewModel.cs](../../src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | Real-time search telemetry formatting and analysis presentation |
+| [BoardState.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardState.cs) | Immutable board state model and cell array |
+| [RuleEngine.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/RuleEngine.cs) | Variant rule definitions and win-line checking |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | 4-ray pattern bitboard and candidate tracking |
+| [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | Precomputed pattern and threat tensors |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | Minimax search, VCF solver, candidate ordering, and live telemetry |
+| [SimpleAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | Fast 1-ply heuristic pattern evaluator for casual gameplay |
+| [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | 16-byte packed hash table |
+| [OpeningBook.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) | Dihedral symmetry opening book matching |
+| [MainViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | Application state, AI coordination, and clocks |
+| [AnalysisViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | Real-time search telemetry formatting and analysis presentation |
 
 ---
 
