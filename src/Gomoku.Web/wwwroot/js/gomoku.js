@@ -4,6 +4,9 @@ window.gomoku = (() => {
     const sounds = new Map();
     let audioCtx = null;
 
+    const shortcutKeys = 'noszya';
+    let keydown = null;
+
     function getAudioContext() {
         if (!audioCtx) {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -18,6 +21,28 @@ window.gomoku = (() => {
     }
 
     return {
+        registerShortcuts(dotnet) {
+            keydown = e => {
+                if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.length !== 1) {
+                    return;
+                }
+                const key = e.key.toLowerCase();
+                if (!shortcutKeys.includes(key) || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+                    return;
+                }
+                e.preventDefault();
+                dotnet.invokeMethodAsync('OnShortcut', key);
+            };
+            document.addEventListener('keydown', keydown);
+        },
+
+        unregisterShortcuts() {
+            if (keydown) {
+                document.removeEventListener('keydown', keydown);
+                keydown = null;
+            }
+        },
+
         openTextFile(accept) {
             return new Promise((resolve, reject) => {
                 const input = document.createElement('input');

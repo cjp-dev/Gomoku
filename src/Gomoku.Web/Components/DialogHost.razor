@@ -1,166 +1,163 @@
-@inject BrowserDialogService DialogService
-@inject MainViewModel MainVm
+@using Gomoku.Core.AI
+@using Gomoku.Core.Models
+@using Gomoku.Web.Services
 @implements IDisposable
+@inject BrowserDialogService Dialogs
 
-@if (DialogService.IsVisible)
+@if (Dialogs.Current is { } dialog)
 {
-    <div class="modal-backdrop" @onclick="() => DialogService.Dismiss(false)">
-        <div class="modal-card" @onclick:stopPropagation="true">
-            @if (DialogService.ActiveViewModel is SettingsViewModel settingsVm)
+    <div class="dialog-backdrop">
+        <div class="dialog @(dialog.Picture is null ? null : "dialog-with-picture")"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="dialog-title"
+             @onkeydown="e => OnKeyDown(dialog, e)">
+
+            <h2 id="dialog-title">@dialog.Title</h2>
+
+            @if (dialog.Picture is not null)
             {
-                <h3 class="modal-title">Settings</h3>
+                <figure class="dialog-picture">
+                    <img src="@dialog.Picture" alt="@dialog.PictureCaption" />
+                    <figcaption>@dialog.PictureCaption</figcaption>
+                </figure>
+            }
 
-                <div class="form-group">
-                    <label>Board Size:</label>
-                    <select class="form-control" @bind="SelectedBoardSizeIndex">
-                        @for (int i = 0; i < settingsVm.AvailableBoardSizes.Count; i++)
-                        {
-                            <option value="@i">@settingsVm.AvailableBoardSizes[i].ToString()</option>
-                        }
-                    </select>
-                </div>
+            <div class="dialog-body">
+                @if (dialog.Heading is not null)
+                {
+                    <p class="dialog-heading"><strong>@dialog.Heading</strong></p>
+                }
+                @if (dialog.Message is not null)
+                {
+                    <p class="dialog-message">@dialog.Message</p>
+                }
+                @foreach (string paragraph in dialog.Paragraphs)
+                {
+                    <p>@paragraph</p>
+                }
+            </div>
 
-                <div class="form-group">
-                    <label>Variant:</label>
-                    <select class="form-control" @bind="settingsVm.SelectedVariant">
-                        @foreach (var v in settingsVm.AvailableVariants)
-                        {
-                            <option value="@v">@v</option>
-                        }
-                    </select>
-                </div>
+            @if (dialog.Settings is { } settings)
+            {
+                <fieldset class="settings" style="margin-bottom: 1rem;">
+                    <legend>Board Size &amp; Rules Variant</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div>
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #64748B;">BOARD SIZE</span>
+                            <label><input type="radio" name="boardSize" checked="@(settings.SelectedBoardSize == BoardSize.Size15x15)" @onchange="() => settings.SelectedBoardSize = BoardSize.Size15x15" /> 15 × 15 (Standard)</label>
+                            <label><input type="radio" name="boardSize" checked="@(settings.SelectedBoardSize == BoardSize.Size19x19)" @onchange="() => settings.SelectedBoardSize = BoardSize.Size19x19" /> 19 × 19 (Go board)</label>
+                            <label><input type="radio" name="boardSize" checked="@(settings.SelectedBoardSize == BoardSize.Size20x20)" @onchange="() => settings.SelectedBoardSize = BoardSize.Size20x20" /> 20 × 20 (Freestyle)</label>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #64748B;">RULES VARIANT</span>
+                            <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Freestyle)" @onchange="() => settings.SelectedVariant = GomokuVariant.Freestyle" /> Freestyle (5+ wins)</label>
+                            <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Exact5)" @onchange="() => settings.SelectedVariant = GomokuVariant.Exact5" /> Standard (Exact 5)</label>
+                            <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Renju)" @onchange="() => settings.SelectedVariant = GomokuVariant.Renju" /> Renju (Forbidden 3x3/4x4)</label>
+                        </div>
+                    </div>
+                </fieldset>
 
-                <div class="form-group">
-                    <label>Game Mode:</label>
-                    <select class="form-control" @bind="settingsVm.SelectedMode">
-                        @foreach (var m in settingsVm.AvailableModes)
-                        {
-                            <option value="@m">@m</option>
-                        }
-                    </select>
-                </div>
+                <fieldset class="settings" style="margin-bottom: 1rem;">
+                    <legend>Computer Thinking Limits</legend>
+                    <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.FixedDepth)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.FixedDepth" /> Fixed depth</label>
+                    <input type="range" min="1" max="14" aria-label="Depth" disabled="@(settings.SelectedTimeControl != TimeControlMode.FixedDepth)"
+                           @bind="settings.SearchDepth" @bind:event="oninput" />
+                    <span>@settings.SearchDepth plies</span>
 
-                <div class="form-group">
-                    <label>AI Engine:</label>
-                    <select class="form-control" @bind="settingsVm.SelectedAiEngine">
-                        @foreach (var e in settingsVm.AvailableAiEngines)
-                        {
-                            <option value="@e">@e</option>
-                        }
-                    </select>
-                </div>
+                    <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.TimePerMove)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.TimePerMove" /> Time per move</label>
+                    <input type="range" min="1" max="20" aria-label="Seconds per move" disabled="@(settings.SelectedTimeControl != TimeControlMode.TimePerMove)"
+                           @bind="settings.MoveTimeSeconds" @bind:event="oninput" />
+                    <span>@settings.MoveTimeSeconds seconds</span>
 
-                <div class="form-group">
-                    <label>Time Control:</label>
-                    <select class="form-control" @bind="settingsVm.SelectedTimeControl">
-                        @foreach (var tc in settingsVm.AvailableTimeControls)
-                        {
-                            <option value="@tc">@tc</option>
-                        }
-                    </select>
-                </div>
+                    <label><input type="radio" name="timeMode" checked="@(settings.SelectedTimeControl == TimeControlMode.TimePerGame)" @onchange="() => settings.SelectedTimeControl = TimeControlMode.TimePerGame" /> Time per game</label>
+                    <input type="range" min="1" max="30" aria-label="Minutes per game" disabled="@(settings.SelectedTimeControl != TimeControlMode.TimePerGame)"
+                           @bind="settings.GameTimeMinutes" @bind:event="oninput" />
+                    <span>@settings.GameTimeMinutes minutes</span>
+                </fieldset>
 
-                <div class="form-group">
-                    <label>Search Depth: @settingsVm.SearchDepth plies</label>
-                    <input type="range" min="1" max="14" @bind="settingsVm.SearchDepth" class="form-range" />
-                </div>
-
-                <div class="form-group">
-                    <label>Time per Move: @settingsVm.MoveTimeSeconds s</label>
-                    <input type="range" min="1" max="20" @bind="settingsVm.MoveTimeSeconds" class="form-range" />
-                </div>
-
-                <div class="form-group">
-                    <label>Time per Game: @settingsVm.GameTimeMinutes min</label>
-                    <input type="range" min="1" max="30" @bind="settingsVm.GameTimeMinutes" class="form-range" />
-                </div>
-
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" @bind="settingsVm.UseOpeningBook" />
+                <fieldset class="settings" style="margin-bottom: 1rem;">
+                    <legend>AI Engine &amp; Opening Book</legend>
+                    <div style="display: flex; gap: 1.5rem; margin-bottom: 0.5rem;">
+                        <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Carbon)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Carbon" /> Carbon AI (Advanced)</label>
+                        <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Simple)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Simple" /> Simple AI</label>
+                    </div>
+                    <label style="font-weight: normal;">
+                        <input type="checkbox" @bind="settings.UseOpeningBook" />
                         Carbon Opening Book (67 symmetry patterns)
                     </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" @bind="settingsVm.SoundEnabled" />
-                        Sound Effects
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" @bind="settingsVm.CoordinatesVisible" />
-                        Coordinate Labels (A-T, 1-N)
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" @bind="settingsVm.GhostStoneEnabled" />
-                        Ghost Stone on Hover
-                    </label>
-                </div>
-
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" @onclick="() => DialogService.Dismiss(false)">Cancel</button>
-                    <button class="btn btn-primary" @onclick="() => SaveSettings(settingsVm)">Save</button>
-                </div>
-            }
-            else if (DialogService.ActiveViewModel is AboutInfo about)
-            {
-                <div class="about-card">
-                    <img src="images/claus-pedersen.jpg" class="about-avatar" alt="Claus Pedersen" />
-                    <h3 class="about-title">@about.Title</h3>
-                    <p class="about-version">Version @about.Version</p>
-                    <p class="about-author">Developed by <strong>@about.Author</strong> (@about.Year)</p>
-                    <p class="about-desc">@about.Description</p>
-                    <p class="about-credits">Engine inspiration &amp; algorithms: Michał Czardybon (Carbon Gomoku)</p>
-                    <div class="modal-actions" style="justify-content: center; margin-top: 1.5rem;">
-                        <button class="btn btn-primary" @onclick="() => DialogService.Dismiss(true)">Close</button>
+                    <div style="margin-top: 0.75rem;">
+                        <label style="margin-top: 0;">Transposition Table Capacity:</label>
+                        <select class="dialog-text" style="margin: 0.25rem 0;" @bind="settings.TranspositionTableEntries">
+                            <option value="65536">65,536 entries (1 MB)</option>
+                            <option value="262144">262,144 entries (4 MB)</option>
+                            <option value="1048576">1,048,576 entries (16 MB) - Default</option>
+                            <option value="4194304">4,194,304 entries (64 MB)</option>
+                            <option value="16777216">16,777,216 entries (256 MB)</option>
+                        </select>
                     </div>
-                </div>
+                </fieldset>
+
+                <fieldset class="settings">
+                    <legend>Visual &amp; Sound Preferences</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem;">
+                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.SoundEnabled" /> Sound Effects</label>
+                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.CoordinatesVisible" /> Coordinate Labels</label>
+                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.GhostStoneEnabled" /> Ghost Stone on Hover</label>
+                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.LastMoveHighlightEnabled" /> Highlight Last Move</label>
+                        <label style="font-weight: normal;"><input type="checkbox" @bind="settings.WinLineHighlightEnabled" /> Highlight Winning Line</label>
+                    </div>
+                </fieldset>
             }
-            else
-            {
-                <h3 class="modal-title">@DialogService.Title</h3>
-                <p class="modal-body">@DialogService.Message</p>
-                <div class="modal-actions">
-                    @if (DialogService.IsConfirm)
+
+            <div class="dialog-buttons">
+                @for (int i = 0; i < dialog.Buttons.Count; i++)
+                {
+                    int button = i;
+                    if (button == 0)
                     {
-                        <button class="btn btn-secondary" @onclick="() => DialogService.Dismiss(false)">Cancel</button>
-                        <button class="btn btn-primary" @onclick="() => DialogService.Dismiss(true)">OK</button>
+                        <button class="default" @ref="_defaultButton" @onclick="() => Dialogs.Close(dialog, button)">@dialog.Buttons[button]</button>
                     }
                     else
                     {
-                        <button class="btn btn-primary" @onclick="() => DialogService.Dismiss(true)">OK</button>
+                        <button @onclick="() => Dialogs.Close(dialog, button)">@dialog.Buttons[button]</button>
                     }
-                </div>
-            }
+                }
+            </div>
         </div>
     </div>
 }
 
 @code {
-    private int SelectedBoardSizeIndex { get; set; }
+    private ElementReference _defaultButton;
+    private DialogRequest? _focused;
 
-    protected override void OnInitialized()
-    {
-        DialogService.StateChanged += OnStateChanged;
-    }
+    protected override void OnInitialized() => Dialogs.Changed += OnChanged;
 
-    private void OnStateChanged()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (DialogService.ActiveViewModel is SettingsViewModel vm)
+        if (Dialogs.Current is { } dialog && dialog != _focused)
         {
-            SelectedBoardSizeIndex = vm.AvailableBoardSizes.ToList().IndexOf(vm.SelectedBoardSize);
-            if (SelectedBoardSizeIndex < 0) SelectedBoardSizeIndex = 0;
+            _focused = dialog;
+            try
+            {
+                await _defaultButton.FocusAsync();
+            }
+            catch
+            {
+            }
         }
-        InvokeAsync(StateHasChanged);
     }
 
-    private void SaveSettings(SettingsViewModel vm)
-    {
-        vm.SelectedBoardSize = vm.AvailableBoardSizes[SelectedBoardSizeIndex];
-        vm.SaveCommand.Execute(null);
-        DialogService.Dismiss(true);
-    }
+    public void Dispose() => Dialogs.Changed -= OnChanged;
 
-    public void Dispose()
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnKeyDown(DialogRequest dialog, KeyboardEventArgs e)
     {
-        DialogService.StateChanged -= OnStateChanged;
+        if (e.Key == "Escape")
+        {
+            Dialogs.Close(dialog, dialog.Buttons.Count - 1);
+        }
     }
 }
-

@@ -63,6 +63,45 @@ public sealed partial class MainViewModel : ObservableObject
     public bool CanRedo => Session.CanRedo && !IsThinking;
     public bool CanHoverMove => !IsThinking && !GameStatus.IsGameOver() && IsHumanTurn();
 
+    [ObservableProperty]
+    private bool _isAnalysisVisible = true;
+
+    public ObservableCollection<MoveTurnRecord> MoveTurns { get; } = [];
+
+    public string BlackPlayerLabel => Settings.Mode switch
+    {
+        GameMode.AiVsHuman => "Computer",
+        _ => "Human"
+    };
+
+    public string WhitePlayerLabel => Settings.Mode switch
+    {
+        GameMode.HumanVsAi or GameMode.AiVsAi => "Computer",
+        _ => "Human"
+    };
+
+    public int BlackPiecesCount => (Session.MoveHistory.Count + 1) / 2;
+    public int WhitePiecesCount => Session.MoveHistory.Count / 2;
+
+    public string VariantBadgeText => Settings.Variant switch
+    {
+        GomokuVariant.Freestyle => "Freestyle",
+        GomokuVariant.Exact5 => "Standard",
+        GomokuVariant.Renju => "Renju",
+        _ => Settings.Variant.ToString()
+    };
+
+    public bool IsClockVisible => Settings.TimeControl == TimeControlMode.TimePerGame;
+    public string ClockText => SideToMove == PieceColor.Black ? BlackTimeFormatted : WhiteTimeFormatted;
+
+    public bool IsHumanVsComputer => Settings.Mode == GameMode.HumanVsAi;
+    public bool IsComputerVsHuman => Settings.Mode == GameMode.AiVsHuman;
+    public bool IsHumanVsHuman => Settings.Mode == GameMode.HumanVsHuman;
+
+    public bool IsSoundOn => Settings.SoundEnabled;
+    public bool IsCoordinatesVisible => Settings.CoordinatesVisible;
+    public bool IsGhostStoneOn => Settings.GhostStoneEnabled;
+
     public IRelayCommand NewGameCommand { get; }
     public IRelayCommand UndoCommand { get; }
     public IRelayCommand RedoCommand { get; }
@@ -71,6 +110,10 @@ public sealed partial class MainViewModel : ObservableObject
     public IRelayCommand OpenSettingsCommand { get; }
     public IRelayCommand OpenAboutCommand { get; }
     public IRelayCommand CancelSearchCommand { get; }
+    public IRelayCommand ToggleAnalysisCommand { get; }
+    public IRelayCommand ToggleSoundCommand { get; }
+    public IRelayCommand ToggleCoordinatesCommand { get; }
+    public IRelayCommand ToggleGhostStoneCommand { get; }
 
     public MainViewModel(
         IDialogService dialogService,
@@ -96,12 +139,59 @@ public sealed partial class MainViewModel : ObservableObject
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         CancelSearchCommand = new RelayCommand(CancelAiSearch);
+        ToggleAnalysisCommand = new RelayCommand(() => IsAnalysisVisible = !IsAnalysisVisible);
+        ToggleSoundCommand = new RelayCommand(() =>
+        {
+            Settings.SoundEnabled = !Settings.SoundEnabled;
+            _soundService.IsMuted = !Settings.SoundEnabled;
+            OnPropertyChanged(nameof(IsSoundOn));
+        });
+        ToggleCoordinatesCommand = new RelayCommand(() =>
+        {
+            Settings.CoordinatesVisible = !Settings.CoordinatesVisible;
+            OnPropertyChanged(nameof(IsCoordinatesVisible));
+            BoardLayoutChanged?.Invoke();
+        });
+        ToggleGhostStoneCommand = new RelayCommand(() =>
+        {
+            Settings.GhostStoneEnabled = !Settings.GhostStoneEnabled;
+            OnPropertyChanged(nameof(IsGhostStoneOn));
+        });
 
         ResetBoard(Settings.BoardSize);
     }
 
-    partial void OnBlackRemainingTimeChanged(TimeSpan value) => OnPropertyChanged(nameof(BlackTimeFormatted));
-    partial void OnWhiteRemainingTimeChanged(TimeSpan value) => OnPropertyChanged(nameof(WhiteTimeFormatted));
+    public void SetGameMode(GameMode mode)
+    {
+        if (Settings.Mode != mode)
+        {
+            Settings.Mode = mode;
+            NotifyModePropertiesChanged();
+            CheckAndTriggerAiMove();
+        }
+    }
+
+    private void NotifyModePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(IsHumanVsComputer));
+        OnPropertyChanged(nameof(IsComputerVsHuman));
+        OnPropertyChanged(nameof(IsHumanVsHuman));
+        OnPropertyChanged(nameof(BlackPlayerLabel));
+        OnPropertyChanged(nameof(WhitePlayerLabel));
+        OnPropertyChanged(nameof(CanHoverMove));
+    }
+
+    partial void OnBlackRemainingTimeChanged(TimeSpan value)
+    {
+        OnPropertyChanged(nameof(BlackTimeFormatted));
+        if (SideToMove == PieceColor.Black) OnPropertyChanged(nameof(ClockText));
+    }
+
+    partial void OnWhiteRemainingTimeChanged(TimeSpan value)
+    {
+        OnPropertyChanged(nameof(WhiteTimeFormatted));
+        if (SideToMove == PieceColor.White) OnPropertyChanged(nameof(ClockText));
+    }
 
     partial void OnIsThinkingChanged(bool value)
     {
@@ -458,6 +548,15 @@ public sealed partial class MainViewModel : ObservableObject
         // Format history
         MoveHistoryText = FormatMoveHistory(Session.MoveHistory);
 
+        MoveTurns.Clear();
+        for (int i = 0; i < Session.MoveHistory.Count; i += 2)
+        {
+            int turn = (i / 2) + 1;
+            string black = Session.MoveHistory[i].Position.ToCoordinateString();
+            string? white = (i + 1 < Session.MoveHistory.Count) ? Session.MoveHistory[i + 1].Position.ToCoordinateString() : null;
+            MoveTurns.Add(new MoveTurnRecord(turn, black, white));
+        }
+
         // Status text
         if (GameStatus == GameStatus.InProgress && !IsThinking)
         {
@@ -467,6 +566,10 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
         OnPropertyChanged(nameof(CanHoverMove));
+        OnPropertyChanged(nameof(BlackPiecesCount));
+        OnPropertyChanged(nameof(WhitePiecesCount));
+        OnPropertyChanged(nameof(ClockText));
+        OnPropertyChanged(nameof(VariantBadgeText));
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
     }
@@ -609,5 +712,10 @@ public sealed partial class MainViewModel : ObservableObject
         var about = new AboutInfo();
         await _dialogService.ShowCustomDialogAsync<bool?>(about);
     }
+}
+
+public sealed record MoveTurnRecord(int Turn, string BlackMove, string? WhiteMove)
+{
+    public string Notation => string.IsNullOrEmpty(WhiteMove) ? BlackMove : $"{BlackMove} {WhiteMove}";
 }
 
