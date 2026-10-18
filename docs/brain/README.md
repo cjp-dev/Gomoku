@@ -86,20 +86,21 @@ graph TD
 | 11 | [Game record and formats](11-game-record-and-formats.md) | GameSession, SGF `GM[11]`, `.gomoku` algebraic coordinate format, and undo/redo history |
 | 12 | [App architecture and audio](12-app-architecture-and-audio.md) | Clean MVVM architecture, MainViewModel, service abstractions, and procedural 16-bit PCM audio |
 | 13 | [UI clients](13-ui-clients.md) | WPF hardware-accelerated desktop client and Blazor WebAssembly AOT browser client |
-| 14 | [Benchmarks and performance](14-benchmarks-and-performance.md) | Empirical throughput: make/undo speed, TT probe rates, NPS scaling, and profiling |
-| 15 | [Glossary](15-glossary.md) | Comprehensive dictionary of Gomoku, Renju, bitboard, search, and engine terminology |
-| 16 | [References](16-references.md) | Academic papers, tournament archives, Carbon Gomoku origins, and external resources |
+| 14 | [GUI and settings](14-gui-and-settings.md) | Interface layout, menu commands, settings dialog, Carbon vs Simple AI, and real-time analysis |
+| 15 | [Benchmarks and performance](15-benchmarks-and-performance.md) | Empirical throughput: make/undo speed, TT probe rates, NPS scaling, and profiling |
+| 16 | [Glossary](16-glossary.md) | Comprehensive dictionary of Gomoku, Renju, bitboard, search, and engine terminology |
+| 17 | [References](17-references.md) | Academic papers, tournament archives, Carbon Gomoku origins, and external resources |
 
 ---
 
 ## Reading paths
 
-- **Complete understanding:** Read chapters 01 through 16 in order.
+- **Complete understanding:** Read chapters 01 through 17 in order.
 - **Engine & algorithmic core:** 01, 02, 03, 04, 05, 06, 07, 08, 09, 10.
 - **Rules & variants only:** 02, 03, 04.
 - **Search & tactical solver:** 06, 07, 08, 09.
-- **UI & application architecture:** 01, 11, 12, 13.
-- **Performance tuning & benchmarking:** 04, 08, 09, 14.
+- **UI, settings & application architecture:** 01, 11, 12, 13, 14.
+- **Performance tuning & benchmarking:** 04, 08, 09, 15.
 
 ---
 

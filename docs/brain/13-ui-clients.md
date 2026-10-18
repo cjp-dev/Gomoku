@@ -19,17 +19,17 @@ Both clients share the exact same view models, game engine, and procedural audio
 ```mermaid
 graph TD
     subgraph UI Wireframe
-        TopBar["Menu Bar / Navigation<br/>Game • Edit • View • Engine • Help"]
-        Board["Interactive Board Canvas<br/>Kaya Wood Texture • Star Points • Dynamic Lines"]
-        Side["Right Side Panel<br/>Status • Turn Indicator • Live Evaluation Bar • Clocks"]
-        Controls["Bottom Control Strip<br/>Step Backward • Step Forward • Engine Analysis Toggle"]
+        TopBar["Menu Bar / Navigation<br/>Game • View • Options • Help"]
+        Scoreboard["Dual-Card Scoreboard<br/>Black Card • Turn/Status Banner • White Card"]
+        Board["Interactive Board Canvas<br/>Kaya Wood Texture • Coordinates • Star Points • Ghost Stones"]
+        Analysis["AI Analysis Panel (Toggleable)<br/>Depth • Score • Best Move • Nodes • Speed • Time • Status"]
         DocViewer["Docs Subsystem (Web Only)<br/>Interactive Markdown Engine • TOC Pager • KaTeX Math"]
     end
 
-    TopBar --> Board
-    TopBar --> Side
-    Board --> Controls
-    Side --> Controls
+    TopBar --> Scoreboard
+    Scoreboard --> Board
+    Scoreboard --> Analysis
+    TopBar --> DocViewer
 ```
 
 ---
@@ -141,5 +141,5 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 
 ---
 
-Previous: [12 App architecture and audio](12-app-architecture-and-audio.md) · Next: [14 Benchmarks and performance](14-benchmarks-and-performance.md)
+Previous: [12 App architecture and audio](12-app-architecture-and-audio.md) · Next: [14 GUI and settings](14-gui-and-settings.md)
 

@@ -1,4 +1,4 @@
-# 15 – Glossary
+# 16 – Glossary
 
 [Back to the index](README.md)
 
@@ -58,6 +58,9 @@ Classification of a score stored in the Transposition Table:
 
 #### Candidate (`Cand`)
 A candidate move struct storing board coordinates $(X, Y)$ and an associated heuristic priority score.
+
+#### Carbon AI (Advanced)
+The championship-grade Gomoku AI ported from Michał Czardybon's Carbon Gomoku, featuring iterative deepening closed-interval Minimax search, 64-bit Zobrist Transposition Tables, directional ray bitboards, $10,000$-cell threat tensors, and an embedded VCF tactical solver (`QuickWinSearch`).
 
 #### Carbon Gomoku
 The legendary C++ Gomoku engine authored by Tomasz Czardybon, known for winning the Gomocup international tournament and introducing 4-ray pattern bitboard tensors and closed-interval search.
@@ -241,8 +244,14 @@ The asymmetrical tournament variant of Gomoku where Black is restricted by foul 
 
 ### S
 
+#### Search Analysis
+Real-time telemetry emitted by the AI search engine during thinking, carrying active move number, search depth, centipawn score, leading candidate move coordinate, total nodes, evaluations per second, elapsed time, and engine status flags (`IsSearching`).
+
 #### Sentinel Margin
 The 4-cell border of dummy cells encircling the playable board area, preventing ray bitboard loops from requiring boundary bounds-checking instructions.
+
+#### Simple AI
+A fast 1-ply heuristic Gomoku AI ported from Carbon Gomoku's `AISimple`. Performs instantaneous static evaluation of 5-tuples in 4 directions and handles immediate open-three and open-four threats without recursive game-tree search.
 
 #### Smart Game Format (SGF)
 The international text-based standard format for board game records (Gomoku identifier `GM[11]`).
@@ -286,5 +295,5 @@ A technique that assigns 64-bit pseudo-random values to each stone and turn stat
 
 ---
 
-Previous: [14 Benchmarks and performance](14-benchmarks-and-performance.md) · Next: [16 References](16-references.md)
+Previous: [15 Benchmarks and performance](15-benchmarks-and-performance.md) · Next: [17 References](17-references.md)
 

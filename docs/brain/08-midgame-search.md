@@ -201,6 +201,50 @@ Carbon implements a three-part defensive timing strategy:
 
 ---
 
+## Real-time progress telemetry & cooperative yielding
+
+While the computer searches, it streams live telemetry to the user interface via an `IProgress<SearchAnalysis>` reporter:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as User Interface (WPF / Web)
+    participant VM as MainViewModel
+    participant AI as CarbonAiPlayer
+
+    VM->>AI: GetMoveAsync(state, limits, moves, progress, token)
+    loop Iterative Deepening (Depth d = 2, 3, 4...)
+        loop Root Candidates
+            AI->>AI: Minimax(depth - 1, vA, vB)
+            opt Elapsed - LastYield >= 150 ms
+                AI->>VM: progress.Report(SearchAnalysis [IsSearching: true])
+                VM->>UI: Analysis.Update() -> Depth "{d} plies..."
+                AI->>AI: await Task.Delay(1, token) [Yields to Browser Event Loop]
+            end
+        end
+        AI->>VM: progress.Report(SearchAnalysis [IsSearching: false])
+        VM->>UI: Analysis.Update() -> Depth "{d} plies"
+        AI->>AI: await Task.Delay(1, token)
+    end
+    AI-->>VM: Chosen Move (Best Candidate)
+```
+
+### 1. Dual Heartbeat Reporting
+- **Root Candidate Heartbeat ($\ge 150\text{ ms}$):** In `MinimaxRootAsync`, when evaluating root candidates, if at least $150\text{ ms}$ has elapsed since the last report, `CarbonAiPlayer` reports an in-progress `SearchAnalysis` (`IsSearching: true`) with the best candidate discovered so far and yields execution via `await Task.Delay(1, cancellationToken)`.
+- **Deep Recursive Heartbeat ($\ge 200\text{ ms}$):** Inside the synchronous `Minimax` child search, the 1000-node check checks `sw.ElapsedMilliseconds - _lastReportMs >= 200`. If triggered, it synchronously calls `_activeProgress.Report(...)` to keep WPF desktop dispatchers continuously updating even during deep tactical branches.
+
+### 2. Single-Threaded Blazor WebAssembly Yielding
+In Blazor WebAssembly, execution is single-threaded. Without asynchronous yielding, a compute-heavy C# loop would freeze the browser's JavaScript event loop and prevent DOM updates until search completion. By awaiting `Task.Delay(1, cancellationToken)` on $150\text{ ms}$ heartbeats and upon completion of each depth iteration:
+- The WebAssembly runtime yields a macrotask slice to the browser engine.
+- `BrowserSynchronizationContext` executes the pending `Progress<SearchAnalysis>` callback.
+- `AnalysisViewModel.Updated` triggers `InvokeAsync(StateHasChanged)`.
+- The browser paints updated depths, nodes, and speeds smoothly at 60 FPS.
+
+### 3. Instant Opening Delay ($250\text{ ms}$)
+When playing the opening center move on Move 1 or matching an opening book pattern, search is instantaneous ($< 1\text{ ms}$). To provide visual feedback that the computer has acknowledged the turn, the engine emits `StatusMessage = "Center opening"` or `"Opening book"` and awaits `Task.Delay(250, cancellationToken)`. This brief pause allows users to see the `"Opening"` / `"Book"` badge in the Analysis panel before the stone is placed.
+
+---
+
 ## Worked example: search progression on depth 4
 
 Consider searching move 15 for Black.

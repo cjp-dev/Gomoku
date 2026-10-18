@@ -1,4 +1,4 @@
-# 14 – Benchmarks and performance
+# 15 – Benchmarks and performance
 
 [Back to the index](README.md)
 
@@ -162,5 +162,5 @@ flowchart LR
 
 ---
 
-Previous: [13 UI clients](13-ui-clients.md) · Next: [15 Glossary](15-glossary.md)
+Previous: [14 GUI and settings](14-gui-and-settings.md) · Next: [16 Glossary](16-glossary.md)
 

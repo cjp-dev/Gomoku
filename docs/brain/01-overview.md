@@ -99,11 +99,18 @@ classDiagram
     class CarbonAiPlayer {
         +TranspositionTable Table
         +GetMoveAsync(state, limits, legalMoves, progress, token) ValueTask~Move~
-        -Minimax(h, root, alpha, beta, token) Cand
+        -MinimaxRootAsync(depth, token) ValueTask~Cand~
+        -Minimax(h, alpha, beta, token) Cand
         -QuickWinSearch() int
         -GenerateCand(cnd, nCnd, ttBest)
         -ForceOneCand(cnd, nCnd, player, targetStatus)
         -Evaluate() int
+    }
+
+    class SimpleAiPlayer {
+        +GetMoveAsync(state, limits, legalMoves, progress, token) ValueTask~Move~
+        -EvalCell(state, x, y, who) int
+        -CountStonesIn5(state, startX, startY, dx, dy, who) int
     }
 
     class TranspositionTable {
@@ -119,6 +126,7 @@ classDiagram
     CarbonAiPlayer *-- PatternBoard : incremental board
     CarbonAiPlayer *-- TranspositionTable : cache
     BoardState <.. CarbonAiPlayer : input position
+    BoardState <.. SimpleAiPlayer : input position
 ```
 
 ### Application & MVVM Architecture
@@ -256,7 +264,8 @@ sequenceDiagram
 | **PatternBoard throughput** | $> 1,300,000$ make/undo operations per second (single core) |
 | **Transposition Table probe speed** | $> 170,000,000$ probes per second with power-of-two bitwise mask |
 | **Carbon AI search speed** | $\approx 300,000$ to $800,000$ nodes per second (single thread, .NET 10) |
-| **Unit test suite** | 31 automated unit tests across Core and App (`0` warnings under `--warnaserror`) |
+| **Simple AI search speed** | Instantaneous ($< 1\text{ ms}$, non-searching heuristic evaluation) |
+| **Unit test suite** | 36 automated unit tests across Core and App (`0` warnings under `--warnaserror`) |
 
 ---
 
@@ -268,10 +277,12 @@ sequenceDiagram
 | [RuleEngine.cs](../../src/Gomoku.Core/Engine/RuleEngine.cs) | Variant rule definitions and win-line checking |
 | [PatternBoard.cs](../../src/Gomoku.Core/Engine/PatternBoard.cs) | 4-ray pattern bitboard and candidate tracking |
 | [CarbonTables.Generated.cs](../../src/Gomoku.Core/Engine/CarbonTables.Generated.cs) | Precomputed pattern and threat tensors |
-| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | Minimax search, VCF solver, and candidate ordering |
+| [CarbonAiPlayer.cs](../../src/Gomoku.Core/AI/CarbonAiPlayer.cs) | Minimax search, VCF solver, candidate ordering, and live telemetry |
+| [SimpleAiPlayer.cs](../../src/Gomoku.Core/AI/SimpleAiPlayer.cs) | Fast 1-ply heuristic pattern evaluator for casual gameplay |
 | [TranspositionTable.cs](../../src/Gomoku.Core/AI/TranspositionTable.cs) | 16-byte packed hash table |
 | [OpeningBook.cs](../../src/Gomoku.Core/AI/OpeningBook.cs) | Dihedral symmetry opening book matching |
 | [MainViewModel.cs](../../src/Gomoku.App/ViewModels/MainViewModel.cs) | Application state, AI coordination, and clocks |
+| [AnalysisViewModel.cs](../../src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | Real-time search telemetry formatting and analysis presentation |
 
 ---
 

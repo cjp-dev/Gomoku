@@ -1,4 +1,4 @@
-# 16 – References
+# 17 – References
 
 [Back to the index](README.md)
 
@@ -67,5 +67,5 @@ This document compiles the academic literature, tournament papers, rule specific
 
 ---
 
-Previous: [15 Glossary](15-glossary.md) · [Back to the index](README.md)
+Previous: [16 Glossary](16-glossary.md) · [Back to the index](README.md)
 

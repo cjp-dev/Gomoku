@@ -49,7 +49,7 @@ graph TD
 
 ### 1. `MainViewModel` (The Orchestrator)
 `MainViewModel` coordinates user interaction, turn pacing, AI invocation, and undo/redo stacks:
-- **Asynchronous AI Execution:** AI calculations run on background threads (`Task.Run`) to keep the UI running at a fluid 60 FPS.
+- **Asynchronous AI Execution & Search ID Guard:** AI calculations run on background threads (`Task.Run`). A monotonic `_searchId` counter ensures that when a search is cancelled or superseded by a new game, in-flight callbacks from the previous search are discarded.
 - **Dynamic Board Re-dimensioning:** When the user changes board size (e.g. $15 \times 15 \to 19 \times 19$), `MainViewModel` raises `BoardLayoutChanged` and rebuilds the flat 1D grid of `IntersectionViewModel` instances.
 - **Renju Real-Time Foul Overlay:** On every turn, if Renju rules are active and Black is to move, `MainViewModel` flags forbidden intersections with `IsForbidden = true`, rendering instantaneous red $\times$ markers on the UI.
 
@@ -71,12 +71,12 @@ public sealed partial class IntersectionViewModel : ObservableObject
 }
 ```
 
-### 3. `AnalysisViewModel` (Evaluation Dashboard)
-Translates engine internal scores into human-readable metrics:
-- **Win Rate Percentage:** Converts internal evaluation score $S$ into a winning probability $P \in [0\%, 100\%]$ using a sigmoid mapping:
-  $$P_{\text{win}} = \frac{1}{1 + e^{-S / 400}} \times 100\%$$
-- **Mate Display:** Detects scores $|S| \ge 25,000$ and renders `"Mate in K"` text.
-- **Search Telemetry:** Displays current depth, nodes searched, NPS (nodes per second), and search time in milliseconds.
+### 3. `AnalysisViewModel` (Real-Time Search Telemetry)
+Translates engine internal `SearchAnalysis` snapshots into human-readable metrics:
+- **Dynamic Depth Formatting:** Displays `"{depth} plies..."` while the engine is actively exploring a depth, `"{depth} plies"` when the iteration concludes, and `"Book"` or `"Opening"` for instant opening moves.
+- **Mate Distance Detection:** Detects scores $|S| \ge 25,000$ and renders `"Mate in K"` or `"-Mate in K"`.
+- **Invariant Culture Formatting:** Formats `Nodes` and `Speed` using `CultureInfo.InvariantCulture` (`142,850`), ensuring uniform display across cultures.
+- **Reactive UI Streaming (`Updated` Event):** Raises `public event Action? Updated;` so Blazor components can invoke `_ = InvokeAsync(StateHasChanged)` on incoming progress reports without polling.
 
 ---
 
