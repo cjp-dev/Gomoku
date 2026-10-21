@@ -17,6 +17,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    min-height: 100dvh;
 }
 
 /* Menubar */
@@ -135,6 +136,7 @@ body {
     margin: 0 auto;
     width: 100%;
     align-items: flex-start;
+    container-type: inline-size;
 }
 
 /* Gomoku Board Area */
@@ -145,8 +147,8 @@ body {
 }
 
 .board-container {
-    width: min(calc(100vw - 480px), 78vh, 1080px);
-    height: min(calc(100vw - 480px), 78vh, 1080px);
+    width: min(calc(100cqw - 480px), 78dvh, 1080px);
+    height: min(calc(100cqw - 480px), 78dvh, 1080px);
     min-width: 320px;
     min-height: 320px;
     aspect-ratio: 1 / 1;
@@ -160,6 +162,12 @@ body {
     display: block;
 }
 
+.board-intersection:focus-visible .hit-target {
+    stroke: #3B82F6;
+    stroke-width: 2.5;
+    stroke-dasharray: 4 2;
+}
+
 /* Side Panels */
 .side-panels {
     flex: 1;
@@ -170,7 +178,8 @@ body {
     max-width: 420px;
 }
 
-@media (max-width: 900px) {
+/* Mobile vertical stack (narrow screens or portrait aspect ratio) */
+@media (max-width: 900px) and (max-aspect-ratio: 1/1), (max-width: 600px) {
     .menubar-inner {
         padding: 0 0.75rem;
     }
@@ -183,16 +192,43 @@ body {
     }
 
     .board-container {
-        width: min(92vw, 65vh, 1080px);
-        height: min(92vw, 65vh, 1080px);
-        min-width: 280px;
-        min-height: 280px;
+        width: min(94cqw, 62dvh, 1080px);
+        height: min(94cqw, 62dvh, 1080px);
+        min-width: 260px;
+        min-height: 260px;
     }
 
     .side-panels {
-        width: min(92vw, 65vh, 1080px);
-        min-width: 280px;
+        width: min(94cqw, 62dvh, 1080px);
+        min-width: 260px;
         max-width: 100%;
+    }
+}
+
+/* Compact landscape mobile/tablet screens */
+@media (max-width: 900px) and (min-aspect-ratio: 1/1) and (min-width: 601px) {
+    .menubar-inner {
+        padding: 0 0.75rem;
+    }
+
+    .content {
+        flex-direction: row;
+        align-items: flex-start;
+        padding: 0.5rem 0.75rem;
+        gap: 0.75rem;
+    }
+
+    .board-container {
+        width: min(calc(100cqw - 300px), 82dvh, 700px);
+        height: min(calc(100cqw - 300px), 82dvh, 700px);
+        min-width: 260px;
+        min-height: 260px;
+        padding: 8px;
+    }
+
+    .side-panels {
+        min-width: 240px;
+        max-width: 280px;
     }
 }
 
@@ -333,7 +369,7 @@ body {
 /* Action Buttons */
 .action-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
     gap: 0.5rem;
 }
 
@@ -368,6 +404,15 @@ body {
 
 .btn-secondary:hover:not(:disabled) {
     background: #CBD5E1;
+}
+
+.btn-warning {
+    background: #F39C12;
+    color: #FFFFFF;
+}
+
+.btn-warning:hover:not(:disabled) {
+    background: #E67E22;
 }
 
 /* Analysis Panel */
@@ -458,6 +503,14 @@ body {
 
 .dialog-with-picture {
     max-width: 580px;
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 0 1.25rem;
+}
+
+.dialog-with-picture h2,
+.dialog-with-picture .dialog-buttons {
+    grid-column: 1 / -1;
 }
 
 .dialog h2 {
@@ -469,10 +522,21 @@ body {
 }
 
 .dialog-picture {
-    margin: 0 1rem 1rem 0;
-    float: left;
-    width: 140px;
+    margin: 0;
+    width: 100%;
     text-align: center;
+}
+
+@media (max-width: 520px) {
+    .dialog-with-picture {
+        display: block;
+    }
+
+    .dialog-picture {
+        margin: 0 0 1rem 0;
+        width: 120px;
+        float: left;
+    }
 }
 
 .dialog-picture img {
@@ -577,31 +641,47 @@ body {
     filter: brightness(0.95);
 }
 
-/* Docs Page Styling */
-.docs { display: flex; flex-direction: column; min-height: 100vh; background: #fff; color: #24292f; }
-.docs-header { background: #24292f; color: #fff; padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-.docs-header a { color: #fff; text-decoration: none; font-weight: 600; }
-.docs-body { display: flex; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
-.docs-toc { width: 280px; padding: 1.5rem; border-right: 1px solid #d0d7de; font-size: 0.9rem; }
-.docs-toc ol { list-style: none; padding: 0; margin: 0; }
-.docs-toc li { margin-bottom: 0.5rem; }
-.docs-toc a { color: #0969da; text-decoration: none; }
-.docs-toc a[aria-current="page"] { font-weight: bold; color: #24292f; }
-.docs-number { color: #57606a; font-size: 0.8rem; }
-.docs-content { flex: 1; padding: 2rem; overflow-x: auto; }
-.markdown-body { font-size: 0.95rem; line-height: 1.6; }
-.markdown-body h1 { border-bottom: 1px solid #d0d7de; padding-bottom: 0.3rem; margin-bottom: 1rem; }
-.markdown-body h2 { border-bottom: 1px solid #d0d7de; padding-bottom: 0.3rem; margin-top: 1.5rem; margin-bottom: 0.8rem; }
-.markdown-body pre { background: #f6f8fa; padding: 1rem; border-radius: 6px; overflow: auto; }
-.markdown-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-.markdown-body th, .markdown-body td { border: 1px solid #d0d7de; padding: 6px 13px; }
-.markdown-body th { background: #f6f8fa; }
-.docs-pager { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #d0d7de; }
-.docs-pager a { color: #0969da; text-decoration: none; font-weight: 600; }
+/* Loading Spinner */
+.loading-progress {
+    position: fixed;
+    display: block;
+    width: 4.5rem;
+    height: 4.5rem;
+    inset: calc(50vh - 2.25rem) calc(50vw - 2.25rem);
+}
 
-@media (max-width: 860px) {
-    .docs-body { flex-direction: column; }
-    .docs-toc { width: 100%; border-right: none; border-bottom: 1px solid #d0d7de; }
+.loading-progress circle {
+    fill: none;
+    stroke: #3498DB;
+    stroke-width: 0.4rem;
+    transform-origin: 50% 50%;
+    transform: rotate(-90deg);
+}
+
+.loading-progress circle:last-child {
+    stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+    stroke-dashoffset: 0;
+    transition: stroke-dasharray 0.1s ease;
+    animation: none;
+}
+
+.loading-progress-text {
+    position: fixed;
+    text-align: center;
+    font-weight: 600;
+    color: #64748B;
+    inset: calc(50vh + 3rem) 0 0 0;
+}
+
+.loading-progress-text:after {
+    content: var(--blazor-load-percentage-text, "Loading Gomoku...");
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .thinking-progress {
+        animation: none !important;
+        transition: none !important;
+    }
 }
 
 /* Blazor Error UI */

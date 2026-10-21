@@ -19,17 +19,17 @@ In addition, our code audit uncovered **six Gomoku-specific bugs and bottlenecks
 
 ---
 
-## Comparative Scorecard: Current Gomoku vs. Upgraded Checkers & Stello
+## Comparative Scorecard: Post-Implementation Gomoku vs. Checkers & Stello
 
-| Evaluation Dimension | Current Gomoku | Upgraded Checkers & Stello | Gap / Required Action in Gomoku |
+| Evaluation Dimension | Previous Gomoku | Upgraded Checkers & Stello | Upgraded Gomoku (Status: Implemented & Verified) |
 | :--- | :--- | :--- | :--- |
-| **1. Responsive Design (Desktop & Mobile)** | **Fair** — Uses `calc(100vw - 480px)` / `78vh` with redundant `width`+`height`; `@media (max-width: 900px)` forces vertical column even on landscape phones. | **Excellent** — Uses `100dvh`, CSS Container Queries (`cqw`/`cqh`), and orientation-aware media queries (`min-aspect-ratio: 1/1` vs `max-aspect-ratio: 1/1`). | Upgrade `app.css` to `100dvh`, `container-type: inline-size`, and orientation-aware breakpoints. |
-| **2. Board Accessibility & Touch UX** | **Fair** — SVG `<g>` intersections lack `tabindex`, `role`, `aria-label`, and `@onkeydown`; touch taps trigger sticky `@onmouseenter` ghost stones. | **Excellent** — Full keyboard navigation (`Tab`, `Enter`/`Space`, `:focus-visible`) and clean touch handling. | Add keyboard navigation (`tabindex="0"`, `@onkeydown`, `role="gridcell"`, `aria-label`) and pointer-type hover guard in `Board.razor`. |
-| **3. Background Engine Execution** | **Poor/Fair** — Single-runtime `Task.Run` on main UI thread with `Task.Delay(1)`/`Task.Delay(250)` inside `Gomoku.Core`. Deep `Minimax` + `QuickWinSearch` blocks the UI thread and freezes the game clock. | **Excellent** — Isolated Web Worker (`WebEngineHost` + `EngineWorker`) running pure synchronous search at full AOT speed while keeping the UI at 60/120 fps. | Remove `Task.Delay` from `Gomoku.Core`; introduce `IEngineHost`, `LocalEngineHost`, and `WebEngineHost` Web Worker. |
-| **4. Cancellation & "Move Now"** | **Poor** — No `MoveNowCommand` (`Ctrl+M`) or `moveNowToken`; `CancelSearchCommand` strands the game on AI's turn; aborted `Minimax` subtrees can corrupt `best` score; no COOP/COEP headers. | **Excellent** — `MoveNowCommand` (`Ctrl+M` + UI button) + `SharedArrayBuffer` cooperative worker signaling (`pollSignal`) that preserves the 16 MB Transposition Table. | Add `moveNowToken` to `IPlayer`, fix `_terminate` score guard, add `MoveNowCommand`, add `SharedArrayBuffer` signaling & COOP/COEP headers. |
-| **5. Frontend Updates While Thinking** | **Poor** — `OnAnalysisUpdated` re-renders `Home`; `Board.razor` re-renders all 225–400 SVG intersections on *every* `Vm.PropertyChanged` (including 4 Hz clock ticks). | **Excellent** — Worker `ProgressPoster` throttles to 100ms; standalone `<AnalysisPanel>` isolates 10 Hz telemetry from `<Board>`. | Extract `<AnalysisPanel>`, add `Analysis.Move`, and decouple `Board.razor` from unrelated `MainViewModel.PropertyChanged` events. |
-| **6. Settings & Theme Persistence** | **Missing** — Reloading the page resets all settings to defaults; `ThemeName` (`Wood`/`Dark`/`Classic`) is defined in VM but never rendered. | **Excellent** — `ISettingsStore` + `LocalStorageSettingsStore` persists all settings and visual preferences across reloads. | Implement `ISettingsStore` & `LocalStorageSettingsStore`; wire `ThemeName` in `DialogHost.razor` and `Board.razor`. |
-| **7. Startup & Documentation Polish** | **Fair** — Static `"Loading engine..."` text; `Docs.razor` has 2-arg `scrollTo` bug and lacks `docs.css`; stale files in `wwwroot/content/brain`. | **Excellent** — SVG `--blazor-load-percentage` progress ring; full `docs.css` styling and working `#fragment` scroll. | Add SVG loading ring in `index.html`, port `docs.css`, fix `Docs.razor`, and clean `wwwroot/content/brain`. |
+| **1. Responsive Design (Desktop & Mobile)** | **Fair** — Used `calc(100vw - 480px)` / `78vh`; `@media (max-width: 900px)` forced vertical column even on landscape phones. | **Excellent** — Uses `100dvh`, CSS Container Queries (`cqw`/`cqh`), and orientation-aware media queries. | **Excellent** — Full parity: `100dvh`, `container-type: inline-size`, `cqw`/`dvh` board scaling, and orientation-aware media queries for portrait stack and compact landscape. |
+| **2. Board Accessibility & Touch UX** | **Fair** — SVG `<g>` intersections lacked `tabindex`, `role`, `aria-label`, and `@onkeydown`. | **Excellent** — Full keyboard navigation (`Tab`, `Enter`/`Space`, `:focus-visible`). | **Excellent** — Full parity: `tabindex="0"`, `role="gridcell"`, `aria-label`, `Enter`/`Space` `@onkeydown`, and `:focus-visible` dashed focus ring on SVG hit targets. |
+| **3. Background Engine Execution** | **Poor/Fair** — Single-runtime `Task.Run` on main UI thread with `Task.Delay(1)`/`Task.Delay(250)`. Deep `Minimax` blocked UI and froze clocks. | **Excellent** — Isolated Web Worker (`WebEngineHost` + `EngineWorker`) running pure synchronous search at full AOT speed. | **Excellent** — Full parity: Dedicated Web Worker (`WebEngineHost` + `EngineWorker`), pure synchronous `Minimax` with zero `Task.Delay`, decoupled fallback host for desktop/tests. |
+| **4. Cancellation & "Move Now"** | **Poor** — No `MoveNowCommand` (`Ctrl+M`); `CancelSearchCommand` stranded games; aborted `Minimax` subtrees corrupted `best` score; no COOP/COEP headers. | **Excellent** — `MoveNowCommand` (`Ctrl+M` + UI button) + `SharedArrayBuffer` cooperative worker signaling preserving the 16 MB TT. | **Excellent** — Full parity: `MoveNowCommand` (`Ctrl+M` + button), `SharedArrayBuffer` non-destructive signaling (`pollSignal`), aborted subtree score fix in `CarbonAiPlayer`, COOP/COEP in `staticwebapp.config.json`. |
+| **5. Frontend Updates While Thinking** | **Poor** — `OnAnalysisUpdated` re-rendered `Home`; `Board.razor` re-rendered all 225–400 SVG intersections on *every* property change (including 4 Hz clock ticks). | **Excellent** — Worker `ProgressPoster` throttles to 100ms; standalone `<AnalysisPanel>` isolates 10 Hz telemetry from `<Board>`. | **Excellent** — Full parity: Standalone `<AnalysisPanel>`, `_renderPending` batching in both `<Board>` and `<AnalysisPanel>`, property filtering ignoring clock ticks in `<Board.razor>`. |
+| **6. Settings & Theme Persistence** | **Missing** — Page reload reset all settings; `ThemeName` (`Wood`/`Dark`/`Classic`) was defined in VM but never rendered. | **Excellent** — `ISettingsStore` + `LocalStorageSettingsStore` persists all settings and visual preferences. | **Excellent** — Full parity: `ISettingsStore` + `LocalStorageSettingsStore` (`gomoku.settings`), live dynamic board theme rendering (`Wood`, `Dark`, `Classic`) in SVG and `DialogHost.razor`. |
+| **7. Startup & Documentation Polish** | **Fair** — Static text; `Docs.razor` had 2-arg `scrollTo` bug and lacked `docs.css`; stale files in `wwwroot/content/brain`. | **Excellent** — SVG `--blazor-load-percentage` progress ring; full `docs.css` styling and working `#fragment` scroll. | **Excellent** — Full parity: SVG `--blazor-load-percentage` progress ring in `index.html` and `app.css`, dedicated `docs.css`, fixed `scrollTo` in `Docs.razor`, and removed stale duplicate files. |
 
 ---
 
@@ -390,6 +390,14 @@ public interface ISettingsStore
    ```
 4. Verify zero compiler warnings or errors across `Gomoku.Core`, `Gomoku.App`, `Gomoku.Wpf`, `Gomoku.Web`, `Gomoku.Benchmark`, and both test projects.
 
+> [!NOTE]
+> **Implementation Status: COMPLETE & VERIFIED**
+> * **Phase 1 (`Gomoku.Core`)**: Completed. Added `ToCellBytes`/`FromCellBytes`, added `moveNowToken` overloads, fixed aborted subtree score bug, removed artificial delays.
+> * **Phase 2 (`Gomoku.App`)**: Completed. Added `IEngineHost`, `LocalEngineHost`, `ISettingsStore`, `AppPreferences`, `MoveNowCommand`, decoupled search invocation.
+> * **Phase 3 (`Gomoku.Web`)**: Completed. Implemented dedicated Web Worker (`EngineProtocol`, `EngineWorker`, `engine-worker.js`, `engine-client.js`), `WebEngineHost`, `LocalStorageSettingsStore`, and added COOP/COEP headers.
+> * **Phase 4 (`Gomoku.Web UI & CSS`)**: Completed. Extracted `<AnalysisPanel>`, added Move Now button & `Ctrl+M` shortcut, optimized `<Board.razor>` re-rendering, added SVG keyboard accessibility, implemented Board Themes (`Wood`, `Dark`, `Classic`), modernized `app.css` (`100dvh`, container queries, responsive breakpoints), added `docs.css`, fixed `Docs.razor` `scrollTo`, cleaned stale docs.
+> * **Phase 5 (`Testing & Build`)**: Completed. 45/45 tests passing in `Gomoku.slnx`, 0 compiler warnings, 0 errors across all 7 projects.
+
 ```mermaid
 flowchart TB
     subgraph Current["Current Gomoku: Single-Runtime Main-Thread Model"]
@@ -742,4 +750,12 @@ public interface ISettingsStore
    dotnet test Gomoku.slnx
    ```
 4. Verify zero compiler warnings or errors across `Gomoku.Core`, `Gomoku.App`, `Gomoku.Wpf`, `Gomoku.Web`, `Gomoku.Benchmark`, and both test projects.
+
+> [!NOTE]
+> **Implementation Status: COMPLETE & VERIFIED**
+> * **Phase 1 (`Gomoku.Core`)**: Completed. Added `ToCellBytes`/`FromCellBytes`, added `moveNowToken` overloads, fixed aborted subtree score bug, removed artificial delays.
+> * **Phase 2 (`Gomoku.App`)**: Completed. Added `IEngineHost`, `LocalEngineHost`, `ISettingsStore`, `AppPreferences`, `MoveNowCommand`, decoupled search invocation.
+> * **Phase 3 (`Gomoku.Web`)**: Completed. Implemented dedicated Web Worker (`EngineProtocol`, `EngineWorker`, `engine-worker.js`, `engine-client.js`), `WebEngineHost`, `LocalStorageSettingsStore`, and added COOP/COEP headers.
+> * **Phase 4 (`Gomoku.Web UI & CSS`)**: Completed. Extracted `<AnalysisPanel>`, added Move Now button & `Ctrl+M` shortcut, optimized `<Board.razor>` re-rendering, added SVG keyboard accessibility, implemented Board Themes (`Wood`, `Dark`, `Classic`), modernized `app.css` (`100dvh`, container queries, responsive breakpoints), added `docs.css`, fixed `Docs.razor` `scrollTo`, cleaned stale docs.
+> * **Phase 5 (`Testing & Build`)**: Completed. 45/45 tests passing in `Gomoku.slnx`, 0 compiler warnings, 0 errors across all 7 projects.
 

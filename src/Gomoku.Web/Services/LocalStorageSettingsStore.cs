@@ -1,0 +1,54 @@
+using System.Text.Json;
+using Gomoku.App.Services;
+using Gomoku.Web.Worker;
+using Microsoft.JSInterop;
+
+namespace Gomoku.Web.Services;
+
+public sealed class LocalStorageSettingsStore : ISettingsStore
+{
+    private const string Key = "gomoku.settings";
+    private readonly IJSInProcessRuntime _js;
+
+    public LocalStorageSettingsStore(IJSInProcessRuntime js)
+    {
+        _js = js;
+    }
+
+    public AppPreferences Load()
+    {
+        try
+        {
+            string? json = _js.Invoke<string?>("localStorage.getItem", Key);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                var prefs = JsonSerializer.Deserialize(json, EngineProtocolJson.Default.AppPreferences);
+                if (prefs != null)
+                {
+                    return prefs;
+                }
+            }
+        }
+        catch
+        {
+            // Silently fall back to defaults if localStorage is unavailable or corrupted
+        }
+
+        return new AppPreferences();
+    }
+
+    public bool Save(AppPreferences preferences)
+    {
+        try
+        {
+            string json = JsonSerializer.Serialize(preferences, EngineProtocolJson.Default.AppPreferences);
+            _js.InvokeVoid("localStorage.setItem", Key, json);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
+

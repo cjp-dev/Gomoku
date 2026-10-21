@@ -17,12 +17,21 @@ public sealed class SimpleAiPlayer : IPlayer
     public string Name => "Simple AI";
     public SearchAnalysis? LastAnalysis { get; private set; }
 
-    public async ValueTask<Move> GetMoveAsync(
+    public ValueTask<Move> GetMoveAsync(
         BoardState state,
         SearchLimits limits,
         IReadOnlyList<Move> legalMoves,
         IProgress<SearchAnalysis>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        GetMoveAsync(state, limits, legalMoves, progress, cancellationToken, moveNowToken: default);
+
+    public ValueTask<Move> GetMoveAsync(
+        BoardState state,
+        SearchLimits limits,
+        IReadOnlyList<Move> legalMoves,
+        IProgress<SearchAnalysis>? progress,
+        CancellationToken cancellationToken,
+        CancellationToken moveNowToken)
     {
         if (legalMoves.Count == 0)
         {
@@ -38,11 +47,7 @@ public sealed class SimpleAiPlayer : IPlayer
             Move centerMove = new(center.X, center.Y, state.SideToMove);
             LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, centerMove, 1, 0, sw.Elapsed, "Center opening", IsSearching: false);
             progress?.Report(LastAnalysis);
-            if (progress != null)
-            {
-                await Task.Delay(250, cancellationToken);
-            }
-            return centerMove;
+            return ValueTask.FromResult(centerMove);
         }
 
         int bestVal = int.MinValue;
@@ -55,6 +60,9 @@ public sealed class SimpleAiPlayer : IPlayer
 
         foreach (Move move in legalMoves)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (moveNowToken.IsCancellationRequested) break;
+
             nodes++;
             if (!IsCandidate(state, move.X, move.Y)) continue;
 
@@ -78,7 +86,7 @@ public sealed class SimpleAiPlayer : IPlayer
                 bestMove = move;
             }
 
-            if (progress != null && sw.ElapsedMilliseconds - lastReportMs >= 150)
+            if (progress != null && sw.ElapsedMilliseconds - lastReportMs >= 100)
             {
                 lastReportMs = sw.ElapsedMilliseconds;
                 progress.Report(new SearchAnalysis(
@@ -91,7 +99,6 @@ public sealed class SimpleAiPlayer : IPlayer
                     sw.Elapsed,
                     "Searching...",
                     IsSearching: true));
-                await Task.Delay(1, cancellationToken);
             }
         }
 
@@ -108,7 +115,7 @@ public sealed class SimpleAiPlayer : IPlayer
             IsSearching: false);
         progress?.Report(LastAnalysis);
 
-        return bestMove;
+        return ValueTask.FromResult(bestMove);
     }
 
     private static bool IsCandidate(BoardState state, int x, int y)

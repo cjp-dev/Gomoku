@@ -4,7 +4,7 @@ window.gomoku = (() => {
     const sounds = new Map();
     let audioCtx = null;
 
-    const shortcutKeys = 'noszya';
+    const shortcutKeys = 'noszyam';
     let keydown = null;
 
     function getAudioContext() {

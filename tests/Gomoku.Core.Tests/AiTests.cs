@@ -286,6 +286,51 @@ public class AiTests
         reports[0].IsSearching.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task AiPlayers_MoveNowToken_ShouldReturnLegalMoveWithoutThrowing()
+    {
+        CarbonAiPlayer carbonAi = new();
+        SimpleAiPlayer simpleAi = new();
+
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        state = RuleEngine.Instance.ApplyMove(state, new Move(7, 7, PieceColor.Black));
+        var legal = RuleEngine.Instance.GetLegalMoves(state);
+
+        SearchLimits limits = SearchLimits.FixedDepth(10, useOpeningBook: false);
+
+        // Pre-cancelled moveNowToken
+        using var moveNowCts = new CancellationTokenSource();
+        moveNowCts.Cancel();
+
+        Move carbonMove = await carbonAi.GetMoveAsync(state, limits, legal, progress: null, cancellationToken: CancellationToken.None, moveNowToken: moveNowCts.Token);
+        legal.Should().Contain(carbonMove);
+
+        Move simpleMove = await simpleAi.GetMoveAsync(state, limits, legal, progress: null, cancellationToken: CancellationToken.None, moveNowToken: moveNowCts.Token);
+        legal.Should().Contain(simpleMove);
+    }
+
+    [Fact]
+    public async Task AiPlayers_CancellationToken_ShouldThrowOperationCanceledException()
+    {
+        CarbonAiPlayer carbonAi = new();
+        SimpleAiPlayer simpleAi = new();
+
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        state = RuleEngine.Instance.ApplyMove(state, new Move(7, 7, PieceColor.Black));
+        var legal = RuleEngine.Instance.GetLegalMoves(state);
+
+        SearchLimits limits = SearchLimits.FixedDepth(10, useOpeningBook: false);
+
+        using var cancelCts = new CancellationTokenSource();
+        cancelCts.Cancel();
+
+        Func<Task> carbonAct = async () => await carbonAi.GetMoveAsync(state, limits, legal, progress: null, cancellationToken: cancelCts.Token, moveNowToken: CancellationToken.None);
+        await carbonAct.Should().ThrowAsync<OperationCanceledException>();
+
+        Func<Task> simpleAct = async () => await simpleAi.GetMoveAsync(state, limits, legal, progress: null, cancellationToken: cancelCts.Token, moveNowToken: CancellationToken.None);
+        await simpleAct.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     private sealed class SyncProgress<T> : IProgress<T>
     {
         private readonly Action<T> _handler;

@@ -17,5 +17,14 @@ public interface IPlayer
         IReadOnlyList<Move> legalMoves,
         IProgress<SearchAnalysis>? progress = null,
         CancellationToken cancellationToken = default);
+
+    ValueTask<Move> GetMoveAsync(
+        BoardState state,
+        SearchLimits limits,
+        IReadOnlyList<Move> legalMoves,
+        IProgress<SearchAnalysis>? progress,
+        CancellationToken cancellationToken,
+        CancellationToken moveNowToken) =>
+        GetMoveAsync(state, limits, legalMoves, progress, cancellationToken);
 }
 

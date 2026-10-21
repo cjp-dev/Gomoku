@@ -54,12 +54,21 @@ public sealed class CarbonAiPlayer : IPlayer
         Table = table ?? new TranspositionTable(TranspositionTable.DefaultEntries);
     }
 
-    public async ValueTask<Move> GetMoveAsync(
+    public ValueTask<Move> GetMoveAsync(
         BoardState state,
         SearchLimits limits,
         IReadOnlyList<Move> legalMoves,
         IProgress<SearchAnalysis>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        GetMoveAsync(state, limits, legalMoves, progress, cancellationToken, moveNowToken: default);
+
+    public ValueTask<Move> GetMoveAsync(
+        BoardState state,
+        SearchLimits limits,
+        IReadOnlyList<Move> legalMoves,
+        IProgress<SearchAnalysis>? progress,
+        CancellationToken cancellationToken,
+        CancellationToken moveNowToken)
     {
         if (legalMoves.Count == 0)
         {
@@ -78,11 +87,7 @@ public sealed class CarbonAiPlayer : IPlayer
             Move centerMove = new(center.X, center.Y, state.SideToMove);
             LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, centerMove, 1, 0, sw.Elapsed, "Center opening", IsSearching: false);
             progress?.Report(LastAnalysis);
-            if (progress != null)
-            {
-                await Task.Delay(250, cancellationToken);
-            }
-            return centerMove;
+            return ValueTask.FromResult(centerMove);
         }
 
         // Initialize pattern board
@@ -110,11 +115,7 @@ public sealed class CarbonAiPlayer : IPlayer
             {
                 LastAnalysis = new SearchAnalysis(state.MoveCount + 1, 1, 0, bookMove, 1, 0, sw.Elapsed, "Opening book", IsSearching: false);
                 progress?.Report(LastAnalysis);
-                if (progress != null)
-                {
-                    await Task.Delay(250, cancellationToken);
-                }
-                return bookMove;
+                return ValueTask.FromResult(bookMove);
             }
         }
 
@@ -147,13 +148,13 @@ public sealed class CarbonAiPlayer : IPlayer
                 long t0 = Environment.TickCount64;
                 _iterNodes = 0;
 
-                Cand best = await MinimaxRootAsync(depth, cancellationToken);
+                Cand best = MinimaxRoot(depth, cancellationToken, moveNowToken);
                 _totalNodes += _iterNodes;
 
-                if (cancellationToken.IsCancellationRequested) break;
-                if (_terminate && depth > 4) break;
+                cancellationToken.ThrowIfCancellationRequested();
 
-                if (best.X >= PatternBoard.Margin && best.Y >= PatternBoard.Margin)
+                if (best.X >= PatternBoard.Margin && best.Y >= PatternBoard.Margin &&
+                    (!_terminate || !bestMovePoint.IsValid(state.Size)))
                 {
                     bestMovePoint = new Point(best.X - PatternBoard.Margin, best.Y - PatternBoard.Margin);
                     bestScore = best.Value;
@@ -178,14 +179,9 @@ public sealed class CarbonAiPlayer : IPlayer
                     IsSearching: false);
                 progress?.Report(LastAnalysis);
 
-                if (progress != null)
-                {
-                    await Task.Delay(1, cancellationToken);
-                }
-
+                if (_terminate || moveNowToken.IsCancellationRequested) break;
                 // Win found or search timed out
                 if (Math.Abs(bestScore) >= WinMin) break;
-                if (_terminate || cancellationToken.IsCancellationRequested) break;
                 if (limits.Mode != TimeControlMode.FixedDepth)
                 {
                     if (t1 + TimeoutPrevent * td >= _stopTime || _iterNodes == prevSearched) break;
@@ -219,7 +215,7 @@ public sealed class CarbonAiPlayer : IPlayer
             IsSearching: false);
         progress?.Report(LastAnalysis);
 
-        return chosenMove;
+        return ValueTask.FromResult(chosenMove);
     }
 
     private void ConfigureTimeLimits(SearchLimits limits)
@@ -448,7 +444,7 @@ public sealed class CarbonAiPlayer : IPlayer
 
     private int _nodeCheckCounter = 1000;
 
-    private async ValueTask<Cand> MinimaxRootAsync(int h, CancellationToken cancellationToken)
+    private Cand MinimaxRoot(int h, CancellationToken cancellationToken, CancellationToken moveNowToken)
     {
         Cand best = new(0, 0, -Inf - 1);
         int beta = Inf;
@@ -598,13 +594,20 @@ public sealed class CarbonAiPlayer : IPlayer
             if (vB >= WinMin) vB++;
             if (vA <= -WinMin) vA--;
 
-            Cand m = Minimax(h, vA, vB, cancellationToken);
+            Cand m = Minimax(h, vA, vB, cancellationToken, moveNowToken);
             int value = -m.Value;
 
             if (value >= WinMin) value--;
             if (value <= -WinMin) value++;
 
             _pb.UndoMove();
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_terminate || moveNowToken.IsCancellationRequested)
+            {
+                _terminate = true;
+                break;
+            }
 
             if (value > best.Value)
             {
@@ -642,11 +645,9 @@ public sealed class CarbonAiPlayer : IPlayer
                     _activeSw.Elapsed,
                     StatusMessage: "Searching...",
                     IsSearching: true));
-
-                await Task.Delay(1, cancellationToken);
             }
 
-            if (_terminate || cancellationToken.IsCancellationRequested) break;
+            if (_terminate || cancellationToken.IsCancellationRequested || moveNowToken.IsCancellationRequested) break;
         }
 
         if (checkRenjuForbid && nForbid == nCnd && !usedFallback)
@@ -655,7 +656,7 @@ public sealed class CarbonAiPlayer : IPlayer
             goto noCand;
         }
 
-        if (!_terminate && !cancellationToken.IsCancellationRequested)
+        if (!_terminate && !cancellationToken.IsCancellationRequested && !moveNowToken.IsCancellationRequested)
         {
             Table.Store(zobristKey, h, best.Value, bound, currentBestMove);
         }
@@ -663,7 +664,7 @@ public sealed class CarbonAiPlayer : IPlayer
         return best;
     }
 
-    private Cand Minimax(int h, int alpha, int beta, CancellationToken cancellationToken)
+    private Cand Minimax(int h, int alpha, int beta, CancellationToken cancellationToken, CancellationToken moveNowToken)
     {
         // Closed interval [alpha, beta] as in AICarbon::minimax
         if (alpha > beta + 1) return new Cand(0, 0, beta + 1);
@@ -673,12 +674,8 @@ public sealed class CarbonAiPlayer : IPlayer
         {
             _nodeCheckCounter = 1000;
             long now = Environment.TickCount64;
-            if (now >= _stopTime || cancellationToken.IsCancellationRequested)
-            {
-                _terminate = true;
-            }
 
-            if (_activeProgress != null && _activeSw != null && _activeSw.ElapsedMilliseconds - _lastReportMs >= 200)
+            if (_activeProgress != null && _activeSw != null && _activeSw.ElapsedMilliseconds - _lastReportMs >= 100)
             {
                 _lastReportMs = _activeSw.ElapsedMilliseconds;
                 long totalCurrentNodes = _totalNodes + _iterNodes;
@@ -697,6 +694,12 @@ public sealed class CarbonAiPlayer : IPlayer
                     _activeSw.Elapsed,
                     StatusMessage: "Searching...",
                     IsSearching: true));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (now >= _stopTime || moveNowToken.IsCancellationRequested)
+            {
+                _terminate = true;
             }
         }
 
@@ -819,13 +822,20 @@ public sealed class CarbonAiPlayer : IPlayer
             if (vB >= WinMin) vB++;
             if (vA <= -WinMin) vA--;
 
-            Cand m = Minimax(h, vA, vB, cancellationToken);
+            Cand m = Minimax(h, vA, vB, cancellationToken, moveNowToken);
             int value = -m.Value;
 
             if (value >= WinMin) value--;
             if (value <= -WinMin) value++;
 
             _pb.UndoMove();
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_terminate || moveNowToken.IsCancellationRequested)
+            {
+                _terminate = true;
+                break;
+            }
 
             if (value > best.Value)
             {
@@ -841,7 +851,7 @@ public sealed class CarbonAiPlayer : IPlayer
                 bound = BoundType.Exact;
             }
 
-            if (_terminate || cancellationToken.IsCancellationRequested) break;
+            if (_terminate || cancellationToken.IsCancellationRequested || moveNowToken.IsCancellationRequested) break;
         }
 
         if (checkRenjuForbid && nForbid == nCnd && !usedFallback)
@@ -850,7 +860,7 @@ public sealed class CarbonAiPlayer : IPlayer
             goto noCand;
         }
 
-        if (!_terminate && !cancellationToken.IsCancellationRequested)
+        if (!_terminate && !cancellationToken.IsCancellationRequested && !moveNowToken.IsCancellationRequested)
         {
             Table.Store(zobristKey, h, best.Value, bound, currentBestMove);
         }

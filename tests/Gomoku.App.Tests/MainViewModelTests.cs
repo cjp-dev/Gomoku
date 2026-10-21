@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Gomoku.App.Models;
+using Gomoku.App.Services;
 using Gomoku.App.Tests.Mocks;
 using Gomoku.App.ViewModels;
 using Gomoku.Core.AI;
@@ -313,5 +314,58 @@ public class MainViewModelTests
         vm.Score.Should().Be("Mate!");
         vm.BestMove.Should().Be("G5"); // Best move preserved as indicator of winning move
         vm.Status.Should().Be("Game Over");
+    }
+
+    [Fact]
+    public void MoveNowCommand_ShouldBeEnabledOnlyWhileThinking()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsHuman };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        vm.IsThinking.Should().BeFalse();
+        vm.MoveNowCommand.CanExecute(null).Should().BeFalse();
+
+        vm.IsThinking = true;
+        vm.MoveNowCommand.CanExecute(null).Should().BeTrue();
+
+        vm.MoveNowCommand.Execute(null);
+
+        vm.IsThinking = false;
+        vm.MoveNowCommand.CanExecute(null).Should().BeFalse();
+    }
+
+    [Fact]
+    public void SettingsStore_ShouldLoadOnStartupAndPersistChanges()
+    {
+        AppPreferences saved = new(
+            BoardWidth: 19,
+            BoardHeight: 19,
+            Variant: GomokuVariant.Renju,
+            Mode: GameMode.HumanVsAi,
+            AiEngine: AiEngineType.Carbon,
+            TimeControl: TimeControlMode.TimePerMove,
+            SearchDepth: 8,
+            MoveTimeSeconds: 10,
+            GameTimeMinutes: 10,
+            SoundEnabled: false,
+            ShowAnalysis: false);
+
+        MockSettingsStore store = new(saved);
+        MainViewModel vm = new(_dialog, _file, _sound, settingsStore: store);
+
+        vm.Settings.BoardSize.Should().Be(BoardSize.Size19x19);
+        vm.Settings.Variant.Should().Be(GomokuVariant.Renju);
+        vm.IsSoundOn.Should().BeFalse();
+        vm.IsAnalysisVisible.Should().BeFalse();
+
+        // Toggle an option
+        vm.ToggleSoundCommand.Execute(null);
+        vm.IsSoundOn.Should().BeTrue();
+        store.SavedHistory.Should().NotBeEmpty();
+        store.Current.SoundEnabled.Should().BeTrue();
+
+        // Change mode
+        vm.SetGameMode(GameMode.AiVsHuman);
+        store.Current.Mode.Should().Be(GameMode.AiVsHuman);
     }
 }

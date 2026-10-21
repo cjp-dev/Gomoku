@@ -16,12 +16,23 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IDialogService _dialogService;
     private readonly IGameFileService _fileService;
     private readonly ISoundService _soundService;
+    private readonly LocalEngineHost _localEngineHost = new();
+    private readonly IEngineHost _engineHost;
+    private readonly ISettingsStore? _settingsStore;
+    private readonly bool _settingsLoaded;
 
-    private CarbonAiPlayer _carbonPlayer;
-    private SimpleAiPlayer _simplePlayer;
     private CancellationTokenSource? _aiCts;
+    private CancellationTokenSource? _moveNowCts;
     private CancellationTokenSource? _clockCts;
     private long _lastClockTickMs;
+
+    public IEngineHost EngineHost => _engineHost;
+
+    public Func<GameSettings, IPlayer>? AiPlayerFactory
+    {
+        get => _localEngineHost.PlayerFactory;
+        set => _localEngineHost.PlayerFactory = value;
+    }
 
     public GameSession Session { get; }
     public GameSettings Settings { get; }
@@ -110,6 +121,7 @@ public sealed partial class MainViewModel : ObservableObject
     public IRelayCommand NewGameCommand { get; }
     public IRelayCommand UndoCommand { get; }
     public IRelayCommand RedoCommand { get; }
+    public IRelayCommand MoveNowCommand { get; }
     public IRelayCommand OpenFileCommand { get; }
     public IRelayCommand SaveFileCommand { get; }
     public IRelayCommand OpenSettingsCommand { get; }
@@ -127,43 +139,65 @@ public sealed partial class MainViewModel : ObservableObject
         IDialogService dialogService,
         IGameFileService fileService,
         ISoundService soundService,
-        GameSettings? settings = null)
+        GameSettings? settings = null,
+        IEngineHost? engineHost = null,
+        ISettingsStore? settingsStore = null)
     {
         _dialogService = dialogService;
         _fileService = fileService;
         _soundService = soundService;
-        Settings = settings ?? new GameSettings();
-        _soundService.IsMuted = !Settings.SoundEnabled;
+        _engineHost = engineHost ?? _localEngineHost;
+        _settingsStore = settingsStore;
+
+        if (_settingsStore != null)
+        {
+            AppPreferences saved = _settingsStore.Load();
+            Settings = saved.ToSettings();
+            IsAnalysisVisible = saved.ShowAnalysis;
+            _soundService.IsMuted = !saved.SoundEnabled;
+        }
+        else
+        {
+            Settings = settings ?? new GameSettings();
+            _soundService.IsMuted = !Settings.SoundEnabled;
+        }
+        _settingsLoaded = true;
 
         Session = new GameSession(Settings.BoardSize, Settings.Variant);
-        _carbonPlayer = new CarbonAiPlayer(new TranspositionTable(Settings.TranspositionTableEntries));
-        _simplePlayer = new SimpleAiPlayer();
 
         NewGameCommand = new RelayCommand(NewGame);
         UndoCommand = new RelayCommand(Undo, () => CanUndo);
         RedoCommand = new RelayCommand(Redo, () => CanRedo);
+        MoveNowCommand = new RelayCommand(MoveNow, () => IsThinking);
         OpenFileCommand = new AsyncRelayCommand(OpenFileAsync);
         SaveFileCommand = new AsyncRelayCommand(SaveFileAsync);
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         CancelSearchCommand = new RelayCommand(CancelAiSearch);
-        ToggleAnalysisCommand = new RelayCommand(() => IsAnalysisVisible = !IsAnalysisVisible);
+        ToggleAnalysisCommand = new RelayCommand(() =>
+        {
+            IsAnalysisVisible = !IsAnalysisVisible;
+            SavePreferences();
+        });
         ToggleSoundCommand = new RelayCommand(() =>
         {
             Settings.SoundEnabled = !Settings.SoundEnabled;
             _soundService.IsMuted = !Settings.SoundEnabled;
             OnPropertyChanged(nameof(IsSoundOn));
+            SavePreferences();
         });
         ToggleCoordinatesCommand = new RelayCommand(() =>
         {
             Settings.CoordinatesVisible = !Settings.CoordinatesVisible;
             OnPropertyChanged(nameof(IsCoordinatesVisible));
             BoardLayoutChanged?.Invoke();
+            SavePreferences();
         });
         ToggleGhostStoneCommand = new RelayCommand(() =>
         {
             Settings.GhostStoneEnabled = !Settings.GhostStoneEnabled;
             OnPropertyChanged(nameof(IsGhostStoneOn));
+            SavePreferences();
         });
         ToggleLastMoveHighlightCommand = new RelayCommand(() =>
         {
@@ -171,6 +205,7 @@ public sealed partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(IsLastMoveHighlightOn));
             UpdateUiState();
             BoardLayoutChanged?.Invoke();
+            SavePreferences();
         });
         ToggleWinLineHighlightCommand = new RelayCommand(() =>
         {
@@ -178,10 +213,21 @@ public sealed partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(IsWinLineHighlightOn));
             UpdateUiState();
             BoardLayoutChanged?.Invoke();
+            SavePreferences();
         });
         SetGameModeCommand = new RelayCommand<GameMode>(SetGameMode);
 
         ResetBoard(Settings.BoardSize);
+    }
+
+    public void MoveNow() => _moveNowCts?.Cancel();
+
+    private void SavePreferences()
+    {
+        if (_settingsLoaded)
+        {
+            _settingsStore?.Save(AppPreferences.FromSettings(Settings, IsAnalysisVisible));
+        }
     }
 
     public void SetGameMode(GameMode mode)
@@ -190,6 +236,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             Settings.Mode = mode;
             NotifyModePropertiesChanged();
+            SavePreferences();
             CheckAndTriggerAiMove();
         }
     }
@@ -237,6 +284,7 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanHoverMove));
         UndoCommand?.NotifyCanExecuteChanged();
         RedoCommand?.NotifyCanExecuteChanged();
+        MoveNowCommand?.NotifyCanExecuteChanged();
     }
 
     public void ResetBoard(BoardSize size, bool triggerAi = true)
@@ -436,6 +484,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsThinking = true;
         StatusText = $"{Session.CurrentState.SideToMove} is thinking...";
         _aiCts = new CancellationTokenSource();
+        _moveNowCts = new CancellationTokenSource();
         int searchId = ++_searchId;
         Analysis.Reset();
 
@@ -448,7 +497,6 @@ public sealed partial class MainViewModel : ObservableObject
                 return;
             }
 
-            IPlayer player = Settings.AiEngine == AiEngineType.Carbon ? _carbonPlayer : _simplePlayer;
             SearchLimits limits = CreateSearchLimits();
 
             var progress = new Progress<SearchAnalysis>(a =>
@@ -459,9 +507,19 @@ public sealed partial class MainViewModel : ObservableObject
                 }
             });
 
-            Move bestMove = await Task.Run(
-                async () => await player.GetMoveAsync(Session.CurrentState, limits, legalMoves, progress, _aiCts.Token),
-                _aiCts.Token);
+            var (bestMove, lastAnalysis) = await _engineHost.ChooseMoveAsync(
+                Session.CurrentState,
+                limits,
+                legalMoves,
+                Settings,
+                progress,
+                _aiCts.Token,
+                _moveNowCts.Token);
+
+            if (lastAnalysis != null && searchId == _searchId)
+            {
+                Analysis.Update(lastAnalysis);
+            }
 
             if (_aiCts == null || _aiCts.IsCancellationRequested || GameStatus.IsGameOver()) return;
 
@@ -503,6 +561,12 @@ public sealed partial class MainViewModel : ObservableObject
     public void CancelAiSearch()
     {
         _searchId++;
+        if (_moveNowCts != null && !_moveNowCts.IsCancellationRequested)
+        {
+            _moveNowCts.Cancel();
+            _moveNowCts.Dispose();
+            _moveNowCts = null;
+        }
         if (_aiCts != null && !_aiCts.IsCancellationRequested)
         {
             _aiCts.Cancel();
@@ -734,10 +798,12 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _soundService.IsMuted = !Settings.SoundEnabled;
 
-        if (Settings.TranspositionTableEntries != _carbonPlayer.Table.Capacity)
+        if (Settings.BoardSize != prevSize || Settings.Variant != prevVariant)
         {
-            _carbonPlayer = new CarbonAiPlayer(new TranspositionTable(Settings.TranspositionTableEntries));
+            _engineHost.ClearTranspositionTable();
         }
+
+        SavePreferences();
 
         if (Settings.BoardSize != prevSize || Settings.Variant != prevVariant ||
             Settings.BoardSize != Session.CurrentState.Size || Settings.Variant != Session.CurrentState.Variant)

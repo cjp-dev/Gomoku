@@ -59,6 +59,19 @@
                 </fieldset>
 
                 <fieldset class="settings" style="margin-bottom: 1rem;">
+                    <legend>Board Theme</legend>
+                    <div style="display: flex; gap: 1.5rem;">
+                        @foreach (string theme in settings.AvailableThemes)
+                        {
+                            <label>
+                                <input type="radio" name="boardTheme" checked="@(settings.ThemeName == theme)" @onchange="() => settings.ThemeName = theme" />
+                                @theme
+                            </label>
+                        }
+                    </div>
+                </fieldset>
+
+                <fieldset class="settings" style="margin-bottom: 1rem;">
                     <legend>AI Engine</legend>
                     <div style="display: flex; gap: 1.5rem;">
                         <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Carbon)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Carbon" /> Carbon AI (Advanced)</label>

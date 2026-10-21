@@ -149,7 +149,7 @@
     {
         if (_pageShown && _module is not null && Fragment() is { Length: > 0 } fragment)
         {
-            _ = _module.InvokeVoidAsync("scrollTo", _article, fragment);
+            _ = _module.InvokeVoidAsync("scrollTo", fragment);
         }
     }
 

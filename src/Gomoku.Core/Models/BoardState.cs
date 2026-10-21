@@ -70,5 +70,40 @@ public sealed class BoardState
     public bool IsEmpty(int x, int y) => GetCell(x, y) == PieceColor.Empty;
 
     public int RemainingVacantCells => Size.TotalCells - MoveCount;
+
+    public byte[] ToCellBytes()
+    {
+        byte[] bytes = new byte[_cells.Length];
+        for (int i = 0; i < _cells.Length; i++)
+        {
+            bytes[i] = (byte)_cells[i];
+        }
+        return bytes;
+    }
+
+    public static BoardState FromCellBytes(
+        BoardSize size,
+        GomokuVariant variant,
+        PieceColor firstPlayer,
+        PieceColor sideToMove,
+        int moveCount,
+        ulong hash,
+        GameStatus status,
+        ReadOnlySpan<byte> cells)
+    {
+        var state = new BoardState(size, variant, firstPlayer)
+        {
+            SideToMove = sideToMove,
+            MoveCount = moveCount,
+            Hash = hash,
+            Status = status
+        };
+        int len = Math.Min(cells.Length, state._cells.Length);
+        for (int i = 0; i < len; i++)
+        {
+            state._cells[i] = (PieceColor)cells[i];
+        }
+        return state;
+    }
 }
 

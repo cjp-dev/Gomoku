@@ -12,6 +12,9 @@ public sealed partial class AnalysisViewModel : ObservableObject
     public event Action? Updated;
 
     [ObservableProperty]
+    private string _move = "-";
+
+    [ObservableProperty]
     private string _depth = "-";
 
     [ObservableProperty]
@@ -34,6 +37,8 @@ public sealed partial class AnalysisViewModel : ObservableObject
 
     public void Update(SearchAnalysis analysis)
     {
+        Move = analysis.MoveNumber > 0 ? analysis.MoveNumber.ToString(CultureInfo.InvariantCulture) : "-";
+
         if (analysis.StatusMessage is "Opening book" or "Center opening")
         {
             Depth = analysis.StatusMessage == "Opening book" ? "Book" : "Opening";
@@ -103,6 +108,7 @@ public sealed partial class AnalysisViewModel : ObservableObject
 
     public void Reset()
     {
+        Move = "-";
         Depth = "-";
         Score = "-";
         BestMove = "-";

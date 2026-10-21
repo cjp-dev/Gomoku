@@ -21,11 +21,15 @@ builder.Services.AddSingleton<IDialogService>(services => services.GetRequiredSe
 builder.Services.AddSingleton<IGameFileService, BrowserGameFileService>();
 builder.Services.AddSingleton<ISoundService, BrowserSoundService>();
 builder.Services.AddSingleton<BrainDocs>();
+builder.Services.AddSingleton<ISettingsStore, LocalStorageSettingsStore>();
+builder.Services.AddSingleton<IEngineHost, WebEngineHost>();
 
 builder.Services.AddSingleton(services => new MainViewModel(
     services.GetRequiredService<IDialogService>(),
     services.GetRequiredService<IGameFileService>(),
-    services.GetRequiredService<ISoundService>()));
+    services.GetRequiredService<ISoundService>(),
+    engineHost: services.GetRequiredService<IEngineHost>(),
+    settingsStore: services.GetRequiredService<ISettingsStore>()));
 
 await builder.Build().RunAsync();
 

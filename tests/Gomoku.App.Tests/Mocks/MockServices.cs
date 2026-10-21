@@ -59,3 +59,18 @@ public sealed class MockSoundService : ISoundService
     }
 }
 
+public sealed class MockSettingsStore(AppPreferences? initial = null) : ISettingsStore
+{
+    public AppPreferences Current { get; set; } = initial ?? new AppPreferences();
+    public List<AppPreferences> SavedHistory { get; } = [];
+
+    public AppPreferences Load() => Current;
+
+    public bool Save(AppPreferences preferences)
+    {
+        Current = preferences;
+        SavedHistory.Add(preferences);
+        return true;
+    }
+}
+

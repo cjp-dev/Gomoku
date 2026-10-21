@@ -3,12 +3,24 @@
 @implements IDisposable
 
 <div class="board-container">
-    <svg viewBox="0 0 640 640" class="gomoku-board-svg">
+    <svg viewBox="0 0 640 640" class="gomoku-board-svg" role="grid" aria-label="Gomoku Board">
         <defs>
             <linearGradient id="wood-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#E8C99B" />
                 <stop offset="50%" stop-color="#DCB985" />
                 <stop offset="100%" stop-color="#D2A673" />
+            </linearGradient>
+
+            <linearGradient id="dark-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#2C3E50" />
+                <stop offset="50%" stop-color="#34495E" />
+                <stop offset="100%" stop-color="#243342" />
+            </linearGradient>
+
+            <linearGradient id="classic-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FBF8EB" />
+                <stop offset="50%" stop-color="#F3ECE0" />
+                <stop offset="100%" stop-color="#EAE0D0" />
             </linearGradient>
 
             <radialGradient id="black-stone" cx="32%" cy="32%" r="68%">
@@ -28,11 +40,15 @@
             </filter>
         </defs>
 
-        <!-- Board Background & Border -->
-        <rect x="0" y="0" width="640" height="640" rx="6" fill="#7A5229" />
-        <rect x="8" y="8" width="624" height="624" rx="4" fill="url(#wood-gradient)" />
-
         @{
+            string theme = ViewModel.Settings.ThemeName;
+            (string borderFill, string boardFill, string gridStroke, string coordFill, string starFill) = theme switch
+            {
+                "Dark" => ("#1A252F", "url(#dark-gradient)", "#546E7A", "#90A4AE", "#B0BEC5"),
+                "Classic" => ("#374151", "url(#classic-gradient)", "#4B5563", "#4B5563", "#1F2937"),
+                _ => ("#7A5229", "url(#wood-gradient)", "#4A3018", "#5A3818", "#3A2210")
+            };
+
             int cols = ViewModel.Settings.BoardSize.Width;
             int rows = ViewModel.Settings.BoardSize.Height;
             double margin = 36.0;
@@ -42,8 +58,12 @@
             double stoneR = Math.Min(cellW, cellH) * 0.44;
         }
 
+        <!-- Board Background & Border -->
+        <rect x="0" y="0" width="640" height="640" rx="6" fill="@borderFill" />
+        <rect x="8" y="8" width="624" height="624" rx="4" fill="@boardFill" />
+
         <!-- Grid Lines -->
-        <g stroke="#4A3018" stroke-width="1.3">
+        <g stroke="@gridStroke" stroke-width="1.3">
             @for (int y = 0; y < rows; y++)
             {
                 double cy = margin + y * cellH;
@@ -52,8 +72,8 @@
 
                 @if (ViewModel.Settings.CoordinatesVisible)
                 {
-                    @((MarkupString)$"<text x=\"16\" y=\"{F(cy + 4)}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
-                    @((MarkupString)$"<text x=\"624\" y=\"{F(cy + 4)}\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{y + 1}</text>")
+                    @((MarkupString)$"<text x=\"16\" y=\"{F(cy + 4)}\" font-size=\"11\" font-weight=\"600\" fill=\"{coordFill}\" text-anchor=\"middle\">{y + 1}</text>")
+                    @((MarkupString)$"<text x=\"624\" y=\"{F(cy + 4)}\" font-size=\"11\" font-weight=\"600\" fill=\"{coordFill}\" text-anchor=\"middle\">{y + 1}</text>")
                 }
             }
 
@@ -66,14 +86,14 @@
                 @if (ViewModel.Settings.CoordinatesVisible)
                 {
                     char colChar = (char)('A' + x);
-                    @((MarkupString)$"<text x=\"{F(cx)}\" y=\"22\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
-                    @((MarkupString)$"<text x=\"{F(cx)}\" y=\"630\" font-size=\"11\" font-weight=\"600\" fill=\"#5A3818\" text-anchor=\"middle\">{colChar}</text>")
+                    @((MarkupString)$"<text x=\"{F(cx)}\" y=\"22\" font-size=\"11\" font-weight=\"600\" fill=\"{coordFill}\" text-anchor=\"middle\">{colChar}</text>")
+                    @((MarkupString)$"<text x=\"{F(cx)}\" y=\"630\" font-size=\"11\" font-weight=\"600\" fill=\"{coordFill}\" text-anchor=\"middle\">{colChar}</text>")
                 }
             }
         </g>
 
         <!-- Star Points -->
-        <g fill="#3A2210">
+        <g fill="@starFill">
             @foreach (var sp in ViewModel.Settings.BoardSize.GetStarPoints())
             {
                 double cx = margin + sp.X * cellW;
@@ -91,10 +111,15 @@
             <g @onclick="() => OnIntersectionClick(cell)"
                @onmouseenter="() => OnCellHover(cell, true)"
                @onmouseleave="() => OnCellHover(cell, false)"
-               style="cursor: pointer;">
-                
+               @onkeydown="e => HandleKeyDown(e, cell)"
+               tabindex="0"
+               role="gridcell"
+               aria-label="@($"Intersection {new Point(cell.X, cell.Y).ToCoordinateString()}{(cell.HasPiece ? $": {cell.Piece}" : "")}")"
+               class="board-intersection"
+               style="cursor: pointer; outline: none;">
+
                 <!-- Transparent Hit Target -->
-                <circle cx="@F(cx)" cy="@F(cy)" r="@F(cellW * 0.48)" fill="transparent" />
+                <circle cx="@F(cx)" cy="@F(cy)" r="@F(cellW * 0.48)" fill="transparent" class="hit-target" />
 
                 <!-- Renju Forbidden Move Marker -->
                 @if (cell.ShowForbiddenMarker)
@@ -137,6 +162,7 @@
 
 @code {
     private static string F(double val) => val.ToString("0.##", CultureInfo.InvariantCulture);
+    private bool _renderPending;
 
     protected override void OnInitialized()
     {
@@ -146,23 +172,55 @@
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        InvokeAsync(StateHasChanged);
+        if (e.PropertyName is nameof(ViewModel.BlackRemainingTime)
+            or nameof(ViewModel.WhiteRemainingTime)
+            or nameof(ViewModel.BlackTimeFormatted)
+            or nameof(ViewModel.WhiteTimeFormatted)
+            or nameof(ViewModel.ClockText)
+            or nameof(ViewModel.StatusText)
+            or nameof(ViewModel.MoveHistoryText)
+            or nameof(ViewModel.IsThinking))
+        {
+            return;
+        }
+
+        QueueRender();
     }
 
-    private void OnBoardLayoutChanged()
+    private void OnBoardLayoutChanged() => QueueRender();
+
+    private void QueueRender()
     {
-        InvokeAsync(StateHasChanged);
+        if (_renderPending) return;
+        _renderPending = true;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Yield();
+            _renderPending = false;
+            StateHasChanged();
+        });
     }
 
     private void OnIntersectionClick(IntersectionViewModel cell)
     {
         ViewModel.OnIntersectionClicked(cell);
-        StateHasChanged();
+        QueueRender();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e, IntersectionViewModel cell)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            OnIntersectionClick(cell);
+        }
     }
 
     private void OnCellHover(IntersectionViewModel cell, bool isHovered)
     {
-        cell.IsHovered = isHovered && ViewModel.CanHoverMove && ViewModel.Settings.GhostStoneEnabled;
+        if (ViewModel.CanHoverMove && ViewModel.Settings.GhostStoneEnabled)
+        {
+            cell.IsHovered = isHovered;
+        }
     }
 
     public void Dispose()
