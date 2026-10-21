@@ -147,10 +147,8 @@ body {
 }
 
 .board-container {
-    width: min(calc(100cqw - 480px), 78dvh, 1080px);
-    height: min(calc(100cqw - 480px), 78dvh, 1080px);
-    min-width: 320px;
-    min-height: 320px;
+    width: min(calc(100cqw - 420px), 80dvh, 1080px);
+    min-width: 300px;
     aspect-ratio: 1 / 1;
 }
 
@@ -193,9 +191,7 @@ body {
 
     .board-container {
         width: min(94cqw, 62dvh, 1080px);
-        height: min(94cqw, 62dvh, 1080px);
         min-width: 260px;
-        min-height: 260px;
     }
 
     .side-panels {
@@ -220,9 +216,7 @@ body {
 
     .board-container {
         width: min(calc(100cqw - 300px), 82dvh, 700px);
-        height: min(calc(100cqw - 300px), 82dvh, 700px);
         min-width: 260px;
-        min-height: 260px;
         padding: 8px;
     }
 

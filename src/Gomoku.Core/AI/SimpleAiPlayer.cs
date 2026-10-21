@@ -103,10 +103,11 @@ public sealed class SimpleAiPlayer : IPlayer
         }
 
         sw.Stop();
+        int finalScore = bestVal == int.MinValue ? 0 : bestVal;
         LastAnalysis = new SearchAnalysis(
             state.MoveCount + 1,
             1,
-            bestVal,
+            finalScore,
             bestMove,
             nodes,
             sw.ElapsedMilliseconds > 0 ? nodes * 1000 / sw.ElapsedMilliseconds : 0,

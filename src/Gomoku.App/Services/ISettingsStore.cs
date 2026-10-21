@@ -44,25 +44,37 @@ public sealed record AppPreferences(
         settings.ThemeName,
         showAnalysis);
 
-    public GameSettings ToSettings() => new()
+    public GameSettings ToSettings()
     {
-        BoardSize = new BoardSize(BoardWidth, BoardHeight),
-        Variant = Variant,
-        Mode = Mode,
-        AiEngine = AiEngine,
-        TimeControl = TimeControl,
-        SearchDepth = SearchDepth,
-        MoveTimeSeconds = MoveTimeSeconds,
-        GameTimeMinutes = GameTimeMinutes,
-        TranspositionTableEntries = TranspositionTableEntries,
-        UseOpeningBook = UseOpeningBook,
-        SoundEnabled = SoundEnabled,
-        CoordinatesVisible = CoordinatesVisible,
-        GhostStoneEnabled = GhostStoneEnabled,
-        LastMoveHighlightEnabled = LastMoveHighlightEnabled,
-        WinLineHighlightEnabled = WinLineHighlightEnabled,
-        ThemeName = ThemeName
-    };
+        BoardSize size = (BoardWidth, BoardHeight) switch
+        {
+            (15, 15) => BoardSize.Size15x15,
+            (19, 19) => BoardSize.Size19x19,
+            (20, 20) => BoardSize.Size20x20,
+            (>= 5 and <= 20, >= 5 and <= 20) => new BoardSize(BoardWidth, BoardHeight),
+            _ => BoardSize.Default
+        };
+
+        return new GameSettings
+        {
+            BoardSize = size,
+            Variant = Enum.IsDefined(Variant) ? Variant : GomokuVariant.Freestyle,
+            Mode = Enum.IsDefined(Mode) ? Mode : GameMode.HumanVsAi,
+            AiEngine = Enum.IsDefined(AiEngine) ? AiEngine : AiEngineType.Carbon,
+            TimeControl = Enum.IsDefined(TimeControl) ? TimeControl : TimeControlMode.TimePerMove,
+            SearchDepth = Math.Clamp(SearchDepth, 1, 14),
+            MoveTimeSeconds = Math.Clamp(MoveTimeSeconds, 1, 60),
+            GameTimeMinutes = Math.Clamp(GameTimeMinutes, 1, 60),
+            TranspositionTableEntries = TranspositionTableEntries >= 65_536 ? TranspositionTableEntries : TranspositionTable.DefaultEntries,
+            UseOpeningBook = UseOpeningBook,
+            SoundEnabled = SoundEnabled,
+            CoordinatesVisible = CoordinatesVisible,
+            GhostStoneEnabled = GhostStoneEnabled,
+            LastMoveHighlightEnabled = LastMoveHighlightEnabled,
+            WinLineHighlightEnabled = WinLineHighlightEnabled,
+            ThemeName = ThemeName is "Wood" or "Dark" or "Classic" ? ThemeName : "Wood"
+        };
+    }
 }
 
 public interface ISettingsStore

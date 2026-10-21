@@ -55,6 +55,13 @@ window.gomoku = (() => {
             }
         },
 
+        focusCell(x, y) {
+            const el = document.querySelector(`.board-intersection[data-x="${x}"][data-y="${y}"]`);
+            if (el && typeof el.focus === 'function') {
+                el.focus();
+            }
+        },
+
         openTextFile(accept) {
             return new Promise((resolve, reject) => {
                 const input = document.createElement('input');

@@ -1,5 +1,6 @@
 @using System.Globalization
 @inject MainViewModel ViewModel
+@inject IJSRuntime JS
 @implements IDisposable
 
 <div class="board-container">
@@ -114,7 +115,9 @@
                @onkeydown="e => HandleKeyDown(e, cell)"
                tabindex="0"
                role="gridcell"
-               aria-label="@($"Intersection {new Point(cell.X, cell.Y).ToCoordinateString()}{(cell.HasPiece ? $": {cell.Piece}" : "")}")"
+               data-x="@cell.X"
+               data-y="@cell.Y"
+               aria-label="@GetCellAriaLabel(cell)"
                class="board-intersection"
                style="cursor: pointer; outline: none;">
 
@@ -207,20 +210,57 @@
         QueueRender();
     }
 
+    private static string GetCellAriaLabel(IntersectionViewModel cell)
+    {
+        string coord = new Point(cell.X, cell.Y).ToCoordinateString();
+        if (cell.HasPiece)
+        {
+            string suffix = cell.IsWinningLine ? ", winning line" : cell.IsLastMove ? ", last move" : "";
+            return $"{coord}, {cell.Piece} stone{suffix}";
+        }
+        if (cell.ShowForbiddenMarker)
+        {
+            return $"{coord}, Forbidden move";
+        }
+        return $"{coord}, Empty";
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e, IntersectionViewModel cell)
     {
-        if (e.Key is "Enter" or " ")
+        switch (e.Key)
         {
-            OnIntersectionClick(cell);
+            case "Enter" or " ":
+                OnIntersectionClick(cell);
+                break;
+            case "ArrowLeft" when cell.X > 0:
+                FocusCell(cell.X - 1, cell.Y);
+                break;
+            case "ArrowRight" when cell.X < ViewModel.Settings.BoardSize.Width - 1:
+                FocusCell(cell.X + 1, cell.Y);
+                break;
+            case "ArrowUp" when cell.Y > 0:
+                FocusCell(cell.X, cell.Y - 1);
+                break;
+            case "ArrowDown" when cell.Y < ViewModel.Settings.BoardSize.Height - 1:
+                FocusCell(cell.X, cell.Y + 1);
+                break;
+        }
+    }
+
+    private void FocusCell(int x, int y)
+    {
+        try
+        {
+            ((IJSInProcessRuntime)JS).InvokeVoid("gomoku.focusCell", x, y);
+        }
+        catch
+        {
         }
     }
 
     private void OnCellHover(IntersectionViewModel cell, bool isHovered)
     {
-        if (ViewModel.CanHoverMove && ViewModel.Settings.GhostStoneEnabled)
-        {
-            cell.IsHovered = isHovered;
-        }
+        cell.IsHovered = isHovered && ViewModel.CanHoverMove && ViewModel.Settings.GhostStoneEnabled;
     }
 
     public void Dispose()

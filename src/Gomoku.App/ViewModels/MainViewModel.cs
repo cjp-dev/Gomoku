@@ -483,17 +483,19 @@ public sealed partial class MainViewModel : ObservableObject
 
         IsThinking = true;
         StatusText = $"{Session.CurrentState.SideToMove} is thinking...";
-        _aiCts = new CancellationTokenSource();
-        _moveNowCts = new CancellationTokenSource();
+        using CancellationTokenSource aiCts = new();
+        using CancellationTokenSource moveNowCts = new();
+        _aiCts = aiCts;
+        _moveNowCts = moveNowCts;
         int searchId = ++_searchId;
         Analysis.Reset();
+        bool continueAiVsAi = false;
 
         try
         {
             var legalMoves = RuleEngine.Instance.GetLegalMoves(Session.CurrentState);
             if (legalMoves.Count == 0)
             {
-                IsThinking = false;
                 return;
             }
 
@@ -501,7 +503,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             var progress = new Progress<SearchAnalysis>(a =>
             {
-                if (searchId == _searchId && IsThinking && _aiCts is { IsCancellationRequested: false })
+                if (searchId == _searchId && IsThinking && !aiCts.IsCancellationRequested)
                 {
                     Analysis.Update(a);
                 }
@@ -513,15 +515,15 @@ public sealed partial class MainViewModel : ObservableObject
                 legalMoves,
                 Settings,
                 progress,
-                _aiCts.Token,
-                _moveNowCts.Token);
+                aiCts.Token,
+                moveNowCts.Token);
 
-            if (lastAnalysis != null && searchId == _searchId)
+            if (searchId != _searchId || aiCts.IsCancellationRequested || GameStatus.IsGameOver()) return;
+
+            if (lastAnalysis != null)
             {
                 Analysis.Update(lastAnalysis);
             }
-
-            if (_aiCts == null || _aiCts.IsCancellationRequested || GameStatus.IsGameOver()) return;
 
             if (Session.ApplyMove(bestMove))
             {
@@ -537,42 +539,51 @@ public sealed partial class MainViewModel : ObservableObject
                     Analysis.ConsumePlyAfterMove();
                     if (Settings.Mode == GameMode.AiVsAi)
                     {
-                        await Task.Delay(200);
-                        CheckAndTriggerAiMove();
+                        await Task.Delay(200, aiCts.Token);
+                        continueAiVsAi = searchId == _searchId && !aiCts.IsCancellationRequested;
                     }
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Search stopped";
+            if (searchId == _searchId)
+            {
+                StatusText = "Search stopped";
+            }
         }
         catch (Exception ex)
         {
-            StatusText = $"Engine error: {ex.Message}";
+            if (searchId == _searchId)
+            {
+                StatusText = $"Engine error: {ex.Message}";
+            }
         }
         finally
         {
-            IsThinking = false;
-            UpdateUiState();
+            if (ReferenceEquals(_aiCts, aiCts)) _aiCts = null;
+            if (ReferenceEquals(_moveNowCts, moveNowCts)) _moveNowCts = null;
+
+            if (searchId == _searchId)
+            {
+                IsThinking = false;
+                UpdateUiState();
+            }
+        }
+
+        if (continueAiVsAi)
+        {
+            CheckAndTriggerAiMove();
         }
     }
 
     public void CancelAiSearch()
     {
         _searchId++;
-        if (_moveNowCts != null && !_moveNowCts.IsCancellationRequested)
-        {
-            _moveNowCts.Cancel();
-            _moveNowCts.Dispose();
-            _moveNowCts = null;
-        }
-        if (_aiCts != null && !_aiCts.IsCancellationRequested)
-        {
-            _aiCts.Cancel();
-            _aiCts.Dispose();
-            _aiCts = null;
-        }
+        _moveNowCts?.Cancel();
+        _moveNowCts = null;
+        _aiCts?.Cancel();
+        _aiCts = null;
         IsThinking = false;
     }
 

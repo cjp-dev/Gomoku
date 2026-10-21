@@ -153,38 +153,41 @@ public sealed class CarbonAiPlayer : IPlayer
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (best.X >= PatternBoard.Margin && best.Y >= PatternBoard.Margin &&
-                    (!_terminate || !bestMovePoint.IsValid(state.Size)))
+                if (best.X >= PatternBoard.Margin && best.Y >= PatternBoard.Margin)
                 {
                     bestMovePoint = new Point(best.X - PatternBoard.Margin, best.Y - PatternBoard.Margin);
                     bestScore = best.Value;
                     finalDepth = depth;
                     _activeBestMovePoint = bestMovePoint;
                     _activeBestScore = bestScore;
+
+                    long t1 = Environment.TickCount64;
+                    long td = t1 - t0;
+
+                    long speed = td > 0 ? _iterNodes * 1000 / td : 0;
+                    LastAnalysis = new SearchAnalysis(
+                        state.MoveCount + 1,
+                        depth,
+                        bestScore,
+                        new Move(bestMovePoint.X, bestMovePoint.Y, state.SideToMove),
+                        _totalNodes,
+                        speed,
+                        sw.Elapsed,
+                        StatusMessage: null,
+                        IsSearching: false);
+                    progress?.Report(LastAnalysis);
+
+                    if (_terminate || moveNowToken.IsCancellationRequested) break;
+                    // Win found or search timed out
+                    if (Math.Abs(bestScore) >= WinMin) break;
+                    if (limits.Mode != TimeControlMode.FixedDepth)
+                    {
+                        if (t1 + TimeoutPrevent * td >= _stopTime || _iterNodes == prevSearched) break;
+                    }
                 }
-
-                long t1 = Environment.TickCount64;
-                long td = t1 - t0;
-
-                long speed = td > 0 ? _iterNodes * 1000 / td : 0;
-                LastAnalysis = new SearchAnalysis(
-                    state.MoveCount + 1,
-                    depth,
-                    bestScore,
-                    new Move(bestMovePoint.X, bestMovePoint.Y, state.SideToMove),
-                    _totalNodes,
-                    speed,
-                    sw.Elapsed,
-                    StatusMessage: null,
-                    IsSearching: false);
-                progress?.Report(LastAnalysis);
-
-                if (_terminate || moveNowToken.IsCancellationRequested) break;
-                // Win found or search timed out
-                if (Math.Abs(bestScore) >= WinMin) break;
-                if (limits.Mode != TimeControlMode.FixedDepth)
+                else if (_terminate || moveNowToken.IsCancellationRequested)
                 {
-                    if (t1 + TimeoutPrevent * td >= _stopTime || _iterNodes == prevSearched) break;
+                    break;
                 }
 
                 prevSearched = (int)_iterNodes;
