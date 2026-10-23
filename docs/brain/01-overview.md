@@ -150,6 +150,8 @@ classDiagram
         +AnalysisViewModel Analysis
         +ObservableCollection~IntersectionViewModel~ Intersections
         +bool IsThinking
+        +bool IsGameModified
+        +bool IsStatusModified
         +string StatusText
         +TimeSpan BlackRemainingTime
         +TimeSpan WhiteRemainingTime
@@ -157,6 +159,8 @@ classDiagram
         +OnIntersectionClicked(cell)
         +Undo()
         +Redo()
+        +MoveNow()
+        +SwitchSides()
         +OpenSettingsAsync()
     }
 

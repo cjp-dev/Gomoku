@@ -6,7 +6,7 @@
 
 Gomoku .NET delivers a modern, high-fidelity user experience across two distinct presentation targets:
 1. **WPF Desktop Client (`Gomoku.Wpf`):** A Windows desktop application using DirectX hardware acceleration, sub-pixel text rendering, and native OS dialog integration.
-2. **Blazor WebAssembly Client (`Gomoku.Web`):** An in-browser client compiled via WebAssembly Ahead-of-Time (AOT), running 100% client-side with zero server latency, complete with a responsive SVG game board and embedded architectural documentation viewer.
+2. **Blazor WebAssembly Client (`Gomoku.Web`):** An in-browser client compiled via WebAssembly Ahead-of-Time (AOT), running 100% client-side with zero server latency, complete with a responsive SVG game board, mobile sliding drawer navigation, and embedded architectural documentation viewer.
 
 Both clients share the exact same view models, game engine, and procedural audio synthesis from `Gomoku.App` and `Gomoku.Core`.
 
@@ -19,15 +19,19 @@ Both clients share the exact same view models, game engine, and procedural audio
 ```mermaid
 graph TD
     subgraph UI Wireframe
-        TopBar["Menu Bar / Navigation<br/>Game • View • Options • Help"]
-        Scoreboard["Dual-Card Scoreboard<br/>Black Card • Turn/Status Banner • White Card"]
-        Board["Interactive Board Canvas<br/>Kaya Wood Texture • Coordinates • Star Points • Ghost Stones"]
-        Analysis["AI Analysis Panel (Toggleable)<br/>Depth • Score • Best Move • Nodes • Speed • Time • Status"]
+        TopBar["Menu Bar / Mobile Drawer<br/>File • Game • Options • Help"]
+        StatusHeader["Status &amp; Limits Header<br/>STATUS (Crimson on casual) • Variant Badge • Limits • Subtitle"]
+        Scoreboard["Dual-Card Scoreboard<br/>4 Layers: Dot/Name/Clock • Role • Stones • 'Stones Placed'"]
+        QuickActions["Quick Action Buttons<br/>[Undo] • [Redo] • [Move Now]"]
+        Board["Interactive Kaya Board Canvas<br/>Fixed Orientation • Coordinates • Star Points • Ghost Stones"]
+        Analysis["AI Analysis Panel (Toggleable)<br/>Move • Depth • Score • Best Move • Nodes • Speed • Time • Status"]
         DocViewer["Docs Subsystem (Web Only)<br/>Interactive Markdown Engine • TOC Pager • KaTeX Math"]
     end
 
-    TopBar --> Scoreboard
-    Scoreboard --> Board
+    TopBar --> StatusHeader
+    StatusHeader --> Scoreboard
+    Scoreboard --> QuickActions
+    QuickActions --> Board
     Scoreboard --> Analysis
     TopBar --> DocViewer
 ```
@@ -61,6 +65,9 @@ Stones are rendered with realistic lighting gradients and drop shadows:
 - **White Stones:** Mexican clamshell appearance with subtle off-white spherical gradient from pure white (`#FFFFFF`) to pearl cream (`#D0D0D0`).
 - **Drop Shadow:** SVG `feDropShadow` filter ($dx = 2, dy = 3, \sigma = 3$) giving the physical illusion of stones resting on wood.
 
+### 4. Invariant Fixed Board Orientation
+In Gomoku, games always begin at the geometric center point (H8 on $15 \times 15$). Unlike edge-starting games such as Checkers, the board orientation remains strictly fixed and is never flipped or rotated when playing White or switching sides mid-game. Standard algebraic coordinates (A1 bottom-left, O15 top-right) remain static.
+
 ---
 
 ## Interactive board features
@@ -87,9 +94,10 @@ Under Renju rules, Black is forbidden from creating Overlines, Double-Threes, or
 The web client runs entirely in the browser using WebAssembly Ahead-of-Time (AOT) compilation:
 - **High Computational Throughput:** WebAssembly AOT compiles C# IL directly to native WebAssembly bytecode, achieving $> 70\%$ of native C# desktop performance.
 - **Zero Server Latency:** AI calculations, tactical VCF searches, and audio generation execute directly on the user's CPU without making HTTP API roundtrips.
-- **Responsive Layout:**
-  - **Desktop View:** Side-by-side layout with $640 \times 640$ SVG board on the left and full telemetry dashboard on the right.
-  - **Mobile View:** Vertically stacked layout with touch-optimized target intersections ($> 32\text{ px}$ hit zones).
+- **Responsive Layout & Mobile Navigation Drawer:**
+  - **Desktop View ($> 768\text{px}$):** Horizontal menu bar (`File`, `Game`, `Options`, `Help`), 4-layer player scorecards, quick action row (`[Undo]`, `[Redo]`, `[Move Now]`), and side-by-side SVG board with real-time AI telemetry.
+  - **Mobile View ($\le 768\text{px}$):** Collapses the menu bar into a top brand header with hamburger button (`☰`). Tapping toggles an off-canvas slide-out drawer (`.mobile-drawer`) with a backdrop overlay, presenting all menu actions in touch-friendly tap targets.
+  - **Touch Zones:** Touch-optimized target intersections ($> 32\text{ px}$ hit zones) allow accurate move placement on mobile screens.
 
 ### Integrated Brain Documentation Viewer (`Docs.razor`)
 The web application hosts the entire `docs/brain` repository directly at `/docs`:
@@ -118,7 +126,7 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 |---|---|---|
 | [MainWindow.xaml](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Wpf/MainWindow.xaml) | `MainWindow` | WPF primary desktop user interface and canvas bindings |
 | [Board.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/Board.razor) | `Board` | Scalable SVG board with wood gradients, stones, and star points |
-| [DialogHost.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/DialogHost.razor) | `DialogHost` | Modal dialog manager for game settings and rules |
+| [DialogHost.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/DialogHost.razor) | `DialogHost` | Modal dialog manager for game settings, mid-game confirmations, and timeout continuation |
 | [Docs.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Pages/Docs.razor) | `Docs` | Live browser manual reader with KaTeX math rendering |
 | [BrainDocs.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Services/BrainDocs.cs) | `BrainDocs` | Document discovery service matching chapter regexes |
 
@@ -130,6 +138,8 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
   - Star points layout test: verifies 15x15 has 5 star points and 19x19 has 9 star points.
   - Ghost stone reactivity: verifies ghost stone matches active player color.
   - Move numbering toggle: verifies coordinate text visibility binding.
+  - Time refund on Undo: verifies clocks are restored to per-ply snapshots on undo.
+  - Side switching mid-game: validates role toggling, fixed orientation, and modified status flag.
 
 ---
 
@@ -142,4 +152,3 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 ---
 
 Previous: [12 App architecture and audio](12-app-architecture-and-audio.md) · Next: [14 GUI and settings](14-gui-and-settings.md)
-

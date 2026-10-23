@@ -48,10 +48,15 @@ graph TD
 ## ViewModels in detail
 
 ### 1. `MainViewModel` (The Orchestrator)
-`MainViewModel` coordinates user interaction, turn pacing, AI invocation, and undo/redo stacks:
+`MainViewModel` coordinates user interaction, turn pacing, AI invocation, clock management, and undo/redo stacks:
 - **Asynchronous AI Execution & Search ID Guard:** AI calculations run on background threads (`Task.Run`). A monotonic `_searchId` counter ensures that when a search is cancelled or superseded by a new game, in-flight callbacks from the previous search are discarded.
 - **Dynamic Board Re-dimensioning:** When the user changes board size (e.g. $15 \times 15 \to 19 \times 19$), `MainViewModel` raises `BoardLayoutChanged` and rebuilds the flat 1D grid of `IntersectionViewModel` instances.
 - **Renju Real-Time Foul Overlay:** On every turn, if Renju rules are active and Black is to move, `MainViewModel` flags forbidden intersections with `IsForbidden = true`, rendering instantaneous red $\times$ markers on the UI.
+- **Competitive Integrity Tracking (`IsGameModified`):** Tracks whether the match has diverged from strict tournament conditions (via Undos against AI, switching sides mid-game, adjusting settings during play, or timeout continuation). Exposes `IsStatusModified` to tint the UI `STATUS` badge crimson red (`#E74C3C`).
+- **Per-Ply Clock Snapshotting & Time Refund:** Maintains an internal dictionary `_timeAtPly` that records remaining chess clock times for both players at each turn. When `Undo()` is invoked, elapsed thinking time is refunded to the exact snapshot recorded at that ply.
+- **Mid-Match Safeguards:** Prompts confirmation dialogs before resetting an in-progress game when initiating New Game, switching Game Modes, or altering settings.
+- **Side Switching (`SwitchSidesCommand`):** Swaps player roles between Black and White mid-game without rotating the board, seamlessly activating the AI if it becomes the computer's turn.
+- **Timeout Continuation Safeguard:** In timed games against the AI, if the human runs out of time, prompts an interactive continuation dialog so casual play can proceed.
 
 ### 2. `IntersectionViewModel` (Cell Binding)
 Represents a single coordinate $(x, y)$ on the board:
@@ -76,6 +81,7 @@ Translates engine internal `SearchAnalysis` snapshots into human-readable metric
 - **Dynamic Depth Formatting:** Displays `"{depth} plies..."` while the engine is actively exploring a depth, `"{depth} plies"` when the iteration concludes, and `"Book"` or `"Opening"` for instant opening moves.
 - **Mate Distance Detection:** Detects scores $|S| \ge 25,000$ and renders `"Mate in K"` or `"-Mate in K"`.
 - **Invariant Culture Formatting:** Formats `Nodes` and `Speed` using `CultureInfo.InvariantCulture` (`142,850`), ensuring uniform display across cultures.
+- **Elapsed Time Formatting:** Formats elapsed calculation time in standard stopwatch format `m\:ss\.f` (e.g. `0:00.0` or `0:01.9`).
 - **Reactive UI Streaming (`Updated` Event):** Raises `public event Action? Updated;` so Blazor components can invoke `_ = InvokeAsync(StateHasChanged)` on incoming progress reports without polling.
 
 ---
@@ -225,6 +231,10 @@ public interface IDialogService
   - Board re-layout verification: confirms switching from 15x15 to 19x19 instantiates 361 cells.
   - Sound synthesis verification: validates that `SoundWaves.Create(SoundType.StonePlaced)` generates valid RIFF header bytes.
   - Renju forbidden cell flagging: verifies `IsForbidden` updates reactively when moves change.
+  - Time refund on Undo: confirms remaining time is restored from `_timeAtPly` snapshots when moves are undone.
+  - Side switching mid-match: verifies `SwitchSidesCommand` swaps player roles, flags `IsGameModified`, and preserves fixed board layout.
+- [AnalysisViewModelTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.App.Tests/AnalysisViewModelTests.cs):
+  - Time format verification: verifies `Time` property formats stopwatch durations as `m\:ss\.f` (e.g., `0:00.0`, `0:01.9`).
 
 ---
 
