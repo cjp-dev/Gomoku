@@ -368,4 +368,172 @@ public class MainViewModelTests
         vm.SetGameMode(GameMode.AiVsHuman);
         store.Current.Mode.Should().Be(GameMode.AiVsHuman);
     }
+
+    [Fact]
+    public void IsGameModified_WhenUndoUsedInVsComputer_ShouldBecomeTrue()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsAi };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        vm.IsGameModified.Should().BeFalse();
+        vm.IsStatusModified.Should().BeFalse();
+
+        var cell = vm.Intersections.First(i => i.X == 7 && i.Y == 7);
+        cell.ClickCommand.Execute(null);
+
+        vm.UndoCommand.Execute(null);
+
+        vm.IsGameModified.Should().BeTrue();
+        vm.IsStatusModified.Should().BeTrue();
+
+        // New game should reset modified flag
+        vm.NewGame();
+        vm.IsGameModified.Should().BeFalse();
+        vm.IsStatusModified.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SwitchSides_InHumanVsAi_ShouldSwapToAiVsHumanAndMarkModified()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsAi };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        vm.CanSwitchSides.Should().BeTrue();
+        vm.SwitchSidesCommand.Execute(null);
+
+        vm.Settings.Mode.Should().Be(GameMode.AiVsHuman);
+        vm.IsGameModified.Should().BeTrue();
+        vm.IsStatusModified.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Undo_ShouldRefundClockTime()
+    {
+        GameSettings settings = new()
+        {
+            BoardSize = BoardSize.Size15x15,
+            Mode = GameMode.HumanVsHuman,
+            TimeControl = TimeControlMode.TimePerGame,
+            GameTimeMinutes = 5
+        };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        // Black takes 15s to play move 1
+        vm.BlackRemainingTime = TimeSpan.FromSeconds(285);
+        var cell1 = vm.Intersections.First(i => i.X == 7 && i.Y == 7);
+        cell1.ClickCommand.Execute(null);
+
+        // White takes 20s to play move 2
+        vm.WhiteRemainingTime = TimeSpan.FromSeconds(280);
+        var cell2 = vm.Intersections.First(i => i.X == 7 && i.Y == 8);
+        cell2.ClickCommand.Execute(null);
+
+        // During turn 3, Black spends 25s thinking (time drops to 260s)
+        vm.BlackRemainingTime = TimeSpan.FromSeconds(260);
+
+        // Undo move 2 (White's move): reverts to state at ply 1 where White was to move
+        vm.UndoCommand.Execute(null);
+
+        // White's remaining time at ply 1 was 300s (before White moved), and Black's was 285s
+        vm.BlackRemainingTime.Should().Be(TimeSpan.FromSeconds(285));
+        vm.WhiteRemainingTime.Should().Be(TimeSpan.FromSeconds(300));
+    }
+
+    [Fact]
+    public async Task TimeoutContinuation_WhenAccepted_ShouldMarkGameModifiedAndKeepPlaying()
+    {
+        GameSettings settings = new()
+        {
+            BoardSize = BoardSize.Size15x15,
+            Mode = GameMode.HumanVsAi,
+            TimeControl = TimeControlMode.TimePerGame,
+            GameTimeMinutes = 5
+        };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+        _dialog.ConfirmationResult = true; // User clicks "Yes" to continue
+
+        await vm.HandleTimeoutAsync(PieceColor.Black);
+
+        vm.GameStatus.Should().Be(GameStatus.InProgress);
+        vm.IsGameModified.Should().BeTrue();
+        vm.IsStatusModified.Should().BeTrue();
+        vm.BlackRemainingTime.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task NewGameSafeguard_WhenGameInProgressAndCancelled_ShouldNotReset()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsHuman };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        var cell = vm.Intersections.First(i => i.X == 7 && i.Y == 7);
+        cell.ClickCommand.Execute(null);
+
+        vm.MoveCount.Should().Be(1);
+
+        _dialog.ConfirmationResult = false; // User cancels abandon prompt
+        await vm.NewGameAsync();
+
+        vm.MoveCount.Should().Be(1); // Not reset!
+
+        _dialog.ConfirmationResult = true; // User confirms abandon prompt
+        await vm.NewGameAsync();
+
+        vm.MoveCount.Should().Be(0); // Reset!
+    }
+
+    [Fact]
+    public void Badges_ShouldShowCorrectTextAndVisibility()
+    {
+        GameSettings settings = new()
+        {
+            Variant = GomokuVariant.Renju,
+            Mode = GameMode.HumanVsAi,
+            AiEngine = AiEngineType.Carbon,
+            TimeControl = TimeControlMode.TimePerMove,
+            MoveTimeSeconds = 5
+        };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        vm.VariantBadgeText.Should().Be("Renju");
+        vm.IsGameSettingVisible.Should().BeTrue();
+        vm.SettingsBadgeText.Should().Be("5s / move");
+
+        // When vs Human, setting badge should be hidden
+        vm.SetGameMode(GameMode.HumanVsHuman);
+        vm.IsGameSettingVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AnalysisViewModel_TimeFormat_ShouldMatchCheckersFormat()
+    {
+        AnalysisViewModel vm = new();
+        SearchAnalysis analysis = new(
+            MoveNumber: 1,
+            Depth: 6,
+            Score: 10,
+            BestMove: null,
+            Nodes: 1000,
+            EvaluationsPerSec: 5000,
+            Elapsed: TimeSpan.FromSeconds(1.93),
+            StatusMessage: null,
+            IsSearching: false);
+
+        vm.Update(analysis);
+        vm.Time.Should().Be("0:01.9");
+
+        SearchAnalysis analysisZero = new(
+            MoveNumber: 1,
+            Depth: 1,
+            Score: 0,
+            BestMove: null,
+            Nodes: 1,
+            EvaluationsPerSec: 0,
+            Elapsed: TimeSpan.Zero,
+            StatusMessage: null,
+            IsSearching: false);
+
+        vm.Update(analysisZero);
+        vm.Time.Should().Be("0:00.0");
+    }
 }

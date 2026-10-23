@@ -76,5 +76,24 @@ public sealed partial class GameSettings : ObservableObject
         WinLineHighlightEnabled = WinLineHighlightEnabled,
         ThemeName = ThemeName
     };
+
+    public string Summary => AiEngine switch
+    {
+        AiEngineType.Simple => "Simple AI",
+        _ => TimeControl switch
+        {
+            TimeControlMode.FixedDepth => $"{SearchDepth} plies",
+            TimeControlMode.TimePerMove => $"{MoveTimeSeconds}s / move",
+            _ => $"{GameTimeMinutes} min / game",
+        }
+    };
+
+    public string VariantBadgeText => Variant switch
+    {
+        GomokuVariant.Freestyle => "Freestyle",
+        GomokuVariant.Exact5 => "Standard",
+        GomokuVariant.Renju => "Renju",
+        _ => Variant.ToString()
+    };
 }
 

@@ -70,7 +70,7 @@ public sealed partial class AnalysisViewModel : ObservableObject
         BestMove = analysis.BestMove.HasValue ? analysis.BestMove.Value.Position.ToCoordinateString() : "-";
         Nodes = analysis.Nodes.ToString("N0", CultureInfo.InvariantCulture);
         Speed = analysis.EvaluationsPerSec > 0 ? $"{analysis.EvaluationsPerSec.ToString("N0", CultureInfo.InvariantCulture)} nps" : "-";
-        Time = $"{analysis.Elapsed.TotalSeconds:F2}s";
+        Time = analysis.Elapsed.ToString(@"m\:ss\.f");
         Status = analysis.StatusMessage ?? (analysis.IsSearching ? "Searching..." : "Ready");
 
         Updated?.Invoke();

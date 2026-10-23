@@ -77,6 +77,19 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAnalysisVisible = true;
 
+    [ObservableProperty]
+    private bool _isGameModified;
+
+    private bool _hasHumanContinuedOnTime;
+    private readonly Dictionary<int, (TimeSpan Black, TimeSpan White)> _timeAtPly = [];
+
+    public bool IsStatusModified => IsVsComputer && IsGameModified;
+
+    partial void OnIsGameModifiedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsStatusModified));
+    }
+
     public ObservableCollection<MoveTurnRecord> MoveTurns { get; } = [];
 
     public string BlackPlayerLabel => Settings.Mode switch
@@ -94,20 +107,25 @@ public sealed partial class MainViewModel : ObservableObject
     public int BlackPiecesCount => (Session.MoveHistory.Count + 1) / 2;
     public int WhitePiecesCount => Session.MoveHistory.Count / 2;
 
-    public string VariantBadgeText => Settings.Variant switch
-    {
-        GomokuVariant.Freestyle => "Freestyle",
-        GomokuVariant.Exact5 => "Standard",
-        GomokuVariant.Renju => "Renju",
-        _ => Settings.Variant.ToString()
-    };
+    public string VariantBadgeText => Settings.VariantBadgeText;
 
     public bool IsClockVisible => Settings.TimeControl == TimeControlMode.TimePerGame;
     public string ClockText => SideToMove == PieceColor.Black ? BlackTimeFormatted : WhiteTimeFormatted;
 
     public bool IsHumanVsComputer => Settings.Mode == GameMode.HumanVsAi;
     public bool IsComputerVsHuman => Settings.Mode == GameMode.AiVsHuman;
+    public bool IsVsComputer => Settings.Mode is GameMode.HumanVsAi or GameMode.AiVsHuman or GameMode.AiVsAi;
     public bool IsHumanVsHuman => Settings.Mode == GameMode.HumanVsHuman;
+
+    public bool IsGameSettingVisible => IsVsComputer;
+    public string SettingsBadgeText => Settings.Summary;
+    public string MoveCountText => $"{Session.MoveHistory.Count} moves";
+
+    public bool CanSwitchSides =>
+        IsVsComputer &&
+        IsHumanTurn() &&
+        !GameStatus.IsGameOver() &&
+        !IsThinking;
 
     public bool IsBlackActiveTurn => SideToMove == PieceColor.Black && !GameStatus.IsGameOver();
     public bool IsWhiteActiveTurn => SideToMove == PieceColor.White && !GameStatus.IsGameOver();
@@ -121,6 +139,7 @@ public sealed partial class MainViewModel : ObservableObject
     public IRelayCommand NewGameCommand { get; }
     public IRelayCommand UndoCommand { get; }
     public IRelayCommand RedoCommand { get; }
+    public IRelayCommand SwitchSidesCommand { get; }
     public IRelayCommand MoveNowCommand { get; }
     public IRelayCommand OpenFileCommand { get; }
     public IRelayCommand SaveFileCommand { get; }
@@ -165,9 +184,10 @@ public sealed partial class MainViewModel : ObservableObject
 
         Session = new GameSession(Settings.BoardSize, Settings.Variant);
 
-        NewGameCommand = new RelayCommand(NewGame);
+        NewGameCommand = new AsyncRelayCommand(NewGameAsync);
         UndoCommand = new RelayCommand(Undo, () => CanUndo);
         RedoCommand = new RelayCommand(Redo, () => CanRedo);
+        SwitchSidesCommand = new RelayCommand(SwitchSides, () => CanSwitchSides);
         MoveNowCommand = new RelayCommand(MoveNow, () => IsThinking);
         OpenFileCommand = new AsyncRelayCommand(OpenFileAsync);
         SaveFileCommand = new AsyncRelayCommand(SaveFileAsync);
@@ -215,7 +235,7 @@ public sealed partial class MainViewModel : ObservableObject
             BoardLayoutChanged?.Invoke();
             SavePreferences();
         });
-        SetGameModeCommand = new RelayCommand<GameMode>(SetGameMode);
+        SetGameModeCommand = new AsyncRelayCommand<GameMode>(SetGameModeAsync);
 
         ResetBoard(Settings.BoardSize);
     }
@@ -230,6 +250,22 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    public async Task SetGameModeAsync(GameMode mode)
+    {
+        if (Settings.Mode == mode) return;
+
+        if (!GameStatus.IsGameOver() && Session.MoveHistory.Count > 0)
+        {
+            bool confirm = await _dialogService.ShowConfirmationAsync(
+                "Abandon Match",
+                "A game is currently in progress. Changing game mode will start a new game.\n\nDo you want to abandon the current match and start a new game?");
+            if (!confirm) return;
+        }
+
+        SetGameMode(mode);
+        ResetBoard(Settings.BoardSize);
+    }
+
     public void SetGameMode(GameMode mode)
     {
         if (Settings.Mode != mode)
@@ -237,6 +273,25 @@ public sealed partial class MainViewModel : ObservableObject
             Settings.Mode = mode;
             NotifyModePropertiesChanged();
             SavePreferences();
+        }
+    }
+
+    public void SwitchSides()
+    {
+        if (!CanSwitchSides) return;
+
+        CancelAiSearch();
+        Settings.Mode = Settings.Mode == GameMode.HumanVsAi
+            ? GameMode.AiVsHuman
+            : GameMode.HumanVsAi;
+
+        IsGameModified = true;
+        NotifyModePropertiesChanged();
+        SavePreferences();
+        UpdateUiState();
+
+        if (!GameStatus.IsGameOver() && !IsHumanTurn())
+        {
             CheckAndTriggerAiMove();
         }
     }
@@ -245,10 +300,16 @@ public sealed partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsHumanVsComputer));
         OnPropertyChanged(nameof(IsComputerVsHuman));
+        OnPropertyChanged(nameof(IsVsComputer));
         OnPropertyChanged(nameof(IsHumanVsHuman));
         OnPropertyChanged(nameof(BlackPlayerLabel));
         OnPropertyChanged(nameof(WhitePlayerLabel));
         OnPropertyChanged(nameof(CanHoverMove));
+        OnPropertyChanged(nameof(CanSwitchSides));
+        OnPropertyChanged(nameof(IsGameSettingVisible));
+        OnPropertyChanged(nameof(SettingsBadgeText));
+        OnPropertyChanged(nameof(IsStatusModified));
+        SwitchSidesCommand?.NotifyCanExecuteChanged();
     }
 
     partial void OnSideToMoveChanged(PieceColor value)
@@ -256,6 +317,8 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsBlackActiveTurn));
         OnPropertyChanged(nameof(IsWhiteActiveTurn));
         OnPropertyChanged(nameof(ClockText));
+        OnPropertyChanged(nameof(CanSwitchSides));
+        SwitchSidesCommand?.NotifyCanExecuteChanged();
     }
 
     partial void OnGameStatusChanged(GameStatus value)
@@ -263,6 +326,8 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsBlackActiveTurn));
         OnPropertyChanged(nameof(IsWhiteActiveTurn));
         OnPropertyChanged(nameof(CanHoverMove));
+        OnPropertyChanged(nameof(CanSwitchSides));
+        SwitchSidesCommand?.NotifyCanExecuteChanged();
     }
 
     partial void OnBlackRemainingTimeChanged(TimeSpan value)
@@ -282,9 +347,11 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
         OnPropertyChanged(nameof(CanHoverMove));
+        OnPropertyChanged(nameof(CanSwitchSides));
         UndoCommand?.NotifyCanExecuteChanged();
         RedoCommand?.NotifyCanExecuteChanged();
         MoveNowCommand?.NotifyCanExecuteChanged();
+        SwitchSidesCommand?.NotifyCanExecuteChanged();
     }
 
     public void ResetBoard(BoardSize size, bool triggerAi = true)
@@ -296,6 +363,11 @@ public sealed partial class MainViewModel : ObservableObject
         TimeSpan initialClock = TimeSpan.FromMinutes(Math.Max(1, Settings.GameTimeMinutes));
         BlackRemainingTime = initialClock;
         WhiteRemainingTime = initialClock;
+
+        _timeAtPly.Clear();
+        _timeAtPly[0] = (initialClock, initialClock);
+        IsGameModified = false;
+        _hasHumanContinuedOnTime = false;
 
         Intersections.Clear();
         _grid = new IntersectionViewModel[size.Width, size.Height];
@@ -355,25 +427,45 @@ public sealed partial class MainViewModel : ObservableObject
 
                     if (SideToMove == PieceColor.Black)
                     {
-                        TimeSpan next = BlackRemainingTime - TimeSpan.FromMilliseconds(elapsedMs);
-                        if (next <= TimeSpan.Zero)
+                        if (IsHumanPlayer(PieceColor.Black) && _hasHumanContinuedOnTime)
                         {
                             BlackRemainingTime = TimeSpan.Zero;
-                            HandleTimeout(PieceColor.Black);
-                            break;
                         }
-                        BlackRemainingTime = next;
+                        else
+                        {
+                            TimeSpan next = BlackRemainingTime - TimeSpan.FromMilliseconds(elapsedMs);
+                            if (next <= TimeSpan.Zero)
+                            {
+                                BlackRemainingTime = TimeSpan.Zero;
+                                _ = HandleTimeoutAsync(PieceColor.Black);
+                                if (!_hasHumanContinuedOnTime) break;
+                            }
+                            else
+                            {
+                                BlackRemainingTime = next;
+                            }
+                        }
                     }
                     else if (SideToMove == PieceColor.White)
                     {
-                        TimeSpan next = WhiteRemainingTime - TimeSpan.FromMilliseconds(elapsedMs);
-                        if (next <= TimeSpan.Zero)
+                        if (IsHumanPlayer(PieceColor.White) && _hasHumanContinuedOnTime)
                         {
                             WhiteRemainingTime = TimeSpan.Zero;
-                            HandleTimeout(PieceColor.White);
-                            break;
                         }
-                        WhiteRemainingTime = next;
+                        else
+                        {
+                            TimeSpan next = WhiteRemainingTime - TimeSpan.FromMilliseconds(elapsedMs);
+                            if (next <= TimeSpan.Zero)
+                            {
+                                WhiteRemainingTime = TimeSpan.Zero;
+                                _ = HandleTimeoutAsync(PieceColor.White);
+                                if (!_hasHumanContinuedOnTime) break;
+                            }
+                            else
+                            {
+                                WhiteRemainingTime = next;
+                            }
+                        }
                     }
                 }
             }
@@ -393,14 +485,42 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private void HandleTimeout(PieceColor timedOutPlayer)
+    private bool IsHumanPlayer(PieceColor color) =>
+        (Settings.Mode == GameMode.HumanVsAi && color == PieceColor.Black) ||
+        (Settings.Mode == GameMode.AiVsHuman && color == PieceColor.White);
+
+    public void HandleTimeout(PieceColor timedOutPlayer) => _ = HandleTimeoutAsync(timedOutPlayer);
+
+    public async Task HandleTimeoutAsync(PieceColor timedOutPlayer)
     {
+        if (GameStatus.IsGameOver()) return;
+
+        if (IsVsComputer && IsHumanPlayer(timedOutPlayer) && !_hasHumanContinuedOnTime)
+        {
+            bool continuePlaying = await _dialogService.ShowConfirmationAsync(
+                "Time Expired",
+                "You ran out of time!\n\nDo you want to continue playing?");
+
+            if (continuePlaying)
+            {
+                _hasHumanContinuedOnTime = true;
+                IsGameModified = true;
+                if (timedOutPlayer == PieceColor.Black)
+                    BlackRemainingTime = TimeSpan.Zero;
+                else
+                    WhiteRemainingTime = TimeSpan.Zero;
+
+                UpdateUiState();
+                return;
+            }
+        }
+
         CancelAiSearch();
         StopClock();
         GameStatus = timedOutPlayer == PieceColor.Black ? GameStatus.WhiteWon : GameStatus.BlackWon;
         StatusText = $"{timedOutPlayer} ran out of time! {timedOutPlayer.Opponent()} won!";
         OnPropertyChanged(nameof(CanHoverMove));
-        _ = _soundService.PlaySoundAsync(SoundType.Loss);
+        _ = _soundService.PlaySoundAsync(IsHumanPlayer(timedOutPlayer) ? SoundType.Loss : SoundType.Win);
     }
 
     public void OnIntersectionClicked(IntersectionViewModel cell)
@@ -417,6 +537,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         Session.ApplyMove(move);
+        _timeAtPly[Session.MoveHistory.Count] = (BlackRemainingTime, WhiteRemainingTime);
         _ = _soundService.PlaySoundAsync(SoundType.StonePlaced);
         UpdateUiState();
 
@@ -527,6 +648,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             if (Session.ApplyMove(bestMove))
             {
+                _timeAtPly[Session.MoveHistory.Count] = (BlackRemainingTime, WhiteRemainingTime);
                 await _soundService.PlaySoundAsync(SoundType.StonePlaced);
                 UpdateUiState();
 
@@ -587,6 +709,19 @@ public sealed partial class MainViewModel : ObservableObject
         IsThinking = false;
     }
 
+    public async Task NewGameAsync()
+    {
+        if (!GameStatus.IsGameOver() && Session.MoveHistory.Count > 0)
+        {
+            bool confirm = await _dialogService.ShowConfirmationAsync(
+                "Abandon Match",
+                "A game is currently in progress. Abandon current match and start a new game?");
+            if (!confirm) return;
+        }
+
+        NewGame();
+    }
+
     public void NewGame()
     {
         ResetBoard(Settings.BoardSize);
@@ -595,6 +730,11 @@ public sealed partial class MainViewModel : ObservableObject
     public void Undo()
     {
         if (IsThinking) CancelAiSearch();
+
+        if (IsVsComputer)
+        {
+            IsGameModified = true;
+        }
 
         // In HumanVsAi, undo 2 moves (both AI and human) if it is human turn
         if (Settings.Mode == GameMode.HumanVsAi && Session.MoveHistory.Count >= 2 && Session.CurrentState.SideToMove == PieceColor.Black)
@@ -610,6 +750,13 @@ public sealed partial class MainViewModel : ObservableObject
         else
         {
             Session.Undo();
+        }
+
+        int currentPly = Session.MoveHistory.Count;
+        if (_timeAtPly.TryGetValue(currentPly, out var restoredTime))
+        {
+            BlackRemainingTime = restoredTime.Black;
+            WhiteRemainingTime = restoredTime.White;
         }
 
         UpdateUiState();
@@ -695,14 +842,20 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
         OnPropertyChanged(nameof(CanHoverMove));
+        OnPropertyChanged(nameof(CanSwitchSides));
         OnPropertyChanged(nameof(BlackPiecesCount));
         OnPropertyChanged(nameof(WhitePiecesCount));
         OnPropertyChanged(nameof(IsBlackActiveTurn));
         OnPropertyChanged(nameof(IsWhiteActiveTurn));
         OnPropertyChanged(nameof(ClockText));
         OnPropertyChanged(nameof(VariantBadgeText));
+        OnPropertyChanged(nameof(IsStatusModified));
+        OnPropertyChanged(nameof(IsGameSettingVisible));
+        OnPropertyChanged(nameof(SettingsBadgeText));
+        OnPropertyChanged(nameof(MoveCountText));
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
+        SwitchSidesCommand.NotifyCanExecuteChanged();
     }
 
     private void HandleGameOver()
@@ -761,8 +914,11 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var m in moves)
             {
                 Session.ApplyMove(m);
+                _timeAtPly[Session.MoveHistory.Count] = (BlackRemainingTime, WhiteRemainingTime);
             }
 
+            IsGameModified = false;
+            _hasHumanContinuedOnTime = false;
             UpdateUiState();
             await _dialogService.ShowMessageAsync("Game Loaded", $"Loaded {moves.Count} moves ({variant}, {size}).");
             CheckAndTriggerAiMove();
@@ -796,11 +952,39 @@ public sealed partial class MainViewModel : ObservableObject
         GomokuVariant prevVariant = Settings.Variant;
         TimeControlMode prevTimeControl = Settings.TimeControl;
         int prevGameMinutes = Settings.GameTimeMinutes;
+        AiEngineType prevEngine = Settings.AiEngine;
+        int prevDepth = Settings.SearchDepth;
+        int prevMoveSeconds = Settings.MoveTimeSeconds;
 
         var settingsVm = new SettingsViewModel(Settings);
         var result = await _dialogService.ShowCustomDialogAsync<bool?>(settingsVm);
         if (result == true)
         {
+            bool rulesChanged = Settings.BoardSize != prevSize || Settings.Variant != prevVariant;
+            if (rulesChanged && Session.MoveHistory.Count > 0 && !GameStatus.IsGameOver())
+            {
+                bool confirm = await _dialogService.ShowConfirmationAsync(
+                    "Change Rules",
+                    "Changing the board size or rules variant requires starting a new game.\n\nDo you want to start a new game now with the new rules?");
+                if (!confirm)
+                {
+                    Settings.BoardSize = prevSize;
+                    Settings.Variant = prevVariant;
+                }
+            }
+
+            if (Session.MoveHistory.Count > 0 && !GameStatus.IsGameOver() && IsVsComputer)
+            {
+                if (Settings.AiEngine != prevEngine ||
+                    Settings.TimeControl != prevTimeControl ||
+                    Settings.GameTimeMinutes != prevGameMinutes ||
+                    Settings.SearchDepth != prevDepth ||
+                    Settings.MoveTimeSeconds != prevMoveSeconds)
+                {
+                    IsGameModified = true;
+                }
+            }
+
             ApplyUpdatedSettings(prevSize, prevVariant, prevTimeControl, prevGameMinutes);
         }
     }
@@ -839,6 +1023,10 @@ public sealed partial class MainViewModel : ObservableObject
             UpdateUiState();
             BoardLayoutChanged?.Invoke();
             OnPropertyChanged(nameof(Settings));
+            OnPropertyChanged(nameof(SettingsBadgeText));
+            OnPropertyChanged(nameof(VariantBadgeText));
+            OnPropertyChanged(nameof(IsGameSettingVisible));
+            OnPropertyChanged(nameof(IsStatusModified));
             CheckAndTriggerAiMove();
         }
     }
