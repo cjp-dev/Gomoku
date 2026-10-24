@@ -168,6 +168,17 @@ This makes the opening book completely symmetrical and agnostic to whether the A
 
 ---
 
+## Direct zero-allocation bitboard matching (`BitboardPatternBoard`)
+
+In the primary engine, [`OpeningBook.TryGetMove(BitboardPatternBoard pb, out Point move)`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/OpeningBook.cs) executes directly against `BitboardPatternBoard`.
+
+Previously, querying the opening book required instantiating a temporary legacy `PatternBoard` and replaying moves sequentially on every turn. The modernized bitboard overload queries coordinates directly from flat 1D memory `(y << 7) | x` with:
+- **Zero Heap Allocations:** Operates entirely over `ReadOnlySpan<sbyte>` with no managed objects created.
+- **Microsecond Latency:** Completes full dihedral 8-fold pattern checks across 67 clusters in under $1\text{ microsecond}$.
+- **Direct Engine Integration:** `CarbonBitboardAiPlayer` calls this overload natively on turns 1 through 6 before launching tree search.
+
+---
+
 ## Worked example: matching the indirect opening
 
 Consider move 2 for White on a $15 \times 15$ board:
@@ -214,8 +225,9 @@ Consider move 2 for White on a $15 \times 15$ board:
 
 | File | Member / Method | Description |
 |---|---|---|
-| [OpeningBook.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) | `TryGetMove()` | Symmetry-aware opening book lookup and random selection |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Queries `OpeningBook.TryGetMove()` before invoking minimax |
+| [OpeningBook.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) | `TryGetMove()` | Symmetry-aware opening book lookup for both `PatternBoard` and `BitboardPatternBoard` |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `FindBestMove()` | Queries direct bitboard opening book before invoking Lazy SMP search |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Reference AI querying `OpeningBook.TryGetMove()` |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `OpeningBookData` | Static binary table ported from Carbon Gomoku |
 
 ---

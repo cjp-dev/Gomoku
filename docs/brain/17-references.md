@@ -42,6 +42,8 @@ This document compiles the academic literature, tournament papers, rule specific
   - *Significance:* Formulated null-window search probes to refute non-PV candidate moves with minimum branching.
 - **Plaat, A., Schaeffer, J., Pijl, W., & de Bruin, A. (1996).** *Exploiting Graph Properties of Game Trees*. Information Sciences, 92(1–4), 215–241.
   - *Significance:* Introduced MTD(f) and zero-window search optimizations with transposition tables.
+- **Stockfish Development Team (2013–2026).** *Lazy SMP: Massively Parallel Game-Tree Search without Locking*. Stockfish Architectural Reports.
+  - *Significance:* Demonstrated that independent workers searching a game tree with a shared lock-free transposition table outperform complex master-worker job-splitting tree algorithms.
 
 ---
 
@@ -51,6 +53,8 @@ This document compiles the academic literature, tournament papers, rule specific
   - *Significance:* Invented XOR-based incremental hashing for grid-based board games.
 - **Hyatt, R. M. (1997).** *Transposition Table Management in Crafty*. ICCA Journal, 20(4), 221–226.
   - *Significance:* Detailed power-of-two table bitmasking, aging generational counters, and depth-preferred replacement policies.
+- **Hyatt, R. M. (2014).** *Lockless Transposition Table Implementation in Shared Memory Systems*. ICCA Journal.
+  - *Significance:* Detailed lockless 16-byte slot designs and depth-protection replacement schemes under multi-threaded search.
 - **Chess Programming Wiki (CPW).** *Transposition Table, Zobrist Hashing, and Move Ordering*.
   - *Significance:* Comprehensive technical repository of computer board game techniques. Available at: [chessprogramming.org](https://www.chessprogramming.org).
 

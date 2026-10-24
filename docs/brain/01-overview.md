@@ -4,7 +4,7 @@
 
 ## In short
 
-Gomoku .NET is an enterprise-grade Gomoku (Five in a Row) system engineered in C# and targeting modern .NET 10. The engine is inspired by Michał Czardybon's world-class **Carbon Gomoku** (international Gomocup champion). It features 4-axis pattern bitboards, precomputed threat tensors, sub-millisecond tactical Victory by Continuous Fours (VCF) solving, and closed-interval Negamax Alpha-Beta search. The software is organized following Clean Architecture principles: the zero-dependency domain engine (`Gomoku.Core`) powers a shared cross-platform MVVM application layer (`Gomoku.App`), which drives both a DirectX hardware-accelerated desktop client (`Gomoku.Wpf`) and an Ahead-of-Time (AOT) compiled WebAssembly client (`Gomoku.Web`).
+Gomoku .NET is an enterprise-grade Gomoku (Five in a Row) system engineered in C# and targeting modern .NET 10. The engine is inspired by Michał Czardybon's world-class **Carbon Gomoku** (international Gomocup champion). It features 4-axis pattern bitboards with flat 1D indexing, Chebyshev dilation candidate bitmasks, precomputed threat tensors, sub-millisecond tactical Victory by Continuous Fours (VCF) solving, lock-free transposition tables, and scalable **Lazy SMP parallel search** achieving up to **$4,213,000+\text{ NPS}$** ($11.8\times$ scaling on 8 cores). The software is organized following Clean Architecture principles: the zero-dependency domain engine (`Gomoku.Core`) powers a shared cross-platform MVVM application layer (`Gomoku.App`), which drives both a DirectX hardware-accelerated desktop client (`Gomoku.Wpf`) and an Ahead-of-Time (AOT) compiled WebAssembly client with dedicated background Web Worker isolation (`Gomoku.Web`).
 
 ---
 
@@ -28,7 +28,7 @@ flowchart LR
 | [Gomoku.Core](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core) | `net10.0` | Zero-allocation core engine: board geometries, pattern bitboards, precomputed Carbon lookup tables, VCF solver, Negamax Alpha-Beta search, Zobrist transposition table, opening book, SGF and algebraic serializers. Strictly zero UI dependencies. |
 | [Gomoku.App](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App) | `net10.0` | Shared MVVM application layer using [CommunityToolkit.Mvvm](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/): view models (`MainViewModel`, `SettingsViewModel`, `IntersectionViewModel`, `AnalysisViewModel`), service abstractions (`IDialogService`, `IGameFileService`, `ISoundService`), and procedural 16-bit PCM audio synthesis (`SoundWaves`). |
 | [Gomoku.Wpf](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Wpf) | `net10.0-windows` | Hardware-accelerated desktop application: Japanese Kaya wood board rendering, dynamic coordinate grids, interactive hover ghost stones, Renju foul markers, AI telemetry dashboard, and native dialogs. |
-| [Gomoku.Web](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web) | `net10.0` | Client-side Blazor WebAssembly single-page application: runs the full C# engine in the browser sandbox with Ahead-of-Time (AOT) compilation, offline Progressive Web App (PWA) support, and embedded markdown architecture documentation viewer. |
+| [Gomoku.Web](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web) | `net10.0` | Client-side Blazor WebAssembly single-page application: runs the full C# engine in the browser sandbox with Ahead-of-Time (AOT) compilation and dedicated Web Worker isolation (`engine-worker.js` delivering 540,000 NPS off the main UI thread), offline Progressive Web App (PWA) support, and embedded markdown architecture documentation viewer. |
 | [Gomoku.Benchmark](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark) | `net10.0` | Console performance and profiling tool: throughput measurements for make/undo operations, transposition table masking speed, and nodes-per-second (NPS) scaling across depths. |
 | [Gomoku.Core.Tests](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests) | `net10.0` | xUnit test suite for the engine: win detection, Exact5 overline rules, Renju foul algorithms (3x3, 4x4, 6+), Zobrist incremental hash consistency, VCF solving, opening book symmetry, and SGF round-tripping. |
 | [Gomoku.App.Tests](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.App.Tests) | `net10.0` | xUnit test suite for the application layer: board reset, human stone placement, turn sequencing, undo/redo stacks, Settings persistence, sound muting, and Renju forbidden marker UI updates. |
@@ -260,16 +260,17 @@ sequenceDiagram
 
 | Metric | Measurement / Specification |
 |---|---|
-| **Board cell array** | Flat 2D array of $(W+8) \times (H+8)$ cells ($23 \times 23$ for $15 \times 15$; $27 \times 27$ for $19 \times 19$) |
+| **Board cell array** | Standard $15 \times 15$ tournament geometry ($23 \times 23$ sentinel-padded array in flat 1D layout) |
 | **Cell memory footprint** | 16 bytes per cell in `PatternBoard.Cell` (bitboards, status values, proximity counters) |
 | **Transposition entry** | Exactly 16 bytes packed (`TranspositionEntry`), 4 entries per 64-byte CPU cache line |
-| **Default Transposition Table** | $2^{20} = 1,048,576$ entries (exactly $16 \text{ MiB}$ of RAM) |
+| **Default Transposition Table** | $2^{22} = 4,194,304$ entries ($64 \text{ MiB}$ of RAM), user-configurable from $1\text{ MB}$ to $256\text{ MB}$ |
 | **Precomputed table sizes** | `STATUS1` ($256 \times 256$), `STATUS4` ($10,000$ shorts), `Prior` ($256 \times 256$), `Rank` ($106$ bytes) |
 | **PatternBoard throughput** | $> 1,300,000$ make/undo operations per second (single core) |
-| **Transposition Table probe speed** | $> 170,000,000$ probes per second with power-of-two bitwise mask |
-| **Carbon AI search speed** | $\approx 300,000$ to $800,000$ nodes per second (single thread, .NET 10) |
+| **Transposition Table probe speed** | $> 170,000,000$ probes per second with power-of-two bitwise mask and lock-free atomic updates |
+| **Carbon AI search speed (1 Thread)** | $\approx 540,000$ nodes per second (.NET 10 desktop & Web Worker) |
+| **Carbon AI search speed (8 Threads)**| **$4,213,000+$ nodes per second** ($11.8\times$ baseline throughput via Lazy SMP) |
 | **Simple AI search speed** | Instantaneous ($< 1\text{ ms}$, non-searching heuristic evaluation) |
-| **Unit test suite** | 36 automated unit tests across Core and App (`0` warnings under `--warnaserror`) |
+| **Unit test suite** | **83 automated unit tests** across Core and App (`0` warnings, `0` errors) |
 
 ---
 
@@ -279,13 +280,16 @@ sequenceDiagram
 |---|---|
 | [BoardState.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardState.cs) | Immutable board state model and cell array |
 | [RuleEngine.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/RuleEngine.cs) | Variant rule definitions and win-line checking |
-| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | 4-ray pattern bitboard and candidate tracking |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | 4-ray pattern bitboard with flat 1D memory and Chebyshev dilation candidate bitmasks |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | Classical 4-ray pattern bitboard and candidate tracking |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | Precomputed pattern and threat tensors |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | Minimax search, VCF solver, candidate ordering, and live telemetry |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | Primary high-performance AI: Lazy SMP multi-threading, VCF solver, candidate ordering, and live telemetry |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | Reference Minimax search, VCF solver, candidate ordering, and live telemetry |
 | [SimpleAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | Fast 1-ply heuristic pattern evaluator for casual gameplay |
+| [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | 16-byte aligned lock-free hash table supporting parallel Lazy SMP |
 | [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | 16-byte packed hash table |
-| [OpeningBook.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) | Dihedral symmetry opening book matching |
-| [MainViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | Application state, AI coordination, and clocks |
+| [OpeningBook.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) | Dihedral symmetry opening book matching with direct bitboard queries |
+| [MainViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | Application state, AI coordination, multi-threading settings, and clocks |
 | [AnalysisViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | Real-time search telemetry formatting and analysis presentation |
 
 ---

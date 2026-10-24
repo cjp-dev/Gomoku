@@ -129,6 +129,7 @@ If `NSt[who, ThreatB] >= 1` or `NSt[who, ThreatC] >= 1`, `QuickWinSearch` immedi
 
 | File | Member / Method | Description |
 |---|---|---|
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `Evaluate()` | High-throughput 1D bitboard leaf evaluation using placed stones and `Rank` |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Evaluate()` | Static leaf evaluation function using placed stones and `Rank` |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | VCF tactical mate solver returning ply-adjusted win scores |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `Rank`, `Config` | Precomputed stone and configuration weight tables |

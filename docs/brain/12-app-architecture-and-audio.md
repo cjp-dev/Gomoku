@@ -49,8 +49,9 @@ graph TD
 
 ### 1. `MainViewModel` (The Orchestrator)
 `MainViewModel` coordinates user interaction, turn pacing, AI invocation, clock management, and undo/redo stacks:
-- **Asynchronous AI Execution & Search ID Guard:** AI calculations run on background threads (`Task.Run`). A monotonic `_searchId` counter ensures that when a search is cancelled or superseded by a new game, in-flight callbacks from the previous search are discarded.
-- **Dynamic Board Re-dimensioning:** When the user changes board size (e.g. $15 \times 15 \to 19 \times 19$), `MainViewModel` raises `BoardLayoutChanged` and rebuilds the flat 1D grid of `IntersectionViewModel` instances.
+- **Engine Hosting (`IEngineHost`):** AI execution is decoupled via the `IEngineHost` interface. On desktop WPF, [`LocalEngineHost.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.App/Services/LocalEngineHost.cs) manages `CarbonBitboardAiPlayer` backed by `LockFreeTranspositionTable` with user-configurable Lazy SMP multi-threading. On Blazor WebAssembly, `EngineWorker` offloads computation to a background Web Worker.
+- **Asynchronous AI Execution & Search ID Guard:** AI calculations run on background threads (`Task.Run` or Web Worker). A monotonic `_searchId` counter ensures that when a search is cancelled or superseded by a new game, in-flight callbacks from the previous search are discarded.
+- **Standardized 15×15 Tournament Board:** Standardizes on official $15 \times 15$ tournament geometry across all game modes, building a 225-cell grid of `IntersectionViewModel` instances with fixed board orientation.
 - **Renju Real-Time Foul Overlay:** On every turn, if Renju rules are active and Black is to move, `MainViewModel` flags forbidden intersections with `IsForbidden = true`, rendering instantaneous red $\times$ markers on the UI.
 - **Competitive Integrity Tracking (`IsGameModified`):** Tracks whether the match has diverged from strict tournament conditions (via Undos against AI, switching sides mid-game, adjusting settings during play, or timeout continuation). Exposes `IsStatusModified` to tint the UI `STATUS` badge crimson red (`#E74C3C`).
 - **Per-Ply Clock Snapshotting & Time Refund:** Maintains an internal dictionary `_timeAtPly` that records remaining chess clock times for both players at each turn. When `Undo()` is invoked, elapsed thinking time is refunded to the exact snapshot recorded at that ply.
@@ -218,6 +219,8 @@ public interface IDialogService
 | File | Member / Method | Description |
 |---|---|---|
 | [MainViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | `MainViewModel` | Central MVVM controller coordinating board, engine, and turns |
+| [LocalEngineHost.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/Services/LocalEngineHost.cs) | `LocalEngineHost` | Host service executing `CarbonBitboardAiPlayer` with Lazy SMP and lock-free TT |
+| [IEngineHost.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/Services/IEngineHost.cs) | `IEngineHost` | Engine hosting abstraction unifying desktop and browser worker backends |
 | [IntersectionViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/IntersectionViewModel.cs) | `IntersectionViewModel` | Observable cell representation for data-binding |
 | [AnalysisViewModel.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `AnalysisViewModel` | Real-time AI evaluation dashboard and win-rate bar |
 | [SoundWaves.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/Services/SoundWaves.cs) | `SoundWaves` | Procedural 16-bit PCM WAV synthesizer |

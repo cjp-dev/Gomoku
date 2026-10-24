@@ -40,26 +40,16 @@
 
             @if (dialog.Settings is { } settings)
             {
-                <fieldset class="settings" style="margin-bottom: 1rem;">
-                    <legend>Board Size &amp; Rules Variant</legend>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                        <div>
-                            <span style="font-size: 0.8rem; font-weight: 700; color: #64748B;">BOARD GEOMETRY</span>
-                            <div style="font-weight: 600; margin-top: 4px;">15 × 15 (Standard)</div>
-                            <div style="font-size: 0.75rem; color: #64748B;">Official Gomoku &amp; Renju size</div>
-                        </div>
-                        <div>
-                            <span style="font-size: 0.8rem; font-weight: 700; color: #64748B;">RULES VARIANT</span>
-                            <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Freestyle)" @onchange="() => settings.SelectedVariant = GomokuVariant.Freestyle" /> Freestyle (5+ wins)</label>
-                            <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Exact5)" @onchange="() => settings.SelectedVariant = GomokuVariant.Exact5" /> Standard (Exact 5)</label>
-                            <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Renju)" @onchange="() => settings.SelectedVariant = GomokuVariant.Renju" /> Renju (Forbidden 3x3/4x4)</label>
-                        </div>
-                    </div>
-                </fieldset>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                    <fieldset class="settings" style="margin: 0;">
+                        <legend>Rules Variant</legend>
+                        <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Freestyle)" @onchange="() => settings.SelectedVariant = GomokuVariant.Freestyle" /> Freestyle (5+ wins)</label>
+                        <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Exact5)" @onchange="() => settings.SelectedVariant = GomokuVariant.Exact5" /> Standard (Exact 5)</label>
+                        <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Renju)" @onchange="() => settings.SelectedVariant = GomokuVariant.Renju" /> Renju (Forbidden 3x3/4x4)</label>
+                    </fieldset>
 
-                <fieldset class="settings" style="margin-bottom: 1rem;">
-                    <legend>Board Theme</legend>
-                    <div style="display: flex; gap: 1.5rem;">
+                    <fieldset class="settings" style="margin: 0;">
+                        <legend>Board Theme</legend>
                         @foreach (string theme in settings.AvailableThemes)
                         {
                             <label>
@@ -67,8 +57,8 @@
                                 @theme
                             </label>
                         }
-                    </div>
-                </fieldset>
+                    </fieldset>
+                </div>
 
                 <fieldset class="settings" style="margin-bottom: 1rem;">
                     <legend>AI Engine</legend>
@@ -96,16 +86,6 @@
                         <input type="range" min="1" max="30" aria-label="Minutes per game" disabled="@(settings.SelectedTimeControl != TimeControlMode.TimePerGame)"
                                @bind="settings.GameTimeMinutes" @bind:event="oninput" />
                         <span>@settings.GameTimeMinutes minutes</span>
-                    </fieldset>
-
-                    <fieldset class="settings" style="margin-bottom: 1rem;">
-                        <legend>Engine Performance</legend>
-                        <div style="font-size: 0.85rem; color: #334155;">
-                            <strong>Carbon AI (Bitboard):</strong> Dedicated Web Worker (540,000 NPS).
-                        </div>
-                        <div style="font-size: 0.75rem; color: #64748B; margin-top: 4px;">
-                            Runs asynchronously in a background Web Worker for smooth 60 FPS gameplay. Full 8-thread Lazy SMP (4.2M NPS) is enabled in the desktop WPF application.
-                        </div>
                     </fieldset>
 
                     <fieldset class="settings">

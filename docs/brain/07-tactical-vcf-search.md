@@ -235,7 +235,8 @@ Under Renju rules, Black is forbidden from playing Double-Three (3x3), Double-Fo
 
 | File | Member / Method | Description |
 |---|---|---|
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | Recursive VCF mate solver returning ply distance $q$ |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `QuickWinSearch()` | Primary 1D bitboard VCF mate solver returning ply distance $q$ |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | Reference recursive VCF mate solver returning ply distance $q$ |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Evaluates $q$ at root and internal nodes, assigning $[\text{WinMin}, \text{WinMax}]$ |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `NSt` | Live $2 \times 10$ threat state tensor updated incrementally on make/undo |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `ThreatA` .. `ThreatForbid` | Canonical tactical threat status constants |

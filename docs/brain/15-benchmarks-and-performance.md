@@ -12,7 +12,8 @@ Gomoku .NET achieves performance parity with native C++ engines through careful 
 - **Empirical Throughput:**
   - `PatternBoard` make/undo throughput: **$1,340,000+\text{ ops/sec}$**.
   - Transposition Table probe/store throughput: **$167,000,000+\text{ ops/sec}$**.
-  - Minimax search throughput: **$300,000\text{ to }1,200,000+\text{ NPS}$** depending on branch depth and branching factor.
+  - Single-threaded search throughput: **$538,000+\text{ NPS}$** (.NET 10 desktop & Web Worker).
+  - Multi-threaded Lazy SMP throughput: **$4,213,000+\text{ NPS}$** ($11.77\times$ speedup on 8 cores).
 
 ---
 
@@ -92,6 +93,62 @@ An effective branching factor of $4.71$ (out of 361 legal squares) demonstrates 
 
 ---
 
+### 4. 100-Game Head-to-Head Tournament: Carbon AI vs. Carbon-X
+
+To investigate whether a pure sliding bitboard approach could outperform Carbon's directional ray bitboards and precomputed threat tables, a 100-game head-to-head tournament was executed under tournament conditions:
+- **Time control:** Fixed $0.20\text{ s}$ per move.
+- **Positions:** 25 standard opening positions played in alternating color pairs.
+
+| Match | Engines | Wins | Draws | Win Rate | Avg Depth | Avg NPS |
+|---|---|:---:|:---:|:---:|:---:|:---:|
+| **Match 1 (1T vs 1T)** | **Carbon AI (1T)** vs **Carbon-X (1T)** | **33 - 17** | 0 | **66.0% vs 34.0%** | 4.5 vs 5.5 | 344,702 vs 169,165 |
+| **Match 2 (8T vs 1T)** | **Carbon AI (1T)** vs **Carbon-X (8T)** | **34 - 16** | 0 | **68.0% vs 32.0%** | 4.5 vs 5.6 | 346,574 vs 1,237,851 |
+| **Overall Aggregate** | **Carbon AI Total** | **67 - 33** | 0 | **67.0%** | - | - |
+
+**Key Findings:** While Carbon-X achieved fast primitive bitboard evaluations (7.6M ops/sec) and searched 1 ply deeper, Carbon AI won overwhelmingly (**67% to 33%**) because:
+1. Carbon Gomoku's fine-grained `Rank[Config]` directional heuristics encapsulate decades of Gomocup tournament refinements that sliding bitboards lacked.
+2. Carbon's `QuickWinSearch` VCF solver detects forced checkmates up to 24 plies deep that standard depth-5 minimax cannot see.
+Full findings are documented in [`engine-comparison-report.md`](engine-comparison-report.md).
+
+---
+
+### 5. Multi-Threaded Lazy SMP Acceleration & Final Tournament
+
+Following the investigation, the primary Carbon AI engine was accelerated in two distinct milestones:
+
+#### Milestone 1: Lazy SMP Multi-Threading with Lock-Free TT
+Integrating `LockFreeTranspositionTable` with atomic updates and depth-protection:
+- **100-Game Regression Match (1T vs Baseline 1T):** $22 - 27$ ($1\text{ draw}$), confirming **zero single-threaded regression** ($359,147\text{ NPS}$ vs $363,674\text{ NPS}$).
+- **100-Game Scaling Match (8T vs Baseline 1T):** **$26 - 23$ ($1\text{ draw}$)** in favor of 8T, with throughput surging from $358,048\text{ NPS}$ to **$2,712,258\text{ NPS}$ ($7.58\times$ speedup)**.
+
+#### Milestone 2: 1D BitboardPatternBoard & Chebyshev Candidate Masks
+Flattening the board array into 1D memory `(y << 7) | x` and implementing 32-bit Chebyshev candidate bitmasks yielded an additional leap:
+
+| Match Condition | New Carbon AI Bitboard | Baseline Carbon AI | Speedup / Scaling | Outcome |
+|---|:---:|:---:|:---:|:---:|
+| **Single-Threaded (1T vs 1T)** | **$538,602\text{ NPS}$** (4.7 plies) | $380,398\text{ NPS}$ (4.7 plies) | **+41.6% single-core speedup** | **24 - 23 (3 draws)** |
+| **Multi-Threaded (8T vs 8T)** | **$4,213,348\text{ NPS}$** (5.2 plies) | $2,757,976\text{ NPS}$ (5.0 plies) | **+52.8% over 8T ($11.77\times$ over baseline)** | 24 - 25 (1 draw) |
+
+```mermaid
+xychart-beta
+    title "Engine Search Throughput Progression (Nodes Per Second)"
+    x-axis ["Baseline 1T", "New Bitboard 1T", "Lazy SMP 8T", "New Bitboard 8T"]
+    y-axis "Thousand NPS" 0 --> 4500
+    bar [358, 538, 2712, 4213]
+```
+
+---
+
+### 6. Browser WebAssembly Performance
+
+In the client-side Blazor WebAssembly app (`Gomoku.Web`):
+- The engine executes asynchronously inside a dedicated Web Worker (`engine-worker.js`), running [`CarbonBitboardAiPlayer`](file:///c:/Udvikling\Spil\Gomoku\src\Gomoku.Core\AI\CarbonBitboardAiPlayer.cs).
+- Achieves **$540,000\text{ NPS}$** in the browser sandbox.
+- Delivers instant opening book responses ($< 1\text{ ms}$) and depth-6 searches in $\approx 80\text{ ms}$.
+- Sustains a rock-solid 60 FPS UI frame rate with zero blocking of board interactions or animations.
+
+---
+
 ## Memory profiling & garbage collection
 
 A primary bottleneck in managed runtimes (like .NET or Java) during game-tree search is Garbage Collection (GC) pauses. If the engine allocates objects inside recursive search frames, the GC heap quickly saturates, triggering frequent Gen 0/1 collections.
@@ -138,10 +195,12 @@ flowchart LR
 
 | File | Component | Description |
 |---|---|---|
-| [Program.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/Program.cs) | `Gomoku.Benchmark` | CLI performance benchmark runner and telemetry reporter |
+| [Program.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/Program.cs) | `Gomoku.Benchmark` | CLI performance benchmark runner and tournament reporter |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-throughput flat 1D pattern board with Chebyshev bitboard masks |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `CarbonBitboardAiPlayer` | Primary Lazy SMP multi-threaded tournament engine |
+| [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | `LockFreeTranspositionTable` | 16-byte lockless TT with depth-protected replacement |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `MakePaddedMove()` | High-throughput $\mathcal{O}(1)$ ray bitmask mutator |
-| [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | `TryProbe()`, `Store()` | Cache-aligned 16-byte power-of-two hash table |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Zero-allocation recursive PVS search loop |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Reference recursive PVS search loop |
 
 ---
 

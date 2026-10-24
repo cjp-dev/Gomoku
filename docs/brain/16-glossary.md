@@ -59,11 +59,17 @@ Classification of a score stored in the Transposition Table:
 #### Candidate (`Cand`)
 A candidate move struct storing board coordinates $(X, Y)$ and an associated heuristic priority score.
 
-#### Carbon AI (Advanced)
-The championship-grade Gomoku AI ported from Michał Czardybon's Carbon Gomoku, featuring iterative deepening closed-interval Minimax search, 64-bit Zobrist Transposition Tables, directional ray bitboards, $10,000$-cell threat tensors, and an embedded VCF tactical solver (`QuickWinSearch`).
+#### Carbon AI (Bitboard)
+The primary championship-grade Gomoku AI in Gomoku .NET, combining Michał Czardybon's Carbon Gomoku heuristics, directional ray bitboards with flat 1D memory (`BitboardPatternBoard`), Chebyshev dilation candidate bitmasks, an embedded VCF tactical solver (`QuickWinSearch`), a lock-free Transposition Table, and scalable **Lazy SMP parallel search** achieving up to $4.2\text{M NPS}$.
+
+#### Carbon-X
+An experimental bitboard research engine developed during engine investigation, combining primitive 15×15 bitboards (`Bitboard15`), lock-free transposition tables, and PVS search to evaluate pure bitboard throughput against Carbon heuristics.
 
 #### Carbon Gomoku
 The legendary C++ Gomoku engine authored by Tomasz Czardybon, known for winning the Gomocup international tournament and introducing 4-ray pattern bitboard tensors and closed-interval search.
+
+#### Chebyshev Bitboard Mask
+A 32-bit row-level bitmask maintained with bitwise shifts and bitwise ORs in `BitboardPatternBoard` to track 1-ring and 2-ring neighbor proximity, replacing 24 array element writes per move with 5 bitwise operations.
 
 #### Closed-Interval Negamax
 A formulation of the Negamax search algorithm where the search window $[\alpha, \beta]$ is inclusive (closed), and fail-soft returns exceed the boundary by $\pm 1$.
@@ -153,6 +159,12 @@ The premier, traditional golden-yellow wood harvested from *Torreya nucifera* tr
 ---
 
 ### L
+
+#### Lazy SMP
+A lock-free parallel search algorithm where multiple worker threads simultaneously explore the game tree independently, coordinating organically by reading and writing to a shared transposition table without complex master-worker thread management or lock contention.
+
+#### LockFreeTranspositionTable
+A 16-byte aligned, lock-free transposition table implementing atomic slot access and strict depth-protection against shallow worker overwrites, enabling linear multi-core scaling in Lazy SMP.
 
 #### LShape
 In Carbon's pattern bitboard, the precomputed 2-bit flag array tracking whether an 8-cell ray is truncated by the board boundary within distance 4.

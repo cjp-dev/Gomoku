@@ -92,8 +92,10 @@ Under Renju rules, Black is forbidden from creating Overlines, Double-Threes, or
 ## Blazor WebAssembly client (`Gomoku.Web`)
 
 The web client runs entirely in the browser using WebAssembly Ahead-of-Time (AOT) compilation:
+- **Dedicated Web Worker Engine (`engine-worker.js` / `EngineWorker.cs`):** Carbon AI runs completely off the browser's UI thread in a dedicated background Web Worker, delivering **$540,000\text{ NPS}$** (+41.6% speedup via `BitboardPatternBoard`) without causing UI jank or dropping below 60 FPS during intensive thinking.
 - **High Computational Throughput:** WebAssembly AOT compiles C# IL directly to native WebAssembly bytecode, achieving $> 70\%$ of native C# desktop performance.
 - **Zero Server Latency:** AI calculations, tactical VCF searches, and audio generation execute directly on the user's CPU without making HTTP API roundtrips.
+- **Refined Settings Modal:** The web settings dialog features a streamlined 2-column side-by-side layout pairing **Rules Variant** (Freestyle, Standard Exact 5, Renju) on the left with **Board Theme** (Wood, Dark, Classic with vertically stacked options) on the right, standardized on official 15×15 tournament geometry.
 - **Responsive Layout & Mobile Navigation Drawer:**
   - **Desktop View ($> 768\text{px}$):** Horizontal menu bar (`File`, `Game`, `Options`, `Help`), 4-layer player scorecards, quick action row (`[Undo]`, `[Redo]`, `[Move Now]`), and side-by-side SVG board with real-time AI telemetry.
   - **Mobile View ($\le 768\text{px}$):** Collapses the menu bar into a top brand header with hamburger button (`☰`). Tapping toggles an off-canvas slide-out drawer (`.mobile-drawer`) with a backdrop overlay, presenting all menu actions in touch-friendly tap targets.
@@ -127,6 +129,7 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 | [MainWindow.xaml](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Wpf/MainWindow.xaml) | `MainWindow` | WPF primary desktop user interface and canvas bindings |
 | [Board.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/Board.razor) | `Board` | Scalable SVG board with wood gradients, stones, and star points |
 | [DialogHost.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/DialogHost.razor) | `DialogHost` | Modal dialog manager for game settings, mid-game confirmations, and timeout continuation |
+| [EngineWorker.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Worker/EngineWorker.cs) | `EngineWorker` | Web Worker host managing asynchronous AI execution and progress streaming |
 | [Docs.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Pages/Docs.razor) | `Docs` | Live browser manual reader with KaTeX math rendering |
 | [BrainDocs.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Services/BrainDocs.cs) | `BrainDocs` | Document discovery service matching chapter regexes |
 

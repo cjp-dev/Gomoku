@@ -73,6 +73,20 @@ Gomoku stones exert geometric influence up to 4 cells along rays. However, moves
    ```
    This simple heuristic prunes over $80\%$ of the board area in the opening and midgame, focusing search exclusively on the active theater of operations.
 
+4. **Bitboard Row Mask Scanning (`BitboardPatternBoard`):**
+   In `BitboardPatternBoard`, candidate discovery is accelerated by scanning the precomputed row bitmask `_candMask[y]`. Bitwise `tzcnt` (trailing zero count) operations directly yield the x-coordinates of candidate cells without checking individual cell adjacency counters:
+   ```csharp
+   uint mask = _candMask[y] & _emptyMask[y];
+   while (mask != 0)
+   {
+       int x = BitOperations.TrailingZeroCount(mask);
+       mask &= mask - 1; // Clear lowest set bit
+       short pr = Prior(x, y);
+       if (pr > 1) cnd[nCnd++] = new Cand(x, y, pr);
+   }
+   ```
+   This eliminates non-candidate branch tests, contributing to search speeds exceeding $4.2\text{M NPS}$.
+
 ---
 
 ## Priority scoring (`Prior()`)
@@ -207,8 +221,10 @@ When Black is side to move under Renju rules, any candidate whose placement resu
 
 | File | Member / Method | Description |
 |---|---|---|
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `GenerateCand()` | Main candidate move generator and threat override pipeline |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `GenerateCand()` | Primary AI candidate generation, bitboard mask scanning, and threat overrides |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `GenerateCand()` | Reference candidate move generator and threat override pipeline |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `ForceOneCand()` | Prunes candidate list to a single forced tactical move |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `GetCandidateMask()` | 32-bit row bitmask extraction for zero-allocation candidate gathering |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `Prior()` | Fast 4-ray priority evaluation using `CarbonTables.Prior` |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `Adj1`, `Adj2` | Concentric 1-ring and 2-ring stone neighborhood counters |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `Prior` | Precomputed $256 \times 256$ directional priority matrix |

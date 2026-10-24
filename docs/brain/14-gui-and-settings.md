@@ -6,7 +6,7 @@
 
 Gomoku .NET features a unified, modern user interface across both **WPF desktop** and **Blazor WebAssembly** clients. Designed with a clean light theme, Japanese Hon-Kaya wood aesthetic, 4-layer dual-card scoreboard, fixed board orientation, quick action controls, and responsive SVG vector graphics, the application provides intuitive controls for casual players while exposing professional tournament analysis tools and engine configuration.
 
-This chapter documents the visual layout, menu commands, settings configuration, the competitive integrity status system, the technical differences between **Carbon AI (Advanced)** and **Simple AI**, and the real-time search analysis telemetry streaming engine.
+This chapter documents the visual layout, menu commands, settings configuration, the competitive integrity status system, the technical differences between **Carbon AI (Bitboard)** and **Simple AI**, and the real-time search analysis telemetry streaming engine.
 
 ---
 
@@ -150,45 +150,46 @@ Accessed via **Game $\rightarrow$ Settings...**, the modal settings dialog lets 
 ![Gomoku .NET Settings Dialog](images/gui-settings.png)
 
 The dialog is arranged into four sequential sections:
-1. **Board Size & Rules Variant:** Board geometry ($15 \times 15$, $19 \times 19$, $20 \times 20$) and Gomoku victory rules (Freestyle, Exact 5, Renju).
-2. **AI Engine:** Opponent engine selection: **Carbon AI (Advanced)** or **Simple AI**.
-3. **Computer Thinking Limits:** Search depth and clock allocation modes (Fixed depth, Time per move, Time per game). *Visible only when Carbon AI is selected.*
-4. **Carbon Opening Book & Transposition Table:** Opening book activation and memory table allocation. *Visible only when Carbon AI is selected.*
+1. **Board Size & Rules Variant:** Locked tournament geometry ($15 \times 15$ Standard) and Gomoku victory rules (**Freestyle (5+ wins)**, **Standard (Exact 5)**, and **Renju (Forbidden 3x3/4x4)**).
+2. **AI Engine:** Opponent engine selection: **Carbon AI (Bitboard)** or **Simple AI**.
+3. **Computer Thinking Limits:** Search depth and clock allocation modes (Fixed depth $1\text{–}14$ plies, Time per move $1\text{–}20\text{ s}$, Time per game $1\text{–}30\text{ min}$). *Visible only when Carbon AI is selected.*
+4. **Carbon Performance & Opening Book:** Multi-threading parallel search (Lazy SMP toggle and search threads slider), opening book toggle ($67$ symmetry patterns across $22$ canonical opening systems), and transposition table memory allocation ($1\text{ MB}$ to $256\text{ MB}$). *Visible only when Carbon AI is selected.*
 
 ```mermaid
 graph TD
     Settings["Settings Dialog"]
-    Settings --> Section1["1. Board Size &amp; Rules Variant<br/>15x15 • 19x19 • 20x20 | Freestyle • Exact 5 • Renju"]
-    Settings --> Section2["2. AI Engine<br/>Carbon AI (Advanced) vs. Simple AI"]
+    Settings --> Section1["1. Board Size &amp; Rules Variant<br/>15x15 Standard | Freestyle • Standard • Renju"]
+    Settings --> Section2["2. AI Engine<br/>Carbon AI (Bitboard) vs. Simple AI"]
     Section2 -- "Simple AI selected" --> Simplified["Compact Dialog<br/>(Advanced sections removed)"]
-    Section2 -- "Carbon AI selected" --> Section3["3. Computer Thinking Limits<br/>Fixed Depth • Time per Move • Time per Game"]
-    Section2 -- "Carbon AI selected" --> Section4["4. Carbon Opening Book &amp; Transposition Table<br/>67 Symmetry Patterns • 1 MB to 256 MB TT"]
+    Section2 -- "Carbon AI selected" --> Section3["3. Computer Thinking Limits<br/>Fixed Depth (1–14) • Time per Move (1–20s) • Time per Game (1–30m)"]
+    Section2 -- "Carbon AI selected" --> Section4["4. Carbon Performance &amp; Opening Book<br/>Multi-Threading (Lazy SMP) • Opening Book (67 Patterns) • TT (1–256 MB)"]
 ```
 
 > [!NOTE] Dynamic AI Settings Visibility
-> When **Simple AI** is selected, the dialog dynamically removes sections 3 and 4 (**Computer Thinking Limits** and **Carbon Opening Book & Transposition Table**). Because Simple AI is an instant 1-ply heuristic evaluator that does not utilize tree search, transposition memory, or opening books, hiding these controls keeps the interface focused, clean, and intuitive for casual play. Switching back to **Carbon AI (Advanced)** immediately restores all tournament search controls.
+> When **Simple AI** is selected, the dialog dynamically hides sections 3 and 4 (**Computer Thinking Limits** and **Carbon Performance & Opening Book**). Because Simple AI is an instant 1-ply heuristic evaluator that does not utilize tree search, transposition memory, multi-threading, or opening books, hiding these controls keeps the interface focused, clean, and intuitive for casual play. Switching back to **Carbon AI (Bitboard)** immediately restores all tournament search and performance controls.
 
 ### 1. Board Dimensions
 
 | Dimension | Standard Name | Common Usage | Star Points (Hoshi) |
 |---|---|---|---|
-| **$15 \times 15$** | Renju / Modern Gomoku | International tournament standard (RIF). Fastest tactical play. | 5 points: D4, L4, H8, D12, L12 |
-| **$19 \times 19$** | Go / Weiqi Size | Traditional East Asian board size. Expansive positional midgame. | 9 points (columns 4, 10, 16) |
-| **$20 \times 20$** | Gomocup Standard | Global computer tournament standard used in Gomocup championships. | 4 points: E5, P5, E16, P16 |
+| **$15 \times 15$** | Renju / Modern Gomoku | Official international tournament standard (RIF). Standard geometry across all game modes. | 5 points: D4, L4, H8, D12, L12 |
+
+> [!NOTE] Standardized Tournament Geometry
+> Gomoku .NET standardizes on the official international $15 \times 15$ tournament geometry recognized by the Renju International Federation (RIF) and modern Gomoku tournament bodies. While historical variants played on Go boards ($19 \times 19$) or Gomocup test harness grids ($20 \times 20$) exist in literature, $15 \times 15$ provides the definitive balance between tactical sharpness and strategic depth without degenerate draw death.
 
 ### 2. Rule Variants
 
 Gomoku rules govern winning conditions and first-player advantage restrictions:
 
-* **Freestyle:** The purest five-in-a-row rule. Five or more consecutive stones of the same color in any direction (horizontal, vertical, or diagonal) wins the game immediately. Overlines ($6+$ stones) count as a win.
-* **Exact Five:** A line of exactly five stones wins. Overlines ($6+$ consecutive stones) do *not* count as a win and play continues.
-* **Renju:** Professional tournament rules designed to balance Black's first-move advantage:
+* **Freestyle (5+ wins):** The purest five-in-a-row rule. Five or more consecutive stones of the same color in any direction (horizontal, vertical, or diagonal) wins the game immediately. Overlines ($6+$ stones) count as a win.
+* **Standard (Exact 5):** A line of exactly five stones wins. Overlines ($6+$ consecutive stones) do *not* count as a win and play continues.
+* **Renju (Forbidden 3x3/4x4):** Professional tournament rules designed to balance Black's first-move advantage:
   * **Black Restrictions (Fouls):** Black cannot play **Double-Threes** ($3 \times 3$), **Double-Fours** ($4 \times 4$), or **Overlines** ($6+$ stones). Attempting to play a foul square is an immediate forfeit loss.
   * **White Freedom:** White has no restrictions whatsoever. White wins with five in a row *or* by creating an Overline ($6+$ stones). White can also win by forcing Black into a forbidden foul square.
 
 ---
 
-### 3. AI Opponents: Carbon AI (Advanced) vs. Simple AI
+### 3. AI Opponents: Carbon AI (Bitboard) vs. Simple AI
 
 Gomoku .NET provides two distinct artificial intelligence engines:
 
@@ -201,42 +202,63 @@ flowchart TD
     end
 
     subgraph CarbonAI ["Carbon AI (Tournament Engine)"]
-        C_Book{"Opening Book?"} -- "yes" --> C_PlayBook["Dihedral D4 Move"]
+        C_Book{"Opening Book?"} -- "yes" --> C_PlayBook["Dihedral D4 Move (67 Patterns)"]
         C_Book -- "no" --> C_VCF{"QuickWinSearch()<br/>VCF Solver"}
         C_VCF -- "mate found" --> C_Mate["Immediate forced win"]
         C_VCF -- "no mate" --> C_ID["Iterative Deepening<br/>Depth 2, 4, 6... up to 50"]
-        C_ID --> C_AB["Closed-Interval Negamax<br/>• Bitboard threat tensors<br/>• 64-bit Zobrist TT<br/>• ONE_CAND tactical overrides"]
+        C_ID --> C_AB["Closed-Interval Negamax<br/>• Lazy SMP Multi-Threading<br/>• Bitboard threat tensors<br/>• 64-bit Zobrist TT<br/>• ONE_CAND tactical overrides"]
     end
 ```
 
 #### Detailed Comparison
 
-| Engine Property | [Simple AI](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | [Carbon AI (Advanced)](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) |
+| Engine Property | [Simple AI](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | [Carbon AI (Bitboard)](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) |
 |---|---|---|
-| **Origin** | Ported from Carbon Gomoku's `AISimple` | Direct port of Michał Czardybon's championship engine |
-| **Search Depth** | **1 ply** (no tree search) | **6 to 16+ plies** (deep tree search) |
-| **Lookahead** | Evaluates only the immediate placed stone | Calculates deep counter-replies and multi-turn combinations |
+| **Origin** | Ported from Carbon Gomoku's `AISimple` | Direct port of Michał Czardybon's championship engine with directional ray bitboards and Lazy SMP |
+| **Search Depth** | **1 ply** (no tree search) | **6 to 14+ plies** (iterative deepening tree search) |
+| **Lookahead** | Evaluates only the immediate placed stone | Calculates deep counter-replies, multi-turn combinations, and forced wins |
 | **Tactical Solver** | Checks only immediate open-threes and fours | **QuickWinSearch (VCF solver)** detects checkmates 20+ plies deep |
 | **Pattern Bitboards** | Basic looping counter in 4 directions | **Directional Ray Bitboards** with $10,000$-cell threat tensors |
-| **Transposition Table** | None | **64-bit Zobrist Transposition Table** with depth/bound caching |
-| **Opening Book** | None (plays center on move 1) | **Embedded Opening Book** with 22 canonical opening systems |
+| **Multi-Threading** | Single-threaded | **Scalable Lazy SMP** (shared lockless TT across 1 to machine max CPU cores) |
+| **Transposition Table** | None | **64-bit Zobrist Transposition Table** ($1\text{ MB}$ to $256\text{ MB}$) with depth/bound caching |
+| **Opening Book** | None (plays center on move 1) | **Embedded Opening Book** with 67 symmetry patterns (22 canonical opening systems) |
 | **Candidate Pruning** | Proximity filter ($3 \times 3$ around stones) | Bounding box scanning, `Prior()` sorting, and `ONE_CAND` overrides |
 | **Renju Awareness** | Checks immediate legal move list | Foresees and avoids playing into multi-move foul traps |
 | **Playing Strength** | Beginner to Casual | Expert / Tournament Champion |
-| **Response Time** | Instant ($< 1\text{ ms}$) | Controlled by time limit ($1\text{–}60\text{ s}$) or fixed depth |
+| **Response Time** | Instant ($< 1\text{ ms}$) | Controlled by time limit ($1\text{–}20\text{ s}$), clock bank ($1\text{–}30\text{ min}$), or fixed depth ($1\text{–}14\text{ plies}$) |
 
 #### When to choose which?
 * **Choose Simple AI:** When learning Gomoku, playing fast casual games on low-power devices, or wanting an opponent that makes human-like tactical oversights without punishing subtle mistakes.
-* **Choose Carbon AI (Advanced):** For serious, competitive play. Carbon AI anticipates opponent forks, executes unstoppable VCF winning sequences, defends against multi-move combinations, and plays optimal book openings.
+* **Choose Carbon AI (Bitboard):** For serious, competitive play. Carbon AI anticipates opponent forks, executes unstoppable VCF winning sequences, defends against multi-move combinations, and plays optimal book openings.
 
 ---
 
-### 4. Time Controls and Limits
+### 4. Computer Thinking Limits
 
-* **Time per Move:** Allocates a dedicated thinking window (e.g., $1\text{ s}$ to $60\text{ s}$) for every turn. The engine uses soft limits ($2/3$ time) to conclude iterations safely before hard timeout interrupts.
-* **Fixed Depth:** Forces the engine to search to an exact ply depth (e.g., $1$ to $16$ plies), regardless of time taken.
-* **Time per Game (Chess Clock):** Provides a total bank of time per player (e.g., $5\text{ min}$ to $60\text{ min}$). The engine dynamically divides remaining time by the estimated remaining moves in the game.
-* **Use Opening Book:** Toggles whether the engine queries its 22-opening dihedral pattern database before launching tree search.
+When playing against **Carbon AI (Bitboard)**, thinking constraints can be configured to match tournament settings:
+
+* **Fixed depth:** Forces the engine to search to an exact ply depth ($1$ to $14$ plies), regardless of time taken. Ideal for tactical benchmarking and reproducible move analysis.
+* **Time per move:** Allocates a dedicated thinking window ($1\text{ s}$ to $20\text{ s}$) for every turn. The engine uses soft limits ($2/3$ time) to conclude iterations safely before hard timeout interrupts.
+* **Time per game (Chess Clock):** Provides a total bank of time per player ($1\text{ min}$ to $30\text{ min}$). The engine dynamically divides remaining time by the estimated remaining moves in the game.
+
+---
+
+### 5. Carbon Performance & Opening Book
+
+Exclusively available when **Carbon AI (Bitboard)** is active, this section fine-tunes parallel processing, opening memory, and hash tables:
+
+* **Enable Multi-Threading (Lazy SMP):** Enables parallel search utilizing multiple CPU threads via Lazy SMP (Lockless Shared Transposition Table). Multiple worker threads simultaneously traverse the game tree, sharing evaluations and principal variations via the global transposition table with negligible synchronization overhead.
+* **Search Threads:** Dynamically adjusts the number of parallel search threads from `0` to the host machine's logical processor count (`Environment.ProcessorCount`). Setting `0` selects **Auto** (e.g., `Auto (8 cores)`), maximizing CPU throughput across all available cores, while specific thread counts (e.g., `4 threads`) allow precise resource management.
+* **Enable Carbon Opening Book (67 symmetry patterns):** Toggles whether the engine queries its 67-symmetry-pattern database before launching tree search. The opening book encapsulates 22 canonical opening systems with dihedral $D_4$ invariance (8 rotations and reflections), playing book moves instantaneously.
+* **Table Capacity:** Configures the transposition table memory footprint from $1\text{ MB}$ ($65,536$ entries) to $256\text{ MB}$ ($16,777,216$ entries), with $64\text{ MB}$ ($4,194,304$ entries) as default. Sizing the table appropriately prevents hash overwrites during deep searches.
+
+---
+
+### 6. Dialog Actions
+
+* **Reset Defaults:** Restores default tournament settings ($15 \times 15$ Freestyle, Carbon AI, $5\text{ s}$ Time per Move, Multi-Threading enabled with Auto thread allocation, Opening Book enabled, and $64\text{ MB}$ Transposition Table).
+* **Cancel:** Discards all unapplied changes and closes the modal dialog.
+* **Save:** Applies changes immediately to the active game session, updating engine configurations, restarting clocks if needed, and saving preferences.
 
 ---
 
@@ -275,14 +297,14 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 ### Instant Opening Moves & 250ms Delay
 When the engine plays an instant move—such as placing the initial center stone on Move 1 or matching a recognized opening book line—it emits `StatusMessage = "Center opening"` or `"Opening book"` and pauses for **$250\text{ ms}$**. This deliberate brief delay ensures the user can visually register the engine's opening acknowledgment and analysis badge before the stone is placed.
 
-### Cooperative WebAssembly Yielding
-In the browser client (`Gomoku.Web`), execution runs within a single-threaded WebAssembly runtime. To prevent long AI calculations from freezing the browser UI and blocking animation frames:
+### Dedicated Web Worker & Asynchronous UI Responsiveness
+In the browser client (`Gomoku.Web`), Carbon AI searches run asynchronously in a dedicated background Web Worker (`carbon-worker.js`), completely isolating heavy engine computation from the browser's main UI thread. This guarantees that board interactions, stone placement animations, hover ghost previews, and telemetry updates remain fluid at 60 FPS without frame drops. In environments where workers are not utilized or for single-threaded fallback execution:
 1. `MinimaxRootAsync` tracks elapsed thinking time and checks a $\ge 150\text{ ms}$ heartbeat between root candidates.
 2. When the heartbeat threshold is reached, it emits a `SearchAnalysis` telemetry snapshot with `IsSearching: true` and executes:
    ```csharp
    await Task.Delay(1, cancellationToken);
    ```
-3. This yields a macrotask slice back to the browser's JavaScript event loop. The `BrowserSynchronizationContext` executes pending `Analysis.Updated` events, invokes `StateHasChanged()`, and paints updated depths, nodes, and speeds at a fluid 60 FPS.
+3. This yields a macrotask slice back to the browser's JavaScript event loop, ensuring the `BrowserSynchronizationContext` executes pending events and refreshes the display.
 
 ---
 
@@ -312,7 +334,7 @@ In the browser client (`Gomoku.Web`), execution runs within a single-threaded We
 |---|---|---|
 | [`MainViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | `MainViewModel` | Central orchestrator managing modes, competitive integrity (`IsGameModified`), per-ply clock snapshots (`_timeAtPly`), turn dispatching, and telemetry subscriptions |
 | [`AnalysisViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `AnalysisViewModel` | Observable ViewModel formatting depth strings, centipawn scores, node rates, and elapsed time (`m\:ss\.f`) |
-| [`SettingsViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/SettingsViewModel.cs) | `SettingsViewModel` | Data backing for the Settings dialog (board size, rules, engines, time controls) |
+| [`SettingsViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/SettingsViewModel.cs) | `SettingsViewModel` | Data backing for the Settings dialog (board size, rules, engines, time controls, multi-threading, opening book, and transposition table capacity) |
 | [`CarbonAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `CarbonAiPlayer` | Tournament Minimax search engine with iterative deepening and VCF quick-win solver |
 | [`SimpleAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | `SimpleAiPlayer` | Fast 1-ply heuristic pattern evaluator for beginner and casual gameplay |
 | [`SearchAnalysis.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchAnalysis.cs) | `SearchAnalysis` | Immutable record transporting live telemetry snapshots across thread boundaries |
