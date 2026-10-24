@@ -40,6 +40,8 @@ bld/
 # Generated static files in Gomoku.Web wwwroot
 src/Gomoku.Web/wwwroot/content/
 src/Gomoku.Web/wwwroot/images/
+src/Gomoku.Web/wwwroot/engine/
+bin/engine_publish/
 
 
 # Visual Studio 2017 auto generated files

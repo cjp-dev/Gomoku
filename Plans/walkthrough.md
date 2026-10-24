@@ -96,7 +96,7 @@ In the final phase, [`CarbonBitboardAiPlayer`](file:///c:/Udvikling/Spil/Gomoku/
 ### 1. Engine Promotion & Naming
 * Renamed engine branding from `"New Carbon AI Bitboard"` to **`Carbon AI`** (`"Carbon AI ({ThreadCount}T)"` when multi-threaded).
 * [`LocalEngineHost.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.App/Services/LocalEngineHost.cs) now instantiates `CarbonBitboardAiPlayer` backed by the 16-byte [`LockFreeTranspositionTable`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs).
-* [`EngineWorker.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Worker/EngineWorker.cs) now powers the Blazor WebAssembly player with `CarbonBitboardAiPlayer(1)`, delivering an automatic **+41.6% speedup (540k NPS)** in the browser.
+* [`EngineWorker.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Worker/EngineWorker.cs) powers single-threaded browser execution as a stable fallback.
 
 ### 2. Zero-Allocation Direct Bitboard Opening Book
 * Added [`OpeningBook.TryGetMove(BitboardPatternBoard pb, ...)`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/OpeningBook.cs).
@@ -107,32 +107,33 @@ In the final phase, [`CarbonBitboardAiPlayer`](file:///c:/Udvikling/Spil/Gomoku/
 * Replaced the 19×19 / 20×20 radio selectors in WPF ([`SettingsWindow.xaml`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Wpf/Views/SettingsWindow.xaml)) and Web ([`DialogHost.razor`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Components/DialogHost.razor)) with an informative badge: **"Board Size: 15 × 15 (Standard Gomoku & Renju)"**.
 * Confirmed 100% support for all 3 official rules variants: **Freestyle**, **Standard (Exact 5)**, and **Renju**.
 
-### 4. User Multi-Threading Controls (Lazy SMP)
-* Added `MultiThreadingEnabled` (default: `true`) and `ThreadCount` (default: `0 = Auto / all logical cores`) to settings.
-* Exposed interactive controls in the Settings dialog:
-  * `[x] Enable Multi-Threading (Lazy SMP)`
-  * Interactive slider displaying `Auto (8 cores)` or specific thread counts $1 \dots N$.
-  * Toggling off multi-threading dynamically switches the search to pure single-threaded 1T mode.
-
-### 5. Verification Results
-* Full test suite: **83 unit tests passing** (57 in `Gomoku.Core.Tests`, 26 in `Gomoku.App.Tests`) with 0 errors and 0 warnings.
-* Both `Gomoku.Wpf` and `Gomoku.Web` build cleanly in Release configuration.
-
 ---
 
-## 7. Web Architecture & Azure Static Web Apps Integration
+## 7. Web Multi-Threading Architecture (Design A + Auto Fallback)
 
-In the web version (`Gomoku.Web`), we analyzed browser WebAssembly execution:
+In the web version (`Gomoku.Web`), we implemented **Design A** from the V2 plan, modeling the architecture after production multi-threaded chess engines like Stockfish.js:
 
-### 1. Browser Web Worker Architecture
-* The Gomoku AI runs inside a dedicated Web Worker (`engine-worker.js`) completely off the main UI thread.
-* In WebAssembly, multi-threaded .NET (`<WasmEnableThreads>`) relies on the main UI thread creating pthread Web Workers. Attempting to run a multi-threaded .NET runtime *inside* an existing custom Web Worker causes `dotnet.create()` to attempt spawning unsupported nested Web Workers, hanging runtime initialization.
-* Running [`CarbonBitboardAiPlayer`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) single-threaded (**1T**) inside the dedicated Web Worker delivers:
-  * **540,000 NPS (+41.6% speedup)** directly in the browser.
-  * Instant moves (opening book in 1 ms; Depth 6 in 80 ms).
-  * 100% responsive 60 FPS UI without frame drops.
-  * Universal compatibility across mobile phones (iPhone/Android), tablets, desktop browsers, and Azure Static Web Apps without requiring `SharedArrayBuffer` headers or polyfills.
+### 1. Dedicated Multi-Threaded Engine Runtime (`Gomoku.Web.Engine`)
+* Created [`Gomoku.Web.Engine.csproj`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web.Engine/Gomoku.Web.Engine.csproj) targeting `net10.0` with `<OutputType>Exe</OutputType>`, `<WasmEnableThreads>true</WasmEnableThreads>`, and `<WasmPThreadPoolInitialSize>4</WasmPThreadPoolInitialSize>`.
+* The **Blazor UI application stays 100% single-threaded**, avoiding the unsupported deputy thread model and keeping synchronous JS interop (`IJSInProcessRuntime`, `LocalStorageSettingsStore`) completely reliable.
+* The multi-threaded engine runtime outputs to `/engine/_framework/` and is loaded by a dedicated Web Worker (`engine-worker.js`).
+* The total compressed download footprint of the threaded engine runtime is only **~1.96 MB** (Brotli).
 
-### 2. Desktop vs. Web Capabilities
-* **Desktop WPF:** Full 8-thread Lazy SMP multi-threading scaling up to **4,213,348 NPS (11.8× speedup)** with user-configurable thread sliders.
-* **Web Browser:** High-throughput dedicated Web Worker running at **540,000 NPS** with zero setup or cross-origin restrictions.
+### 2. Fully Decoupled Asynchronous Interop
+* Search runs on the WebAssembly thread pool via `await Task.Run(...)` returning a `Promise` to JavaScript, keeping the worker's JavaScript event loop responsive.
+* Progress reporting is buffered through a thread-safe `ConcurrentQueue<string>` and drained via `engine.DrainProgress()` from a JS timer, eliminating `[JSImport]` calls from background search worker threads.
+* Cancellation ("Move now" and "Cancel") uses `engine.Signal(int)` setting an atomic `volatile int` in memory.
+
+### 3. Automatic Resilient Fallback
+* [`engine-client.js`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/wwwroot/js/engine-client.js) checks `self.crossOriginIsolated`.
+* When cross-origin isolation and multi-threading are available, it boots the multi-threaded WASM engine.
+* If cross-origin isolation is absent, the browser does not support WebAssembly pthreads, or initialization times out, it seamlessly falls back to the single-threaded engine worker.
+
+### 4. Cross-Origin Isolation in Development & Production
+* **Production (Azure Static Web Apps):** Configured via [`staticwebapp.config.json`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/wwwroot/staticwebapp.config.json) to serve `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`.
+* **Local Development:** [`coi-serviceworker.js`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/wwwroot/js/coi-serviceworker.js) injects the required headers dynamically during local `dotnet run` (Blazor DevServer), and acts as a harmless no-op on Azure.
+
+### 5. Settings Controls
+* Re-introduced user controls in [`DialogHost.razor`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Components/DialogHost.razor):
+  * `[x] Enable Multi-Threading (Lazy SMP)`
+  * Search Threads: `Auto (Recommended: up to 4 threads)`, `1 thread`, `2 threads`, `3 threads`, `4 threads`.

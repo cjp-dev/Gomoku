@@ -2,9 +2,10 @@ name: Deploy web version
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/web-multithreading-v2-plan ]
     paths:
       - 'src/Gomoku.Web/**'
+      - 'src/Gomoku.Web.Engine/**'
       - 'src/Gomoku.App/**'
       - 'src/Gomoku.Core/**'
       - 'docs/brain/**'
@@ -28,8 +29,16 @@ jobs:
       - name: Install WebAssembly build tools
         run: dotnet workload install wasm-tools
 
-      - name: Publish (AOT)
+      - name: Publish Engine (Threaded WASM)
+        run: dotnet publish src/Gomoku.Web.Engine/Gomoku.Web.Engine.csproj -c Release -o engine_publish
+
+      - name: Publish Web App (Single-threaded UI)
         run: dotnet publish src/Gomoku.Web/Gomoku.Web.csproj -c Release -o publish
+
+      - name: Copy Engine Assets to Web App
+        run: |
+          mkdir -p publish/wwwroot/engine/_framework
+          cp -r engine_publish/wwwroot/_framework/* publish/wwwroot/engine/_framework/
 
       # The app is already built, so the action only uploads the static files.
       - name: Deploy to Azure Static Web Apps
@@ -39,4 +48,3 @@ jobs:
           action: upload
           app_location: publish/wwwroot
           skip_app_build: true
-
