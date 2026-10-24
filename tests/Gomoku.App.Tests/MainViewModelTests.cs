@@ -4,6 +4,7 @@ using Gomoku.App.Services;
 using Gomoku.App.Tests.Mocks;
 using Gomoku.App.ViewModels;
 using Gomoku.Core.AI;
+using Gomoku.Core.Engine;
 using Gomoku.Core.Models;
 using Xunit;
 
@@ -106,7 +107,6 @@ public class MainViewModelTests
         _dialog.OnShowCustomDialog = obj =>
         {
             var svm = (SettingsViewModel)obj;
-            svm.SelectedBoardSize = BoardSize.Size20x20;
             svm.SelectedVariant = GomokuVariant.Renju;
             svm.SelectedTimeControl = Gomoku.Core.AI.TimeControlMode.FixedDepth;
             svm.SearchDepth = 8;
@@ -116,13 +116,13 @@ public class MainViewModelTests
 
         await vm.OpenSettingsAsync();
 
-        vm.Settings.BoardSize.Should().Be(BoardSize.Size20x20);
+        vm.Settings.BoardSize.Should().Be(BoardSize.Size15x15);
         vm.Settings.Variant.Should().Be(GomokuVariant.Renju);
         vm.Settings.TimeControl.Should().Be(Gomoku.Core.AI.TimeControlMode.FixedDepth);
         vm.Settings.SearchDepth.Should().Be(8);
         vm.Settings.SoundEnabled.Should().BeFalse();
         _sound.IsMuted.Should().BeTrue();
-        vm.Intersections.Count.Should().Be(400);
+        vm.Intersections.Count.Should().Be(225);
     }
 
     [Fact]
@@ -338,8 +338,8 @@ public class MainViewModelTests
     public void SettingsStore_ShouldLoadOnStartupAndPersistChanges()
     {
         AppPreferences saved = new(
-            BoardWidth: 19,
-            BoardHeight: 19,
+            BoardWidth: 15,
+            BoardHeight: 15,
             Variant: GomokuVariant.Renju,
             Mode: GameMode.HumanVsAi,
             AiEngine: AiEngineType.Carbon,
@@ -353,7 +353,7 @@ public class MainViewModelTests
         MockSettingsStore store = new(saved);
         MainViewModel vm = new(_dialog, _file, _sound, settingsStore: store);
 
-        vm.Settings.BoardSize.Should().Be(BoardSize.Size19x19);
+        vm.Settings.BoardSize.Should().Be(BoardSize.Size15x15);
         vm.Settings.Variant.Should().Be(GomokuVariant.Renju);
         vm.IsSoundOn.Should().BeFalse();
         vm.IsAnalysisVisible.Should().BeFalse();
@@ -535,5 +535,26 @@ public class MainViewModelTests
 
         vm.Update(analysisZero);
         vm.Time.Should().Be("0:00.0");
+    }
+
+    [Fact]
+    public async Task LocalEngineHost_ChooseMoveAsync_ShouldWorkWithSingleAndMultiThreading()
+    {
+        LocalEngineHost host = new();
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        var rules = RuleEngine.Instance;
+        state = rules.ApplyMove(state, new Move(7, 7, PieceColor.Black));
+        var legal = rules.GetLegalMoves(state);
+        SearchLimits limits = SearchLimits.FixedDepth(2, useOpeningBook: false);
+
+        // 1. Multi-threaded
+        GameSettings mtSettings = new() { MultiThreadingEnabled = true, ThreadCount = 2 };
+        var (moveMt, _) = await host.ChooseMoveAsync(state, limits, legal, mtSettings, null, CancellationToken.None, CancellationToken.None);
+        legal.Should().Contain(moveMt);
+
+        // 2. Single-threaded
+        GameSettings stSettings = new() { MultiThreadingEnabled = false, ThreadCount = 1 };
+        var (moveSt, _) = await host.ChooseMoveAsync(state, limits, legal, stSettings, null, CancellationToken.None, CancellationToken.None);
+        legal.Should().Contain(moveSt);
     }
 }

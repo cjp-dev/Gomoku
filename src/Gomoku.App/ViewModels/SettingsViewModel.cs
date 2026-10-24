@@ -56,12 +56,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _winLineHighlightEnabled;
 
     [ObservableProperty]
+    private bool _multiThreadingEnabled;
+
+    [ObservableProperty]
+    private int _threadCount;
+
+    [ObservableProperty]
     private string _themeName;
 
     public IReadOnlyList<BoardSize> AvailableBoardSizes { get; } = [
-        BoardSize.Size15x15,
-        BoardSize.Size19x19,
-        BoardSize.Size20x20
+        BoardSize.Size15x15
     ];
 
     public IReadOnlyList<GomokuVariant> AvailableVariants { get; } = [
@@ -102,22 +106,31 @@ public sealed partial class SettingsViewModel : ObservableObject
         "Classic"
     ];
 
+    public int MaxLogicalProcessors => Environment.ProcessorCount;
+
+    public string ThreadCountText => MultiThreadingEnabled
+        ? (ThreadCount <= 0 ? $"Auto ({MaxLogicalProcessors} cores)" : $"{ThreadCount} thread{(ThreadCount > 1 ? "s" : "")}")
+        : "Single-threaded (1 thread)";
+
+    partial void OnMultiThreadingEnabledChanged(bool value) => OnPropertyChanged(nameof(ThreadCountText));
+    partial void OnThreadCountChanged(int value) => OnPropertyChanged(nameof(ThreadCountText));
+
     public bool IsSize15x15
     {
-        get => SelectedBoardSize == BoardSize.Size15x15;
-        set { if (value) { SelectedBoardSize = BoardSize.Size15x15; NotifyBoardSizeProperties(); } }
+        get => true;
+        set { SelectedBoardSize = BoardSize.Size15x15; NotifyBoardSizeProperties(); }
     }
 
     public bool IsSize19x19
     {
-        get => SelectedBoardSize == BoardSize.Size19x19;
-        set { if (value) { SelectedBoardSize = BoardSize.Size19x19; NotifyBoardSizeProperties(); } }
+        get => false;
+        set { }
     }
 
     public bool IsSize20x20
     {
-        get => SelectedBoardSize == BoardSize.Size20x20;
-        set { if (value) { SelectedBoardSize = BoardSize.Size20x20; NotifyBoardSizeProperties(); } }
+        get => false;
+        set { }
     }
 
     private void NotifyBoardSizeProperties()
@@ -247,6 +260,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _selectedVariant = settings.Variant;
         _selectedMode = settings.Mode;
         _selectedAiEngine = settings.AiEngine;
+        _multiThreadingEnabled = settings.MultiThreadingEnabled;
+        _threadCount = settings.ThreadCount;
         _selectedTimeControl = settings.TimeControl;
         _searchDepth = settings.SearchDepth;
         _moveTimeSeconds = settings.MoveTimeSeconds;
@@ -267,10 +282,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void Save()
     {
-        _original.BoardSize = SelectedBoardSize;
+        _original.BoardSize = BoardSize.Size15x15;
         _original.Variant = SelectedVariant;
         _original.Mode = SelectedMode;
         _original.AiEngine = SelectedAiEngine;
+        _original.MultiThreadingEnabled = MultiThreadingEnabled;
+        _original.ThreadCount = ThreadCount;
         _original.TimeControl = SelectedTimeControl;
         _original.SearchDepth = SearchDepth;
         _original.MoveTimeSeconds = MoveTimeSeconds;
@@ -295,10 +312,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void ResetDefaults()
     {
         GameSettings def = new();
-        SelectedBoardSize = def.BoardSize;
+        SelectedBoardSize = BoardSize.Size15x15;
         SelectedVariant = def.Variant;
         SelectedMode = def.Mode;
         SelectedAiEngine = def.AiEngine;
+        MultiThreadingEnabled = def.MultiThreadingEnabled;
+        ThreadCount = def.ThreadCount;
         SelectedTimeControl = def.TimeControl;
         SearchDepth = def.SearchDepth;
         MoveTimeSeconds = def.MoveTimeSeconds;

@@ -22,11 +22,13 @@ public sealed record AppPreferences(
     bool LastMoveHighlightEnabled = true,
     bool WinLineHighlightEnabled = true,
     string ThemeName = "Wood",
-    bool ShowAnalysis = true)
+    bool ShowAnalysis = true,
+    bool MultiThreadingEnabled = true,
+    int ThreadCount = 0)
 {
     public static AppPreferences FromSettings(GameSettings settings, bool showAnalysis = true) => new(
-        settings.BoardSize.Width,
-        settings.BoardSize.Height,
+        15,
+        15,
         settings.Variant,
         settings.Mode,
         settings.AiEngine,
@@ -42,25 +44,20 @@ public sealed record AppPreferences(
         settings.LastMoveHighlightEnabled,
         settings.WinLineHighlightEnabled,
         settings.ThemeName,
-        showAnalysis);
+        showAnalysis,
+        settings.MultiThreadingEnabled,
+        settings.ThreadCount);
 
     public GameSettings ToSettings()
     {
-        BoardSize size = (BoardWidth, BoardHeight) switch
-        {
-            (15, 15) => BoardSize.Size15x15,
-            (19, 19) => BoardSize.Size19x19,
-            (20, 20) => BoardSize.Size20x20,
-            (>= 5 and <= 20, >= 5 and <= 20) => new BoardSize(BoardWidth, BoardHeight),
-            _ => BoardSize.Default
-        };
-
         return new GameSettings
         {
-            BoardSize = size,
+            BoardSize = BoardSize.Size15x15,
             Variant = Enum.IsDefined(Variant) ? Variant : GomokuVariant.Freestyle,
             Mode = Enum.IsDefined(Mode) ? Mode : GameMode.HumanVsAi,
             AiEngine = Enum.IsDefined(AiEngine) ? AiEngine : AiEngineType.Carbon,
+            MultiThreadingEnabled = MultiThreadingEnabled,
+            ThreadCount = Math.Clamp(ThreadCount, 0, 64),
             TimeControl = Enum.IsDefined(TimeControl) ? TimeControl : TimeControlMode.TimePerMove,
             SearchDepth = Math.Clamp(SearchDepth, 1, 14),
             MoveTimeSeconds = Math.Clamp(MoveTimeSeconds, 1, 60),

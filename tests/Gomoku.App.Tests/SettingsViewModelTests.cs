@@ -28,15 +28,18 @@ public class SettingsViewModelTests
         GameSettings settings = new();
         SettingsViewModel vm = new(settings);
 
-        vm.SelectedBoardSize = BoardSize.Size19x19;
         vm.SelectedVariant = GomokuVariant.Renju;
         vm.SelectedMode = GameMode.HumanVsHuman;
+        vm.MultiThreadingEnabled = false;
+        vm.ThreadCount = 4;
         vm.SearchDepth = 10;
         vm.SaveCommand.Execute(null);
 
-        settings.BoardSize.Should().Be(BoardSize.Size19x19);
+        settings.BoardSize.Should().Be(BoardSize.Size15x15);
         settings.Variant.Should().Be(GomokuVariant.Renju);
         settings.Mode.Should().Be(GameMode.HumanVsHuman);
+        settings.MultiThreadingEnabled.Should().BeFalse();
+        settings.ThreadCount.Should().Be(4);
         settings.SearchDepth.Should().Be(10);
     }
 
@@ -46,12 +49,13 @@ public class SettingsViewModelTests
         GameSettings settings = new();
         SettingsViewModel vm = new(settings);
 
-        vm.SelectedBoardSize = BoardSize.Size20x20;
+        vm.MultiThreadingEnabled = false;
         vm.SearchDepth = 12;
 
         vm.ResetDefaultsCommand.Execute(null);
 
         vm.SelectedBoardSize.Should().Be(BoardSize.Size15x15);
+        vm.MultiThreadingEnabled.Should().BeTrue();
         vm.SearchDepth.Should().Be(6);
     }
 

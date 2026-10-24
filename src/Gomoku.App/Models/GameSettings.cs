@@ -10,7 +10,7 @@ namespace Gomoku.App.Models;
 public sealed partial class GameSettings : ObservableObject
 {
     [ObservableProperty]
-    private BoardSize _boardSize = BoardSize.Default; // 15x15
+    private BoardSize _boardSize = BoardSize.Size15x15;
 
     [ObservableProperty]
     private GomokuVariant _variant = GomokuVariant.Freestyle;
@@ -20,6 +20,12 @@ public sealed partial class GameSettings : ObservableObject
 
     [ObservableProperty]
     private AiEngineType _aiEngine = AiEngineType.Carbon;
+
+    [ObservableProperty]
+    private bool _multiThreadingEnabled = true;
+
+    [ObservableProperty]
+    private int _threadCount = 0; // 0 = Auto (Environment.ProcessorCount)
 
     [ObservableProperty]
     private TimeControlMode _timeControl = TimeControlMode.TimePerMove;
@@ -63,6 +69,8 @@ public sealed partial class GameSettings : ObservableObject
         Variant = Variant,
         Mode = Mode,
         AiEngine = AiEngine,
+        MultiThreadingEnabled = MultiThreadingEnabled,
+        ThreadCount = ThreadCount,
         TimeControl = TimeControl,
         SearchDepth = SearchDepth,
         MoveTimeSeconds = MoveTimeSeconds,

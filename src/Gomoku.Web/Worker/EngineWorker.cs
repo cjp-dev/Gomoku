@@ -11,16 +11,16 @@ namespace Gomoku.Web.Worker;
 [SupportedOSPlatform("browser")]
 public static partial class EngineWorker
 {
-    private static CarbonAiPlayer? s_carbonPlayer;
+    private static CarbonBitboardAiPlayer? s_carbonPlayer;
     private static readonly SimpleAiPlayer s_simplePlayer = new();
     private static GomokuVariant s_lastVariant = GomokuVariant.Freestyle;
-    private static BoardSize s_lastSize = BoardSize.Default;
+    private static BoardSize s_lastSize = BoardSize.Size15x15;
 
     [JSExport]
     public static void Init()
     {
         _ = RuleEngine.Instance;
-        s_carbonPlayer ??= new CarbonAiPlayer(new TranspositionTable(TranspositionTable.DefaultEntries));
+        s_carbonPlayer ??= new CarbonBitboardAiPlayer(1, new LockFreeTranspositionTable(TranspositionTable.DefaultEntries));
     }
 
     [JSExport]
@@ -33,7 +33,7 @@ public static partial class EngineWorker
 
         if (s_carbonPlayer is null || s_carbonPlayer.Table.Capacity != ttEntries)
         {
-            s_carbonPlayer = new CarbonAiPlayer(new TranspositionTable(ttEntries));
+            s_carbonPlayer = new CarbonBitboardAiPlayer(1, new LockFreeTranspositionTable(ttEntries));
         }
         else if (s_lastVariant != state.Variant || s_lastSize != state.Size)
         {

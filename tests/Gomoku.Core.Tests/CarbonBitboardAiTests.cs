@@ -101,5 +101,43 @@ public class CarbonBitboardAiTests
         Move move = await ai.GetMoveAsync(state, limits, legal);
         move.Position.Should().Match<Point>(p => p == new Point(2, 7) || p == new Point(7, 7));
     }
+
+    [Fact]
+    public void BitboardOpeningBook_ShouldDirectlyFindMoves()
+    {
+        PatternBoard pbLegacy = new();
+        pbLegacy.Start(15, 15, GomokuVariant.Freestyle, PieceColor.Black);
+        pbLegacy.MakeMove(7, 7);
+
+        BitboardPatternBoard pbBitboard = new();
+        pbBitboard.Start(15, 15, GomokuVariant.Freestyle, PieceColor.Black);
+        pbBitboard.MakeMove(7, 7);
+
+        bool legacyFound = OpeningBook.TryGetMove(pbLegacy, out Point legacyMove);
+        bool bitboardFound = OpeningBook.TryGetMove(pbBitboard, out Point bitboardMove);
+
+        legacyFound.Should().BeTrue();
+        bitboardFound.Should().BeTrue();
+        bitboardMove.X.Should().BeInRange(0, 14);
+        bitboardMove.Y.Should().BeInRange(0, 14);
+    }
+
+    [Theory]
+    [InlineData(GomokuVariant.Freestyle)]
+    [InlineData(GomokuVariant.Exact5)]
+    [InlineData(GomokuVariant.Renju)]
+    public async Task CarbonBitboardAi_Variants_ShouldPlayLegalMoves(GomokuVariant variant)
+    {
+        CarbonBitboardAiPlayer ai = new(threadCount: 2);
+        BoardState state = new(BoardSize.Size15x15, variant);
+        var rules = RuleEngine.Instance;
+
+        state = rules.ApplyMove(state, new Move(7, 7, PieceColor.Black));
+        var legal = rules.GetLegalMoves(state);
+        SearchLimits limits = SearchLimits.FixedDepth(2, useOpeningBook: true);
+
+        Move move = await ai.GetMoveAsync(state, limits, legal);
+        legal.Should().Contain(move);
+    }
 }
 

@@ -44,10 +44,9 @@
                     <legend>Board Size &amp; Rules Variant</legend>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                         <div>
-                            <span style="font-size: 0.8rem; font-weight: 700; color: #64748B;">BOARD SIZE</span>
-                            <label><input type="radio" name="boardSize" checked="@(settings.SelectedBoardSize == BoardSize.Size15x15)" @onchange="() => settings.SelectedBoardSize = BoardSize.Size15x15" /> 15 × 15 (Standard)</label>
-                            <label><input type="radio" name="boardSize" checked="@(settings.SelectedBoardSize == BoardSize.Size19x19)" @onchange="() => settings.SelectedBoardSize = BoardSize.Size19x19" /> 19 × 19 (Go board)</label>
-                            <label><input type="radio" name="boardSize" checked="@(settings.SelectedBoardSize == BoardSize.Size20x20)" @onchange="() => settings.SelectedBoardSize = BoardSize.Size20x20" /> 20 × 20 (Freestyle)</label>
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #64748B;">BOARD GEOMETRY</span>
+                            <div style="font-weight: 600; margin-top: 4px;">15 × 15 (Standard)</div>
+                            <div style="font-size: 0.75rem; color: #64748B;">Official Gomoku &amp; Renju size</div>
                         </div>
                         <div>
                             <span style="font-size: 0.8rem; font-weight: 700; color: #64748B;">RULES VARIANT</span>
@@ -74,7 +73,7 @@
                 <fieldset class="settings" style="margin-bottom: 1rem;">
                     <legend>AI Engine</legend>
                     <div style="display: flex; gap: 1.5rem;">
-                        <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Carbon)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Carbon" /> Carbon AI (Advanced)</label>
+                        <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Carbon)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Carbon" /> Carbon AI (Bitboard)</label>
                         <label><input type="radio" name="engine" checked="@(settings.SelectedAiEngine == AiEngineType.Simple)" @onchange="() => settings.SelectedAiEngine = AiEngineType.Simple" /> Simple AI</label>
                     </div>
                 </fieldset>

@@ -9,6 +9,28 @@ public static class Program
 {
     public static async Task Main(string[] args)
     {
+        if (args.Contains("--inspect"))
+        {
+            double timePerMove = 0.2;
+            int timeIdx = Array.IndexOf(args, "--time");
+            if (timeIdx >= 0 && timeIdx + 1 < args.Length && double.TryParse(args[timeIdx + 1], System.Globalization.CultureInfo.InvariantCulture, out double t))
+            {
+                timePerMove = t;
+            }
+
+            int? fixedDepth = null;
+            int depthIdx = Array.IndexOf(args, "--depth");
+            if (depthIdx >= 0 && depthIdx + 1 < args.Length && int.TryParse(args[depthIdx + 1], out int d))
+            {
+                fixedDepth = d;
+            }
+
+            // Positions: 0 (Pos #1 Kagetsu), 1 (Pos #2 Hokuto), 4 (Pos #5 Ungetsu), 20 (Pos #21 Draw), 23 (Pos #24)
+            List<int> targetIndices = [0, 1, 4, 20, 23];
+            await MatchInspector.InspectPositionsAsync(targetIndices, timePerMove, fixedDepth);
+            return;
+        }
+
         if (args.Contains("--match"))
         {
             double timePerMove = 1.0;

@@ -20,7 +20,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
     public const int MatchSpare = 7;
     public const int TimeoutPrevent = 5;
 
-    public string Name => ThreadCount > 1 ? $"New Carbon AI Bitboard ({ThreadCount}T)" : "New Carbon AI Bitboard";
+    public string Name => ThreadCount > 1 ? $"Carbon AI ({ThreadCount}T)" : "Carbon AI";
     public SearchAnalysis? LastAnalysis { get; private set; }
 
     public int ThreadCount { get; }
@@ -119,23 +119,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         _pb.Who = state.SideToMove;
 
         // 2. Opening book check
-        PatternBoard pbTemp = new();
-        pbTemp.Start(state.Size.Width, state.Size.Height, state.Variant, state.FirstPlayer);
-        for (int y = 0; y < state.Size.Height; y++)
-        {
-            for (int x = 0; x < state.Size.Width; x++)
-            {
-                PieceColor p = state.GetCell(x, y);
-                if (p is PieceColor.Black or PieceColor.White)
-                {
-                    pbTemp.Who = p;
-                    pbTemp.MakeMove(x, y);
-                }
-            }
-        }
-        pbTemp.Who = state.SideToMove;
-
-        if (limits.UseOpeningBook && OpeningBook.TryGetMove(pbTemp, out Point bookPoint))
+        if (limits.UseOpeningBook && OpeningBook.TryGetMove(_pb, out Point bookPoint))
         {
             Move bookMove = new(bookPoint.X, bookPoint.Y, state.SideToMove);
             if (legalMoves.Contains(bookMove))

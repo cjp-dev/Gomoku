@@ -9,16 +9,17 @@ namespace Gomoku.App.Services;
 /// </summary>
 public sealed class LocalEngineHost : IEngineHost
 {
-    private CarbonAiPlayer _carbonPlayer;
+    private CarbonBitboardAiPlayer _carbonPlayer;
     private readonly SimpleAiPlayer _simplePlayer = new();
     private GomokuVariant _lastVariant = GomokuVariant.Freestyle;
-    private BoardSize _lastSize = BoardSize.Default;
+    private BoardSize _lastSize = BoardSize.Size15x15;
+    private int _lastThreads = 0;
 
     public Func<GameSettings, IPlayer>? PlayerFactory { get; set; }
 
     public LocalEngineHost(int defaultTtEntries = TranspositionTable.DefaultEntries)
     {
-        _carbonPlayer = new CarbonAiPlayer(new TranspositionTable(defaultTtEntries));
+        _carbonPlayer = new CarbonBitboardAiPlayer(0, new LockFreeTranspositionTable(defaultTtEntries));
     }
 
     public async Task<(Move Move, SearchAnalysis? LastAnalysis)> ChooseMoveAsync(
@@ -30,9 +31,14 @@ public sealed class LocalEngineHost : IEngineHost
         CancellationToken cancellationToken,
         CancellationToken moveNowToken)
     {
-        if (_carbonPlayer.Table.Capacity != settings.TranspositionTableEntries)
+        int targetThreads = settings.MultiThreadingEnabled
+            ? (settings.ThreadCount > 0 ? settings.ThreadCount : Environment.ProcessorCount)
+            : 1;
+
+        if (_carbonPlayer.Table.Capacity != settings.TranspositionTableEntries || _lastThreads != targetThreads)
         {
-            _carbonPlayer = new CarbonAiPlayer(new TranspositionTable(settings.TranspositionTableEntries));
+            _carbonPlayer = new CarbonBitboardAiPlayer(targetThreads, new LockFreeTranspositionTable(settings.TranspositionTableEntries));
+            _lastThreads = targetThreads;
         }
         else if (_lastVariant != settings.Variant || _lastSize != settings.BoardSize)
         {

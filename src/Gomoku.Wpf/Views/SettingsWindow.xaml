@@ -27,10 +27,9 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                        <TextBlock Text="BOARD SIZE" FontSize="11" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,6"/>
-                        <RadioButton Content="15 × 15 (Standard)" GroupName="BoardSizeGroup" IsChecked="{Binding IsSize15x15}" Margin="0,3,0,3"/>
-                        <RadioButton Content="19 × 19 (Go board)" GroupName="BoardSizeGroup" IsChecked="{Binding IsSize19x19}" Margin="0,3,0,3"/>
-                        <RadioButton Content="20 × 20 (Freestyle)" GroupName="BoardSizeGroup" IsChecked="{Binding IsSize20x20}" Margin="0,3,0,3"/>
+                        <TextBlock Text="BOARD GEOMETRY" FontSize="11" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,6"/>
+                        <TextBlock Text="15 × 15 Standard" FontWeight="SemiBold" Margin="0,3,0,2"/>
+                        <TextBlock Text="Official tournament geometry for Gomoku and Renju." FontSize="11" Foreground="#7F8C8D" TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Margin="10,0,0,0">
@@ -46,7 +45,7 @@
             <GroupBox Header="AI Engine" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="AI ENGINE: " FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <RadioButton Content="Carbon AI (Advanced)" GroupName="EngineGroup" IsChecked="{Binding IsCarbonEngine}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <RadioButton Content="Carbon AI (Bitboard)" GroupName="EngineGroup" IsChecked="{Binding IsCarbonEngine}" Margin="0,0,16,0" VerticalAlignment="Center"/>
                     <RadioButton Content="Simple AI" GroupName="EngineGroup" IsChecked="{Binding IsSimpleEngine}" VerticalAlignment="Center"/>
                 </StackPanel>
             </GroupBox>
@@ -94,10 +93,25 @@
                 </Grid>
             </GroupBox>
 
-            <!-- 4. Carbon Opening Book & Transposition Table (Carbon AI only) -->
-            <GroupBox Header="Carbon Opening Book &amp; Transposition Table" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0"
+            <!-- 4. Carbon Performance & Opening Book (Carbon AI only) -->
+            <GroupBox Header="Carbon Performance &amp; Opening Book" Margin="0,0,0,14" Padding="12,10" BorderBrush="#E2E8F0"
                       Visibility="{Binding IsCarbonEngine, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
+                    <CheckBox Content="Enable Multi-Threading (Lazy SMP)" IsChecked="{Binding MultiThreadingEnabled}" Margin="0,0,0,6"/>
+
+                    <Grid Margin="0,0,0,10" Visibility="{Binding MultiThreadingEnabled, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="110"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Search Threads:" VerticalAlignment="Center" Foreground="#64748B"/>
+                        <Slider Grid.Column="1" Minimum="0" Maximum="{Binding MaxLogicalProcessors}"
+                                IsSnapToTickEnabled="True" TickFrequency="1" Value="{Binding ThreadCount}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding ThreadCountText}" Margin="8,0,0,0"
+                                   VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+
                     <CheckBox Content="Enable Carbon Opening Book (67 symmetry patterns)" IsChecked="{Binding UseOpeningBook}" Margin="0,0,0,10"/>
 
                     <Grid Margin="0,2,0,0">
