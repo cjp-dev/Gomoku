@@ -107,11 +107,15 @@
                         <div style="margin-top: 0.5rem;">
                             <label style="margin-top: 0;">Search Threads:</label>
                             <select class="dialog-text" style="margin: 0.25rem 0;" @bind="settings.ThreadCount" disabled="@(!settings.MultiThreadingEnabled)">
-                                <option value="0">Auto (Recommended: up to 4 threads)</option>
+                                <option value="0">Auto (4 threads)</option>
                                 <option value="1">1 thread (Single-threaded)</option>
                                 <option value="2">2 threads</option>
                                 <option value="3">3 threads</option>
                                 <option value="4">4 threads</option>
+                                <option value="5">5 threads</option>
+                                <option value="6">6 threads</option>
+                                <option value="7">7 threads</option>
+                                <option value="8">8 threads</option>
                             </select>
                         </div>
                         <div style="font-size: 0.75rem; color: #64748B; margin-top: 4px;">

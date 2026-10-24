@@ -7,7 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WasmEnableThreads>true</WasmEnableThreads>
-    <WasmPThreadPoolInitialSize>4</WasmPThreadPoolInitialSize>
+    <WasmPThreadPoolInitialSize>16</WasmPThreadPoolInitialSize>
+  </PropertyGroup>
+
+  <!-- Compile the threaded search engine to WebAssembly AOT in CI / Release AOT publishes. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and ('$(RunAOTCompilation)' == 'true' or '$(GITHUB_ACTIONS)' == 'true')">
+    <RunAOTCompilation>true</RunAOTCompilation>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,4 +25,3 @@
   </ItemGroup>
 
 </Project>
-

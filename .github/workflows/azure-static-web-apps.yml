@@ -29,8 +29,8 @@ jobs:
       - name: Install WebAssembly build tools
         run: dotnet workload install wasm-tools
 
-      - name: Publish Engine (Threaded WASM)
-        run: dotnet publish src/Gomoku.Web.Engine/Gomoku.Web.Engine.csproj -c Release -o engine_publish
+      - name: Publish Engine (Threaded WASM + AOT)
+        run: dotnet publish src/Gomoku.Web.Engine/Gomoku.Web.Engine.csproj -c Release -p:RunAOTCompilation=true -o engine_publish
 
       - name: Publish Web App (Single-threaded UI)
         run: dotnet publish src/Gomoku.Web/Gomoku.Web.csproj -c Release -o publish
