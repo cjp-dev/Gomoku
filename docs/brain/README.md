@@ -86,9 +86,9 @@ graph TD
 | 10 | [Opening book](10-opening-book.md) | Dihedral group $D_4$ symmetries, 67 master opening pattern clusters, and zero-allocation direct bitboard matching |
 | 11 | [Game record and formats](11-game-record-and-formats.md) | GameSession, SGF `GM[11]`, `.gomoku` algebraic coordinate format, and undo/redo history |
 | 12 | [App architecture and audio](12-app-architecture-and-audio.md) | Clean MVVM architecture, MainViewModel, service abstractions, and procedural 16-bit PCM audio |
-| 13 | [UI clients](13-ui-clients.md) | WPF desktop client with Lazy SMP controls and Blazor WebAssembly client with dedicated background Web Worker |
+| 13 | [UI clients](13-ui-clients.md) | WPF desktop client with Lazy SMP controls and Blazor WebAssembly client with multithreaded WASM engine and fallback worker |
 | 14 | [GUI and settings](14-gui-and-settings.md) | Interface layout, menu commands, settings dialog, Carbon vs Simple AI, and real-time analysis |
-| 15 | [Benchmarks and performance](15-benchmarks-and-performance.md) | Empirical throughput: 100-game head-to-head tournaments, Lazy SMP scaling up to 4.2M NPS, and Web Worker performance |
+| 15 | [Benchmarks and performance](15-benchmarks-and-performance.md) | Empirical throughput: 100-game head-to-head tournaments, Lazy SMP scaling up to 4.2M NPS on desktop and 3.58M NPS in WebAssembly |
 | 16 | [Glossary](16-glossary.md) | Comprehensive dictionary of Gomoku, Renju, bitboard, search, and engine terminology |
 | 17 | [References](17-references.md) | Academic papers, tournament archives, Carbon Gomoku origins, and external resources |
 

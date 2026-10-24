@@ -141,11 +141,18 @@ xychart-beta
 
 ### 6. Browser WebAssembly Performance
 
-In the client-side Blazor WebAssembly app (`Gomoku.Web`):
-- The engine executes asynchronously inside a dedicated Web Worker (`engine-worker.js`), running [`CarbonBitboardAiPlayer`](file:///c:/Udvikling\Spil\Gomoku\src\Gomoku.Core\AI\CarbonBitboardAiPlayer.cs).
-- Achieves **$540,000\text{ NPS}$** in the browser sandbox.
-- Delivers instant opening book responses ($< 1\text{ ms}$) and depth-6 searches in $\approx 80\text{ ms}$.
-- Sustains a rock-solid 60 FPS UI frame rate with zero blocking of board interactions or animations.
+In the client-side Blazor WebAssembly app (`Gomoku.Web`), the engine utilizes a dual-runtime architecture: a single-threaded Blazor UI runtime coexists with a dedicated Ahead-of-Time (AOT) compiled multithreaded engine runtime (`Gomoku.Web.Engine`) powered by 16 pre-warmed WebAssembly pthreads:
+
+| Engine Build & Configuration | Search Throughput (NPS) | Scaling vs 1T | UI Blocked? | Cancellation Latency |
+|---|---|---|---|---|
+| **Single-Threaded Worker (Fallback)** | $\approx 530,000\text{ NPS}$ | $1.00\times$ | No (0 ms) | — |
+| **Multithreaded AOT (1 Thread)** | $513,000\text{--}533,000\text{ NPS}$ | $1.00\times$ | No (0 ms) | $\approx 4\text{ ms}$ |
+| **Multithreaded AOT (Auto = 4 Threads)** | **$2,058,000\text{--}2,225,000\text{ NPS}$** | **$4.01\times\text{--}4.18\times$** | No (0 ms) | $\approx 4\text{ ms}$ |
+| **Multithreaded AOT (8 Threads)** | **$3,578,000\text{ NPS}$** | **$6.98\times$** | No (0 ms) | $\approx 4\text{ ms}$ |
+
+- **Zero UI Frame Drops:** 100% of C# search computation runs on Mono's Managed Main Deputy Thread and pthread workers; the browser UI thread processes zero search iterations, guaranteeing fluid 60 FPS animations and instant user stone placement.
+- **Instant Cooperative Stop:** `SignalAsync` cancels active token sources directly on the Deputy Thread in $\approx 4\text{ ms}$, ensuring instant response when clicking `[Move Now]` or undoing moves.
+- **Combined Live Telemetry:** Cache-line spaced (`64`-byte stride) lock-free per-worker counters stream true combined multi-thread NPS in real-time during both mid-depth (`"Searching..."`) and depth-completion progress updates.
 
 ---
 

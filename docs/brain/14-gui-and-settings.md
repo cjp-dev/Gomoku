@@ -149,24 +149,26 @@ Accessed via **Game $\rightarrow$ Settings...**, the modal settings dialog lets 
 
 ![Gomoku .NET Settings Dialog](images/gui-settings.png)
 
-The dialog is arranged into four sequential sections:
-1. **Board Size & Rules Variant:** Locked tournament geometry ($15 \times 15$ Standard) and Gomoku victory rules (**Freestyle (5+ wins)**, **Standard (Exact 5)**, and **Renju (Forbidden 3x3/4x4)**).
+The dialog is arranged into five focused sections:
+1. **Rules Variant & Board Theme (Side-by-Side):** A compact two-column grid grouping Gomoku victory rules (**Freestyle (5+ wins)**, **Standard (Exact 5)**, and **Renju (Forbidden 3x3/4x4)**) on the left with visual themes (**Wood**, **Dark**, and **Classic** stacked vertically) on the right, standardized on official $15 \times 15$ tournament geometry.
 2. **AI Engine:** Opponent engine selection: **Carbon AI (Bitboard)** or **Simple AI**.
 3. **Computer Thinking Limits:** Search depth and clock allocation modes (Fixed depth $1\text{–}14$ plies, Time per move $1\text{–}20\text{ s}$, Time per game $1\text{–}30\text{ min}$). *Visible only when Carbon AI is selected.*
-4. **Carbon Performance & Opening Book:** Multi-threading parallel search (Lazy SMP toggle and search threads slider), opening book toggle ($67$ symmetry patterns across $22$ canonical opening systems), and transposition table memory allocation ($1\text{ MB}$ to $256\text{ MB}$). *Visible only when Carbon AI is selected.*
+4. **Multi-Threading & Performance:** Parallel search controls (Lazy SMP toggle and search thread selector with `Auto (4 threads)` and manual options $1$ to $8$ threads). *Visible only when Carbon AI is selected.*
+5. **Carbon Opening Book & Transposition Table:** Opening book toggle ($67$ symmetry patterns across $22$ canonical opening systems) and transposition table capacity selection ($1\text{ MB}$ to $256\text{ MB}$, default $16\text{ MB}$). *Visible only when Carbon AI is selected.*
 
 ```mermaid
 graph TD
     Settings["Settings Dialog"]
-    Settings --> Section1["1. Board Size &amp; Rules Variant<br/>15x15 Standard | Freestyle • Standard • Renju"]
+    Settings --> Section1["1. Rules Variant &amp; Board Theme<br/>Freestyle • Standard • Renju | Wood • Dark • Classic"]
     Settings --> Section2["2. AI Engine<br/>Carbon AI (Bitboard) vs. Simple AI"]
-    Section2 -- "Simple AI selected" --> Simplified["Compact Dialog<br/>(Advanced sections removed)"]
+    Section2 -- "Simple AI selected" --> Simplified["Compact Dialog<br/>(Advanced sections hidden)"]
     Section2 -- "Carbon AI selected" --> Section3["3. Computer Thinking Limits<br/>Fixed Depth (1–14) • Time per Move (1–20s) • Time per Game (1–30m)"]
-    Section2 -- "Carbon AI selected" --> Section4["4. Carbon Performance &amp; Opening Book<br/>Multi-Threading (Lazy SMP) • Opening Book (67 Patterns) • TT (1–256 MB)"]
+    Section2 -- "Carbon AI selected" --> Section4["4. Multi-Threading &amp; Performance<br/>Lazy SMP • Search Threads: Auto (4T) to 8T"]
+    Section2 -- "Carbon AI selected" --> Section5["5. Opening Book &amp; Transposition Table<br/>Opening Book (67 Patterns) • TT Capacity (1–256 MB)"]
 ```
 
 > [!NOTE] Dynamic AI Settings Visibility
-> When **Simple AI** is selected, the dialog dynamically hides sections 3 and 4 (**Computer Thinking Limits** and **Carbon Performance & Opening Book**). Because Simple AI is an instant 1-ply heuristic evaluator that does not utilize tree search, transposition memory, multi-threading, or opening books, hiding these controls keeps the interface focused, clean, and intuitive for casual play. Switching back to **Carbon AI (Bitboard)** immediately restores all tournament search and performance controls.
+> When **Simple AI** is selected, the dialog dynamically hides sections 3, 4, and 5 (**Computer Thinking Limits**, **Multi-Threading & Performance**, and **Carbon Opening Book & Transposition Table**). Because Simple AI is an instant 1-ply heuristic evaluator that does not utilize tree search, transposition memory, multi-threading, or opening books, hiding these controls keeps the interface focused, clean, and intuitive for casual play. Switching back to **Carbon AI (Bitboard)** immediately restores all tournament search and performance controls.
 
 ### 1. Board Dimensions
 
@@ -243,14 +245,20 @@ When playing against **Carbon AI (Bitboard)**, thinking constraints can be confi
 
 ---
 
-### 5. Carbon Performance & Opening Book
+### 4. Multi-Threading & Performance
 
-Exclusively available when **Carbon AI (Bitboard)** is active, this section fine-tunes parallel processing, opening memory, and hash tables:
+Exclusively available when **Carbon AI (Bitboard)** is active, this section fine-tunes parallel processing:
 
 * **Enable Multi-Threading (Lazy SMP):** Enables parallel search utilizing multiple CPU threads via Lazy SMP (Lockless Shared Transposition Table). Multiple worker threads simultaneously traverse the game tree, sharing evaluations and principal variations via the global transposition table with negligible synchronization overhead.
-* **Search Threads:** Dynamically adjusts the number of parallel search threads from `0` to the host machine's logical processor count (`Environment.ProcessorCount`). Setting `0` selects **Auto** (e.g., `Auto (8 cores)`), maximizing CPU throughput across all available cores, while specific thread counts (e.g., `4 threads`) allow precise resource management.
+* **Search Threads:** Allows selecting the parallel thread allocation:
+  * **Auto (4 threads):** Automatically sizes parallel search to 4 threads on 4+ core systems (or host core count on smaller devices), maximizing browser throughput while avoiding excessive thread thrashing.
+  * **Manual Selection (1 to 8 threads):** Direct selection of 1 thread (single-threaded), 2, 3, 4, 5, 6, 7, or 8 threads for multi-core desktop workstations.
+  * *Architecture Note:* Uses WebAssembly pthreads with a shared 16 MB lock-free transposition table and a dedicated 16-worker pthread pool. If cross-origin isolation headers are unavailable, the engine automatically falls back to single-threaded search.
+
+### 5. Carbon Opening Book & Transposition Table
+
 * **Enable Carbon Opening Book (67 symmetry patterns):** Toggles whether the engine queries its 67-symmetry-pattern database before launching tree search. The opening book encapsulates 22 canonical opening systems with dihedral $D_4$ invariance (8 rotations and reflections), playing book moves instantaneously.
-* **Table Capacity:** Configures the transposition table memory footprint from $1\text{ MB}$ ($65,536$ entries) to $256\text{ MB}$ ($16,777,216$ entries), with $64\text{ MB}$ ($4,194,304$ entries) as default. Sizing the table appropriately prevents hash overwrites during deep searches.
+* **Table Capacity:** Configures the transposition table memory footprint from $1\text{ MB}$ ($65,536$ entries) to $256\text{ MB}$ ($16,777,216$ entries), with $16\text{ MB}$ ($1,048,576$ entries) as default. Sizing the table appropriately prevents hash overwrites during deep searches.
 
 ---
 
@@ -297,8 +305,12 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 ### Instant Opening Moves & 250ms Delay
 When the engine plays an instant move—such as placing the initial center stone on Move 1 or matching a recognized opening book line—it emits `StatusMessage = "Center opening"` or `"Opening book"` and pauses for **$250\text{ ms}$**. This deliberate brief delay ensures the user can visually register the engine's opening acknowledgment and analysis badge before the stone is placed.
 
-### Dedicated Web Worker & Asynchronous UI Responsiveness
-In the browser client (`Gomoku.Web`), Carbon AI searches run asynchronously in a dedicated background Web Worker (`carbon-worker.js`), completely isolating heavy engine computation from the browser's main UI thread. This guarantees that board interactions, stone placement animations, hover ghost previews, and telemetry updates remain fluid at 60 FPS without frame drops. In environments where workers are not utilized or for single-threaded fallback execution:
+### WebAssembly Multithreaded Engine & UI Responsiveness
+In the browser client (`Gomoku.Web`), execution utilizes a modern dual-runtime architecture:
+- When cross-origin isolation (`COOP` / `COEP`) and `SharedArrayBuffer` are available, `engine-client.js` boots the dedicated multithreaded engine runtime (`Gomoku.Web.Engine`) directly on the Window context. Under .NET 10's Deputy-Thread model, 100% of managed C# AI code runs completely off the browser UI thread on a background Deputy Thread and a pool of 16 pre-warmed Web Worker pthreads (`dotnet.native.worker.*.mjs`). This scales search throughput to **$2,058,000\text{ NPS}$** on 4 threads and **$3,578,000\text{ NPS}$** on 8 threads with sub-millisecond (4 ms) cancellation latency, keeping UI rendering fluid at 60 FPS.
+- When cross-origin isolation is unavailable, `engine-client.js` automatically falls back to a dedicated single-threaded Web Worker (`engine-worker.js`), running at $\approx 530,000\text{ NPS}$.
+
+In single-threaded fallback execution:
 1. `MinimaxRootAsync` tracks elapsed thinking time and checks a $\ge 150\text{ ms}$ heartbeat between root candidates.
 2. When the heartbeat threshold is reached, it emits a `SearchAnalysis` telemetry snapshot with `IsSearching: true` and executes:
    ```csharp

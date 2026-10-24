@@ -230,9 +230,13 @@ In **Lazy SMP**:
    ```csharp
    if (newDepth < slot.Depth && ageDiff == 0) return; // Do not overwrite deeper search!
    ```
-5. **Empirical Throughput:**
-   - Single-threaded baseline: $358,048\text{ NPS}$.
-   - 8-thread Lazy SMP: **$4,213,348\text{ NPS}$ ($11.77\times$ speedup)**, consistently searching 0.5 to 1.0 plies deeper under identical tournament time controls.
+5. **Cache-Line Spaced Lock-Free Node Tracking:**
+   To provide live, combined multi-thread telemetry without lock contention or CPU cache-line bouncing (false sharing), worker node counts are tracked in a 64-byte padded array (`WorkerCounterStride = 8` longs per thread). Each worker updates its live count every 1,000 nodes without `Interlocked` overhead, while Thread 0 aggregates true combined nodes across all threads on 100 ms heartbeats and iteration boundaries.
+6. **Empirical Throughput:**
+   - Desktop Single-threaded baseline: $358,048\text{ NPS}$.
+   - Desktop 8-thread Lazy SMP: **$4,213,348\text{ NPS}$ ($11.77\times$ speedup)**.
+   - WebAssembly 4-thread Lazy SMP: **$2,058,000\text{--}2,225,000\text{ NPS}$ ($4.01\times\text{--}4.18\times$)**.
+   - WebAssembly 8-thread Lazy SMP: **$3,578,000\text{ NPS}$ ($6.98\times$)**.
 
 ---
 
@@ -268,8 +272,8 @@ sequenceDiagram
 - **Root Candidate Heartbeat ($\ge 150\text{ ms}$):** In `MinimaxRootAsync`, when evaluating root candidates, if at least $150\text{ ms}$ has elapsed since the last report, `CarbonAiPlayer` reports an in-progress `SearchAnalysis` (`IsSearching: true`) with the best candidate discovered so far and yields execution via `await Task.Delay(1, cancellationToken)`.
 - **Deep Recursive Heartbeat ($\ge 200\text{ ms}$):** Inside the synchronous `Minimax` child search, the 1000-node check checks `sw.ElapsedMilliseconds - _lastReportMs >= 200`. If triggered, it synchronously calls `_activeProgress.Report(...)` to keep WPF desktop dispatchers continuously updating even during deep tactical branches.
 
-### 2. Dedicated Web Worker & Asynchronous Browser Responsiveness
-In the browser client (`Gomoku.Web`), execution runs inside a dedicated background Web Worker (`engine-worker.js` / `EngineWorker.cs`), completely isolating engine processing from the browser's UI thread. This enables the browser to sustain 60 FPS animations and instant stone hover feedback while the engine searches at **$540,000\text{ NPS}$**. For environments without worker support or in direct single-threaded execution, the engine cooperatively yields execution slices (`Task.Delay(1)`) on $150\text{ ms}$ heartbeats and iteration boundaries back to the JavaScript event loop.
+### 2. Browser Multithreaded Engine & Asynchronous Responsiveness
+In the browser client (`Gomoku.Web`), execution leverages .NET 10's multithreaded WebAssembly runtime (`Gomoku.Web.Engine`) hosted via the Deputy-Thread architecture. 100% of C# search computation runs on background Web Worker pthreads with a 16 MB lock-free transposition table, scaling from **$533,000\text{ NPS}$** on 1 thread to **$2,058,000\text{ NPS}$** on 4 threads and **$3,578,000\text{ NPS}$** on 8 threads. The browser sustains a fluid 60 FPS without dropping frames. For environments without cross-origin isolation or `SharedArrayBuffer` support, execution falls back automatically to a dedicated single-threaded Web Worker (`engine-worker.js`).
 
 ### 3. Instant Opening Delay ($250\text{ ms}$)
 When playing the opening center move on Move 1 or matching an opening book pattern, search is instantaneous ($< 1\text{ ms}$). To provide visual feedback that the computer has acknowledged the turn, the engine emits `StatusMessage = "Center opening"` or `"Opening book"` and awaits `Task.Delay(250, cancellationToken)`. This brief pause allows users to see the `"Opening"` / `"Book"` badge in the Analysis panel before the stone is placed.
