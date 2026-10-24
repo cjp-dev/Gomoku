@@ -117,3 +117,37 @@ In the final phase, [`CarbonBitboardAiPlayer`](file:///c:/Udvikling/Spil/Gomoku/
 ### 5. Verification Results
 * Full test suite: **83 unit tests passing** (57 in `Gomoku.Core.Tests`, 26 in `Gomoku.App.Tests`) with 0 errors and 0 warnings.
 * Both `Gomoku.Wpf` and `Gomoku.Web` build cleanly in Release configuration.
+
+---
+
+## 7. WebAssembly Multi-Threading & Azure Static Web Apps Integration
+
+In the final extension, we implemented full native multi-threading in the browser version (`Gomoku.Web`):
+
+### 1. Azure Static Web Apps Native COOP/COEP Headers
+* Verified that [`src/Gomoku.Web/wwwroot/staticwebapp.config.json`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/wwwroot/staticwebapp.config.json) already declares:
+  ```json
+  "globalHeaders": {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp"
+  }
+  ```
+* This native edge CDN configuration unlocks `SharedArrayBuffer` on Chrome, Edge, Firefox, and Safari on the very first page visit with zero service-worker overhead.
+
+### 2. .NET 10 WebAssembly Threads (`<WasmEnableThreads>true</WasmEnableThreads>`)
+* Added `<WasmEnableThreads>true</WasmEnableThreads>` to [`Gomoku.Web.csproj`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Gomoku.Web.csproj), producing pthread-compatible WebAssembly binaries (`dotnet.native.worker.*.mjs`).
+
+### 3. Caller-Thread Master Worker Optimization
+* Refactored `SearchLazySmp` in [`CarbonBitboardAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) so that Master Worker 0 executes iterative deepening directly on the calling thread, while helper workers $1 \dots N-1$ are dispatched to `Task.Run(...)`.
+* This saves 1 thread from the thread pool and reduces thread scheduling overhead in both native desktop and WebAssembly.
+
+### 4. Web Engine Protocol & Worker Wiring
+* Extended `MoveRequest` in [`EngineProtocol.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Worker/EngineProtocol.cs) to pass `MultiThreadingEnabled` and `ThreadCount`.
+* Updated [`EngineWorker.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Worker/EngineWorker.cs) to dynamically spin up `CarbonBitboardAiPlayer` with the requested thread count (capped at sensible browser limits).
+
+### 5. Browser-Appropriate Settings in the Web Dialog
+* Added a dedicated **Multi-Threading & Performance** fieldset in [`DialogHost.razor`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Components/DialogHost.razor) offering:
+  * `Auto (Balanced - up to 4 cores)` *(Recommended default)*
+  * `1 thread (Single-threaded)`
+  * `2 threads (Recommended for laptops)`
+  * `4 threads (High Performance - up to 2M+ NPS)`

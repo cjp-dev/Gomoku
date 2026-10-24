@@ -29,11 +29,15 @@ public static partial class EngineWorker
     [JSExport]
     public static string ChooseMove(string requestJson)
     {
-        var (state, limits, engineType, ttEntries) = EngineProtocol.ReadRequest(requestJson);
+        var (state, limits, engineType, ttEntries, mtEnabled, threadCount) = EngineProtocol.ReadRequest(requestJson);
 
-        if (s_carbonPlayer is null || s_carbonPlayer.Table.Capacity != ttEntries)
+        int targetThreads = mtEnabled
+            ? (threadCount > 0 ? Math.Clamp(threadCount, 1, 4) : Math.Clamp(Environment.ProcessorCount / 2, 2, 4))
+            : 1;
+
+        if (s_carbonPlayer is null || s_carbonPlayer.Table.Capacity != ttEntries || s_carbonPlayer.ThreadCount != targetThreads)
         {
-            s_carbonPlayer = new CarbonBitboardAiPlayer(1, new LockFreeTranspositionTable(ttEntries));
+            s_carbonPlayer = new CarbonBitboardAiPlayer(targetThreads, new LockFreeTranspositionTable(ttEntries));
         }
         else if (s_lastVariant != state.Variant || s_lastSize != state.Size)
         {

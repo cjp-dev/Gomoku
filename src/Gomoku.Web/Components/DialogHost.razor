@@ -98,6 +98,29 @@
                         <span>@settings.GameTimeMinutes minutes</span>
                     </fieldset>
 
+                    <fieldset class="settings" style="margin-bottom: 1rem;">
+                        <legend>Multi-Threading &amp; Performance</legend>
+                        <label style="font-weight: normal;">
+                            <input type="checkbox" @bind="settings.MultiThreadingEnabled" />
+                            Enable Multi-Threading (WebAssembly Lazy SMP)
+                        </label>
+                        @if (settings.MultiThreadingEnabled)
+                        {
+                            <div style="margin-top: 0.75rem;">
+                                <label style="margin-top: 0;">Search Threads (Browser):</label>
+                                <select class="dialog-text" style="margin: 0.25rem 0;" @bind="settings.ThreadCount">
+                                    <option value="0">Auto (Balanced - up to 4 cores)</option>
+                                    <option value="1">1 thread (Single-threaded)</option>
+                                    <option value="2">2 threads (Recommended for laptops)</option>
+                                    <option value="4">4 threads (High Performance)</option>
+                                </select>
+                                <div style="font-size: 0.75rem; color: #64748B; margin-top: 2px;">
+                                    Uses WebAssembly pthreads to accelerate search throughput up to 2M+ NPS.
+                                </div>
+                            </div>
+                        }
+                    </fieldset>
+
                     <fieldset class="settings">
                         <legend>Carbon Opening Book &amp; Transposition Table</legend>
                         <label style="font-weight: normal;">

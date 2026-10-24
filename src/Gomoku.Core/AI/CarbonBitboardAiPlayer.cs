@@ -281,7 +281,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         var token = linkedCts.Token;
 
         int numWorkers = ThreadCount;
-        Task[] tasks = new Task[numWorkers];
+        Task[] helperTasks = new Task[numWorkers - 1];
 
         BitboardPatternBoard[] workerBoards = new BitboardPatternBoard[numWorkers];
         workerBoards[0] = pb;
@@ -299,84 +299,84 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         _activeBestMovePoint = Point.Empty;
         _activeBestScore = 0;
 
-        // Worker 0: Master thread
-        tasks[0] = Task.Run(() =>
-        {
-            Span<Cand> rootCnd = stackalloc Cand[MaxCand];
-            try
-            {
-                int prevSearched = 0;
-                for (int depth = (limits.Mode == TimeControlMode.FixedDepth && limits.Depth == 1 ? 1 : 2); depth <= maxTargetDepth; depth++)
-                {
-                    if (token.IsCancellationRequested) break;
-                    _currentDepth = depth;
-                    long t0 = Environment.TickCount64;
-                    long iterNodes = 0;
-
-                    Cand best = MinimaxRoot(0, workerBoards[0], depth, rootCnd, ref iterNodes, token, moveNowToken);
-                    Interlocked.Add(ref _totalNodes, iterNodes);
-
-                    if (token.IsCancellationRequested) break;
-
-                    if (best.X >= BitboardPatternBoard.Margin && best.Y >= BitboardPatternBoard.Margin)
-                    {
-                        masterBestPoint = new Point(best.X - BitboardPatternBoard.Margin, best.Y - BitboardPatternBoard.Margin);
-                        masterBestScore = best.Value;
-                        masterFinalDepth = depth;
-                        _activeBestMovePoint = masterBestPoint;
-                        _activeBestScore = masterBestScore;
-
-                        long t1 = Environment.TickCount64;
-                        long td = t1 - t0;
-
-                        long speed = td > 0 ? iterNodes * 1000 / td : 0;
-                        LastAnalysis = new SearchAnalysis(
-                            state.MoveCount + 1,
-                            depth,
-                            masterBestScore,
-                            new Move(masterBestPoint.X, masterBestPoint.Y, state.SideToMove),
-                            _totalNodes,
-                            speed,
-                            sw.Elapsed,
-                            StatusMessage: null,
-                            IsSearching: false);
-                        progress?.Report(LastAnalysis);
-
-                        if (_terminate || moveNowToken.IsCancellationRequested) break;
-                        if (Math.Abs(masterBestScore) >= WinMin) break;
-                        if (limits.Mode != TimeControlMode.FixedDepth)
-                        {
-                            if (t1 + TimeoutPrevent * td >= _stopTime || iterNodes == prevSearched) break;
-                        }
-                    }
-                    else if (_terminate || moveNowToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    prevSearched = (int)iterNodes;
-                }
-            }
-            finally
-            {
-                _terminate = true;
-                linkedCts.Cancel();
-            }
-        });
-
         // Workers 1..N-1: Helper scouts
         for (int i = 1; i < numWorkers; i++)
         {
             int workerId = i;
-            tasks[workerId] = Task.Run(() =>
+            helperTasks[workerId - 1] = Task.Run(() =>
             {
                 RunHelperWorker(workerId, workerBoards[workerId], maxTargetDepth, limits, token, moveNowToken);
             });
         }
 
+        // Worker 0: Master search on the calling thread
+        Span<Cand> rootCnd = stackalloc Cand[MaxCand];
         try
         {
-            Task.WaitAll(tasks);
+            int prevSearched = 0;
+            for (int depth = (limits.Mode == TimeControlMode.FixedDepth && limits.Depth == 1 ? 1 : 2); depth <= maxTargetDepth; depth++)
+            {
+                if (token.IsCancellationRequested) break;
+                _currentDepth = depth;
+                long t0 = Environment.TickCount64;
+                long iterNodes = 0;
+
+                Cand best = MinimaxRoot(0, workerBoards[0], depth, rootCnd, ref iterNodes, token, moveNowToken);
+                Interlocked.Add(ref _totalNodes, iterNodes);
+
+                if (token.IsCancellationRequested) break;
+
+                if (best.X >= BitboardPatternBoard.Margin && best.Y >= BitboardPatternBoard.Margin)
+                {
+                    masterBestPoint = new Point(best.X - BitboardPatternBoard.Margin, best.Y - BitboardPatternBoard.Margin);
+                    masterBestScore = best.Value;
+                    masterFinalDepth = depth;
+                    _activeBestMovePoint = masterBestPoint;
+                    _activeBestScore = masterBestScore;
+
+                    long t1 = Environment.TickCount64;
+                    long td = t1 - t0;
+
+                    long speed = td > 0 ? iterNodes * 1000 / td : 0;
+                    LastAnalysis = new SearchAnalysis(
+                        state.MoveCount + 1,
+                        depth,
+                        masterBestScore,
+                        new Move(masterBestPoint.X, masterBestPoint.Y, state.SideToMove),
+                        _totalNodes,
+                        speed,
+                        sw.Elapsed,
+                        StatusMessage: null,
+                        IsSearching: false);
+                    progress?.Report(LastAnalysis);
+
+                    if (_terminate || moveNowToken.IsCancellationRequested) break;
+                    if (Math.Abs(masterBestScore) >= WinMin) break;
+                    if (limits.Mode != TimeControlMode.FixedDepth)
+                    {
+                        if (t1 + TimeoutPrevent * td >= _stopTime || iterNodes == prevSearched) break;
+                    }
+                }
+                else if (_terminate || moveNowToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                prevSearched = (int)iterNodes;
+            }
+        }
+        finally
+        {
+            _terminate = true;
+            linkedCts.Cancel();
+        }
+
+        try
+        {
+            if (helperTasks.Length > 0)
+            {
+                Task.WaitAll(helperTasks);
+            }
         }
         catch (AggregateException)
         {

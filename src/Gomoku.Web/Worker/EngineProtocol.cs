@@ -22,7 +22,9 @@ internal sealed record MoveRequest(
     int Depth,
     long TimeTicks,
     bool UseOpeningBook,
-    int TranspositionTableEntries);
+    int TranspositionTableEntries,
+    bool MultiThreadingEnabled = true,
+    int ThreadCount = 0);
 
 internal sealed record ProgressDto(
     int MoveNumber,
@@ -71,11 +73,13 @@ internal static class EngineProtocol
             limits.Depth,
             limits.Time.Ticks,
             limits.UseOpeningBook,
-            settings.TranspositionTableEntries);
+            settings.TranspositionTableEntries,
+            settings.MultiThreadingEnabled,
+            settings.ThreadCount);
         return JsonSerializer.Serialize(req, EngineProtocolJson.Default.MoveRequest);
     }
 
-    public static (BoardState State, SearchLimits Limits, AiEngineType EngineType, int TtEntries) ReadRequest(string json)
+    public static (BoardState State, SearchLimits Limits, AiEngineType EngineType, int TtEntries, bool MultiThreadingEnabled, int ThreadCount) ReadRequest(string json)
     {
         MoveRequest req = JsonSerializer.Deserialize(json, EngineProtocolJson.Default.MoveRequest)!;
         BoardSize size = new(req.BoardWidth, req.BoardHeight);
@@ -97,7 +101,7 @@ internal static class EngineProtocol
             _ => SearchLimits.TimePerGame(time > TimeSpan.Zero ? time : TimeSpan.FromMilliseconds(10), req.UseOpeningBook)
         };
 
-        return (state, limits, req.EngineType, req.TranspositionTableEntries);
+        return (state, limits, req.EngineType, req.TranspositionTableEntries, req.MultiThreadingEnabled, req.ThreadCount);
     }
 
     public static string WriteProgress(SearchAnalysis info)
