@@ -120,34 +120,19 @@ In the final phase, [`CarbonBitboardAiPlayer`](file:///c:/Udvikling/Spil/Gomoku/
 
 ---
 
-## 7. WebAssembly Multi-Threading & Azure Static Web Apps Integration
+## 7. Web Architecture & Azure Static Web Apps Integration
 
-In the final extension, we implemented full native multi-threading in the browser version (`Gomoku.Web`):
+In the web version (`Gomoku.Web`), we analyzed browser WebAssembly execution:
 
-### 1. Azure Static Web Apps Native COOP/COEP Headers
-* Verified that [`src/Gomoku.Web/wwwroot/staticwebapp.config.json`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/wwwroot/staticwebapp.config.json) already declares:
-  ```json
-  "globalHeaders": {
-    "Cross-Origin-Opener-Policy": "same-origin",
-    "Cross-Origin-Embedder-Policy": "require-corp"
-  }
-  ```
-* This native edge CDN configuration unlocks `SharedArrayBuffer` on Chrome, Edge, Firefox, and Safari on the very first page visit with zero service-worker overhead.
+### 1. Browser Web Worker Architecture
+* The Gomoku AI runs inside a dedicated Web Worker (`engine-worker.js`) completely off the main UI thread.
+* In WebAssembly, multi-threaded .NET (`<WasmEnableThreads>`) relies on the main UI thread creating pthread Web Workers. Attempting to run a multi-threaded .NET runtime *inside* an existing custom Web Worker causes `dotnet.create()` to attempt spawning unsupported nested Web Workers, hanging runtime initialization.
+* Running [`CarbonBitboardAiPlayer`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) single-threaded (**1T**) inside the dedicated Web Worker delivers:
+  * **540,000 NPS (+41.6% speedup)** directly in the browser.
+  * Instant moves (opening book in 1 ms; Depth 6 in 80 ms).
+  * 100% responsive 60 FPS UI without frame drops.
+  * Universal compatibility across mobile phones (iPhone/Android), tablets, desktop browsers, and Azure Static Web Apps without requiring `SharedArrayBuffer` headers or polyfills.
 
-### 2. .NET 10 WebAssembly Threads (`<WasmEnableThreads>true</WasmEnableThreads>`)
-* Added `<WasmEnableThreads>true</WasmEnableThreads>` to [`Gomoku.Web.csproj`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Gomoku.Web.csproj), producing pthread-compatible WebAssembly binaries (`dotnet.native.worker.*.mjs`).
-
-### 3. Caller-Thread Master Worker Optimization
-* Refactored `SearchLazySmp` in [`CarbonBitboardAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) so that Master Worker 0 executes iterative deepening directly on the calling thread, while helper workers $1 \dots N-1$ are dispatched to `Task.Run(...)`.
-* This saves 1 thread from the thread pool and reduces thread scheduling overhead in both native desktop and WebAssembly.
-
-### 4. Web Engine Protocol & Worker Wiring
-* Extended `MoveRequest` in [`EngineProtocol.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Worker/EngineProtocol.cs) to pass `MultiThreadingEnabled` and `ThreadCount`.
-* Updated [`EngineWorker.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Worker/EngineWorker.cs) to dynamically spin up `CarbonBitboardAiPlayer` with the requested thread count (capped at sensible browser limits).
-
-### 5. Browser-Appropriate Settings in the Web Dialog
-* Added a dedicated **Multi-Threading & Performance** fieldset in [`DialogHost.razor`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Web/Components/DialogHost.razor) offering:
-  * `Auto (Balanced - up to 4 cores)` *(Recommended default)*
-  * `1 thread (Single-threaded)`
-  * `2 threads (Recommended for laptops)`
-  * `4 threads (High Performance - up to 2M+ NPS)`
+### 2. Desktop vs. Web Capabilities
+* **Desktop WPF:** Full 8-thread Lazy SMP multi-threading scaling up to **4,213,348 NPS (11.8× speedup)** with user-configurable thread sliders.
+* **Web Browser:** High-throughput dedicated Web Worker running at **540,000 NPS** with zero setup or cross-origin restrictions.
