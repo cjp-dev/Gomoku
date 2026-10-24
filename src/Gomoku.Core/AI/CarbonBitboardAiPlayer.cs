@@ -26,8 +26,12 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
     public int ThreadCount { get; }
     public LockFreeTranspositionTable Table { get; }
 
+    private const int WorkerCounterStride = 8; // 64-byte cache-line spacing (8 x Int64)
+
     private readonly BitboardPatternBoard _pb = new();
     private long _totalNodes;
+    private long[]? _activeWorkerNodes;
+    private int _activeNumWorkers;
     private long _startTime;
     private long _stopTime;
     private int _timeoutTurnMs = 1000000;
@@ -282,6 +286,9 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
 
         int numWorkers = ThreadCount;
         Task[] helperTasks = new Task[numWorkers - 1];
+        long[] workerNodes = new long[numWorkers * WorkerCounterStride];
+        _activeWorkerNodes = workerNodes;
+        _activeNumWorkers = numWorkers;
 
         BitboardPatternBoard[] workerBoards = new BitboardPatternBoard[numWorkers];
         workerBoards[0] = pb;
@@ -322,7 +329,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                 long iterNodes = 0;
 
                 Cand best = MinimaxRoot(0, workerBoards[0], depth, rootCnd, ref iterNodes, token, moveNowToken);
-                Interlocked.Add(ref _totalNodes, iterNodes);
+                CompleteWorkerDepthNodes(0, iterNodes);
 
                 if (token.IsCancellationRequested) break;
 
@@ -337,13 +344,18 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                     long t1 = Environment.TickCount64;
                     long td = t1 - t0;
 
-                    long speed = td > 0 ? iterNodes * 1000 / td : 0;
+                    long combinedNodes = GetCombinedLiveNodes(0, 0);
+                    _totalNodes = combinedNodes;
+                    long elapsedMs = sw.ElapsedMilliseconds;
+                    long speed = elapsedMs > 0
+                        ? combinedNodes * 1000 / elapsedMs
+                        : (td > 0 ? combinedNodes * 1000 / td : 0);
                     LastAnalysis = new SearchAnalysis(
                         state.MoveCount + 1,
                         depth,
                         masterBestScore,
                         new Move(masterBestPoint.X, masterBestPoint.Y, state.SideToMove),
-                        _totalNodes,
+                        combinedNodes,
                         speed,
                         sw.Elapsed,
                         StatusMessage: null,
@@ -383,6 +395,14 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         }
         finally
         {
+            long finalSum = 0;
+            for (int w = 0; w < numWorkers; w++)
+            {
+                finalSum += Volatile.Read(ref workerNodes[w * WorkerCounterStride]);
+            }
+            _totalNodes = finalSum;
+            _activeWorkerNodes = null;
+            _activeNumWorkers = 0;
             _activeProgress = null;
             _activeSw = null;
         }
@@ -424,11 +444,56 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
 
             long iterNodes = 0;
             Cand best = MinimaxRoot(workerId, pb, depth, rootCnd, ref iterNodes, token, moveNowToken);
-            Interlocked.Add(ref _totalNodes, iterNodes);
+            CompleteWorkerDepthNodes(workerId, iterNodes);
 
             if (_terminate || token.IsCancellationRequested || moveNowToken.IsCancellationRequested) break;
             if (Math.Abs(best.Value) >= WinMin) break;
         }
+    }
+
+    private void UpdateWorkerLiveNodes(int workerId, long iterNodes)
+    {
+        long[]? wn = _activeWorkerNodes;
+        if (wn is not null && (uint)workerId < (uint)_activeNumWorkers)
+        {
+            int idx = workerId * WorkerCounterStride;
+            Volatile.Write(ref wn[idx], wn[idx + 1] + iterNodes);
+        }
+    }
+
+    private void CompleteWorkerDepthNodes(int workerId, long iterNodes)
+    {
+        long[]? wn = _activeWorkerNodes;
+        if (wn is not null && (uint)workerId < (uint)_activeNumWorkers)
+        {
+            int idx = workerId * WorkerCounterStride;
+            long completed = wn[idx + 1] + iterNodes;
+            wn[idx + 1] = completed;
+            Volatile.Write(ref wn[idx], completed);
+        }
+    }
+
+    private long GetCombinedLiveNodes(int callerWorkerId, long callerIterNodes)
+    {
+        long[]? wn = _activeWorkerNodes;
+        if (wn is null)
+        {
+            return _totalNodes + callerIterNodes;
+        }
+
+        if ((uint)callerWorkerId < (uint)_activeNumWorkers)
+        {
+            int idx = callerWorkerId * WorkerCounterStride;
+            Volatile.Write(ref wn[idx], wn[idx + 1] + callerIterNodes);
+        }
+
+        long sum = 0;
+        int n = _activeNumWorkers;
+        for (int w = 0; w < n; w++)
+        {
+            sum += Volatile.Read(ref wn[w * WorkerCounterStride]);
+        }
+        return sum;
     }
 
     private void ConfigureTimeLimits(SearchLimits limits)
@@ -861,11 +926,13 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                 bound = BoundType.Exact;
             }
 
+            UpdateWorkerLiveNodes(workerId, iterNodes);
+
             if (workerId == 0 && _activeProgress != null && _activeSw != null && _activeSw.ElapsedMilliseconds - _lastYieldMs >= 150)
             {
                 _lastYieldMs = _activeSw.ElapsedMilliseconds;
                 _lastReportMs = _lastYieldMs;
-                long totalCurrentNodes = _totalNodes + iterNodes;
+                long totalCurrentNodes = GetCombinedLiveNodes(0, iterNodes);
                 long speed = _lastYieldMs > 0 ? totalCurrentNodes * 1000 / _lastYieldMs : 0;
                 Move? currentBest = _activeBestMovePoint.IsValid(pb.BoardWidth, pb.BoardHeight)
                     ? new Move(_activeBestMovePoint.X, _activeBestMovePoint.Y, _currentSideToMove)
@@ -918,11 +985,12 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         {
             nodeCheckCounter = 1000;
             long now = Environment.TickCount64;
+            UpdateWorkerLiveNodes(workerId, iterNodes);
 
             if (workerId == 0 && _activeProgress != null && _activeSw != null && _activeSw.ElapsedMilliseconds - _lastReportMs >= 100)
             {
                 _lastReportMs = _activeSw.ElapsedMilliseconds;
-                long totalCurrentNodes = _totalNodes + iterNodes;
+                long totalCurrentNodes = GetCombinedLiveNodes(0, iterNodes);
                 long speed = _lastReportMs > 0 ? totalCurrentNodes * 1000 / _lastReportMs : 0;
                 Move? currentBest = _activeBestMovePoint.IsValid(pb.BoardWidth, pb.BoardHeight)
                     ? new Move(_activeBestMovePoint.X, _activeBestMovePoint.Y, _currentSideToMove)

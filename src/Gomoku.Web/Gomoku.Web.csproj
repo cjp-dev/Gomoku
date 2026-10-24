@@ -45,5 +45,13 @@
     </ItemGroup>
   </Target>
 
-</Project>
+  <!-- Ensure threaded engine is built for local development if not already present -->
+  <Target Name="BuildEngine" BeforeTargets="AssignTargetPaths" Condition="'$(GITHUB_ACTIONS)' != 'true' and !Exists('wwwroot/engine/_framework/dotnet.js')">
+    <Exec Command="dotnet publish ../Gomoku.Web.Engine/Gomoku.Web.Engine.csproj -c Release -o ../Gomoku.Web/obj/engine_pub" />
+    <ItemGroup>
+      <EngineAssets Include="..\Gomoku.Web\obj\engine_pub\wwwroot\_framework\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(EngineAssets)" DestinationFiles="@(EngineAssets->'wwwroot\engine\_framework\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 
+</Project>

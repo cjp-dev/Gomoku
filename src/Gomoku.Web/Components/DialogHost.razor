@@ -88,6 +88,31 @@
                         <span>@settings.GameTimeMinutes minutes</span>
                     </fieldset>
 
+                    <fieldset class="settings" style="margin-bottom: 1rem;">
+                        <legend>Multi-Threading &amp; Performance</legend>
+                        <label style="font-weight: normal;">
+                            <input type="checkbox" @bind="settings.MultiThreadingEnabled" />
+                            Enable Multi-Threading (Lazy SMP)
+                        </label>
+                        <div style="margin-top: 0.5rem;">
+                            <label style="margin-top: 0;">Search Threads:</label>
+                            <select class="dialog-text" style="margin: 0.25rem 0;" @bind="settings.ThreadCount" disabled="@(!settings.MultiThreadingEnabled)">
+                                <option value="0">Auto (4 threads)</option>
+                                <option value="1">1 thread (Single-threaded)</option>
+                                <option value="2">2 threads</option>
+                                <option value="3">3 threads</option>
+                                <option value="4">4 threads</option>
+                                <option value="5">5 threads</option>
+                                <option value="6">6 threads</option>
+                                <option value="7">7 threads</option>
+                                <option value="8">8 threads</option>
+                            </select>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #64748B; margin-top: 4px;">
+                            Uses WebAssembly pthreads with a shared lock-free transposition table. Automatically falls back to single-threaded search if threading headers are unavailable.
+                        </div>
+                    </fieldset>
+
                     <fieldset class="settings">
                         <legend>Carbon Opening Book &amp; Transposition Table</legend>
                         <label style="font-weight: normal;">

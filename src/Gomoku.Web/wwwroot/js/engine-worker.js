@@ -1,5 +1,7 @@
-// Web Worker that runs the Gomoku AI engine in its own .NET runtime.
-const dotnetUrl = new URL(self.location.href).searchParams.get('dotnet');
+// Dedicated Web Worker fallback for running the single-threaded Gomoku AI engine
+// when SharedArrayBuffer / crossOriginIsolated is unavailable.
+const url = new URL(self.location.href);
+const dotnetUrl = url.searchParams.get('dotnet');
 let signalView = null;
 
 const started = (async () => {
@@ -22,14 +24,20 @@ self.addEventListener('message', async e => {
         const engine = await started;
         let result;
         switch (command) {
-            case 'init': result = engine.Init(); break;
-            case 'chooseMove': result = engine.ChooseMove(...args); break;
-            case 'clearTt': result = engine.ClearTranspositionTable(); break;
-            default: throw new Error(`Unknown engine command: ${command}`);
+            case 'init':
+                result = engine.Init();
+                break;
+            case 'chooseMove':
+                result = engine.ChooseMove(...args);
+                break;
+            case 'clearTt':
+                result = engine.ClearTranspositionTable();
+                break;
+            default:
+                throw new Error(`Unknown engine command: ${command}`);
         }
         self.postMessage({ type: 'response', id, result });
     } catch (error) {
         self.postMessage({ type: 'response', id, error: error?.message ?? String(error) });
     }
 });
-

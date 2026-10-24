@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WasmEnableThreads>true</WasmEnableThreads>
+    <WasmPThreadPoolInitialSize>16</WasmPThreadPoolInitialSize>
+  </PropertyGroup>
+
+  <!-- Compile the threaded search engine to WebAssembly AOT in CI / Release AOT publishes. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and ('$(RunAOTCompilation)' == 'true' or '$(GITHUB_ACTIONS)' == 'true')">
+    <RunAOTCompilation>true</RunAOTCompilation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Gomoku.App\Gomoku.App.csproj" />
+    <ProjectReference Include="..\Gomoku.Core\Gomoku.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Gomoku.Web\Worker\EngineProtocol.cs" Link="Worker\EngineProtocol.cs" />
+  </ItemGroup>
+
+</Project>
