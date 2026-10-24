@@ -36,43 +36,45 @@ public static class MatchRunner
 
         var openings = GenerateOpeningPositions(openingCount);
 
-        // ----------------------------------------------------
-        // MATCH 1: Single-Threaded vs Single-Threaded
-        // ----------------------------------------------------
-        Console.WriteLine("=================================================");
-        Console.WriteLine(">>> MATCH 1: Carbon-X (1 Thread) vs Carbon AI <<<");
-        Console.WriteLine("=================================================");
-        var match1 = await RunPairedMatchAsync(
-            matchName: "Single-Threaded Match (1T vs 1T)",
-            createEngineA: () => new CarbonXAiPlayer(threadCount: 1),
-            createEngineB: () => new CarbonAiPlayer(),
-            openings: openings,
-            timePerMoveSec: timePerMoveSec);
-
-        PrintMatchReport(match1);
-
-        // ----------------------------------------------------
-        // MATCH 2: Multithreaded Carbon-X vs Single-Threaded Carbon
-        // ----------------------------------------------------
         int multiThreads = Math.Max(2, Math.Min(8, Environment.ProcessorCount));
+
+        // ----------------------------------------------------
+        // MATCH 2A: Bitboard Single-Threaded Match (1T vs 1T)
+        // ----------------------------------------------------
         Console.WriteLine("=================================================");
-        Console.WriteLine($">>> MATCH 2: Carbon-X ({multiThreads} Threads) vs Carbon AI <<<");
+        Console.WriteLine(">>> MATCH 2A: New Carbon AI Bitboard (1T) vs Carbon AI (1T) <<<");
         Console.WriteLine("=================================================");
-        var match2 = await RunPairedMatchAsync(
-            matchName: $"Multithreaded Match ({multiThreads}T vs 1T)",
-            createEngineA: () => new CarbonXAiPlayer(threadCount: multiThreads),
-            createEngineB: () => new CarbonAiPlayer(),
+        var match2A = await RunPairedMatchAsync(
+            matchName: "Bitboard Single-Threaded Match (1T vs 1T)",
+            createEngineA: () => new CarbonBitboardAiPlayer(threadCount: 1),
+            createEngineB: () => new CarbonAiPlayer(threadCount: 1),
             openings: openings,
             timePerMoveSec: timePerMoveSec);
 
-        PrintMatchReport(match2);
+        PrintMatchReport(match2A);
+
+        // ----------------------------------------------------
+        // MATCH 2B: Bitboard Multithreaded Match (8T vs 8T)
+        // ----------------------------------------------------
+        Console.WriteLine("=================================================");
+        Console.WriteLine($">>> MATCH 2B: New Carbon AI Bitboard ({multiThreads}T) vs Carbon AI ({multiThreads}T) <<<");
+        Console.WriteLine("=================================================");
+        var match2B = await RunPairedMatchAsync(
+            matchName: $"Bitboard Multithreaded Match ({multiThreads}T vs {multiThreads}T)",
+            createEngineA: () => new CarbonBitboardAiPlayer(threadCount: multiThreads),
+            createEngineB: () => new CarbonAiPlayer(threadCount: multiThreads),
+            openings: openings,
+            timePerMoveSec: timePerMoveSec);
+
+        PrintMatchReport(match2B);
 
         // Final Summary
         Console.WriteLine("\n=================================================");
         Console.WriteLine("                TOURNAMENT SUMMARY               ");
         Console.WriteLine("=================================================");
-        Console.WriteLine($"Match 1 (1T vs 1T): Carbon-X {match1.EngineAWins} - {match1.EngineBWins} Carbon AI ({match1.Draws} draws) | Win Rate: {match1.EngineAWinRate:P1}");
-        Console.WriteLine($"Match 2 ({multiThreads}T vs 1T): Carbon-X {match2.EngineAWins} - {match2.EngineBWins} Carbon AI ({match2.Draws} draws) | Win Rate: {match2.EngineAWinRate:P1}");
+        Console.WriteLine($"Match 2A (1T vs 1T): Carbon Bitboard {match2A.EngineAWins} - {match2A.EngineBWins} Carbon AI ({match2A.Draws} draws) | Win Rate: {match2A.EngineAWinRate:P1}");
+        Console.WriteLine($"Match 2B ({multiThreads}T vs {multiThreads}T): Carbon Bitboard {match2B.EngineAWins} - {match2B.EngineBWins} Carbon AI ({match2B.Draws} draws) | Win Rate: {match2B.EngineAWinRate:P1}");
+        Console.WriteLine("=================================================\n");
         Console.WriteLine("=================================================\n");
     }
 

@@ -228,6 +228,35 @@ public sealed class PatternBoard
     }
 
     /// <summary>
+    /// Creates an isolated deep clone of the pattern board for parallel thread execution.
+    /// </summary>
+    public PatternBoard Clone()
+    {
+        PatternBoard clone = new()
+        {
+            BoardWidth = BoardWidth,
+            BoardHeight = BoardHeight,
+            Variant = Variant,
+            Who = Who,
+            FirstPlayer = FirstPlayer,
+            MoveCount = MoveCount,
+            RemCount = RemCount,
+            ZobristHash = ZobristHash,
+            UpperLeftCand = UpperLeftCand,
+            LowerRightCand = LowerRightCand
+        };
+
+        Array.Copy(Cells, clone.Cells, Cells.Length);
+        Array.Copy(NSt, clone.NSt, NSt.Length);
+        Array.Copy(_remMove, clone._remMove, _remMove.Length);
+        Array.Copy(_remULCand, clone._remULCand, _remULCand.Length);
+        Array.Copy(_remLRCand, clone._remLRCand, _remLRCand.Length);
+        Array.Copy(RemPlacedPoints, clone.RemPlacedPoints, RemPlacedPoints.Length);
+
+        return clone;
+    }
+
+    /// <summary>
     /// Executes move at board coordinate (xp, yp) in 0-based range [0..Width-1, 0..Height-1].
     /// </summary>
     public void MakeMove(int xp, int yp)

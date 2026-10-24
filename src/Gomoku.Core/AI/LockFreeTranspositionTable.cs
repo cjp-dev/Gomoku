@@ -65,8 +65,12 @@ public sealed class LockFreeTranspositionTable
     private readonly Entry[] _table;
     private readonly ulong _mask;
     private byte _currentAge;
+    private long _hits;
+    private long _stores;
+
     public int Capacity { get; }
-    public long Hits { get; private set; }
+    public long Hits => Volatile.Read(ref _hits);
+    public long Stores => Volatile.Read(ref _stores);
 
     public LockFreeTranspositionTable(int capacity = DefaultCapacity)
     {
@@ -80,14 +84,16 @@ public sealed class LockFreeTranspositionTable
     public void NewSearch()
     {
         _currentAge = (byte)((_currentAge + 1) & 0x7F);
-        Hits = 0;
+        Volatile.Write(ref _hits, 0);
+        Volatile.Write(ref _stores, 0);
     }
 
     public void Clear()
     {
         Array.Clear(_table);
         _currentAge = 0;
-        Hits = 0;
+        Volatile.Write(ref _hits, 0);
+        Volatile.Write(ref _stores, 0);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -103,7 +109,7 @@ public sealed class LockFreeTranspositionTable
         if ((keyXorData ^ data) == key)
         {
             Entry.UnpackData(data, out bestMove, out depth, out bound, out eval, out _);
-            Hits++;
+            Interlocked.Increment(ref _hits);
             return true;
         }
 
@@ -124,15 +130,31 @@ public sealed class LockFreeTranspositionTable
         ulong oldKey = Volatile.Read(ref entry.KeyXorData) ^ oldData;
 
         // Replacement scheme:
-        // Replace if slot is empty, or from an older age, or new search depth is >= old depth,
-        // or new bound is Exact
-        if (oldKey != key)
+        // Protect deeper entries from being overwritten by shallower searches
+        if (oldData != 0)
         {
-            // Position collision or new position: check age and depth
-            Entry.UnpackData(oldData, out _, out int oldDepth, out BoundType oldBound, out _, out byte oldAge);
-            if (oldAge == _currentAge && depth < oldDepth && bound != BoundType.Exact && oldBound == BoundType.Exact)
+            Entry.UnpackData(oldData, out Point oldMove, out int oldDepth, out BoundType oldBound, out _, out byte oldAge);
+            int ageDiff = (_currentAge - oldAge) & 0x7F;
+
+            if (ageDiff == 0)
             {
-                return; // Keep existing exact deeper entry
+                // In current search, never let a shallower search overwrite a deeper entry
+                if (depth < oldDepth && bound != BoundType.Exact)
+                {
+                    return;
+                }
+
+                // If collision with different key, preserve existing entry if it is deeper
+                if (oldKey != key && depth <= oldDepth)
+                {
+                    return;
+                }
+            }
+
+            // Preserve best move hint if new search didn't provide one
+            if (bestMove == Point.Empty && oldKey == key && oldMove != Point.Empty)
+            {
+                bestMove = oldMove;
             }
         }
 
@@ -142,5 +164,6 @@ public sealed class LockFreeTranspositionTable
 
         Volatile.Write(ref entry.Data, newData);
         Volatile.Write(ref entry.KeyXorData, newKeyXorData);
+        Interlocked.Increment(ref _stores);
     }
 }
