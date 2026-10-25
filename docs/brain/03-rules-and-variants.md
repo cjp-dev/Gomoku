@@ -92,7 +92,8 @@ In `Gomoku.Core`, Renju foul detection is ported directly from `AICarbon::checkF
 public void CheckForbid(int x, int y)
 {
     int fp = (int)FirstPlayer;
-    byte st4 = Cells[x, y].GetStatus4(fp);
+    ref Cell cell = ref GetCell(x, y);
+    byte st4 = cell.GetStatus4(fp);
     if (st4 < CarbonTables.ThreatF) return; // Below Threat F (3x3), no foul possible
 
     // 1. Check for Overline (6+)
@@ -101,9 +102,14 @@ public void CheckForbid(int x, int y)
         int n6 = 0;
         for (int k = 0; k < 4; k++)
         {
-            if (Cells[x, y].GetStatus1(k, fp) >= 9)
+            if (cell.GetStatus1(k, fp) >= 9)
             {
-                int n = CountStonesAlongAxis(x, y, k, FirstPlayer);
+                int n = -1;
+                int x1 = x; int y1 = y;
+                do { x1 -= DX[k]; y1 -= DY[k]; n++; } while (GetCell(x1, y1).Piece == FirstPlayer);
+                x1 = x; y1 = y;
+                do { x1 += DX[k]; y1 += DY[k]; n++; } while (GetCell(x1, y1).Piece == FirstPlayer);
+
                 if (n >= 5)
                 {
                     if (n == 5) return; // Exact 5-in-a-row is valid and winning!
@@ -113,7 +119,8 @@ public void CheckForbid(int x, int y)
         }
         if (n6 > 0)
         {
-            SetStatus4(x, y, fp, CarbonTables.ThreatForbid);
+            if (fp == 0) cell.Status4_0 = CarbonTables.ThreatForbid;
+            else cell.Status4_1 = CarbonTables.ThreatForbid;
         }
         return;
     }
@@ -122,14 +129,15 @@ public void CheckForbid(int x, int y)
     int n3 = 0, n4 = 0;
     for (int k = 0; k < 4; k++)
     {
-        int s = Cells[x, y].GetStatus1(k, fp);
+        int s = cell.GetStatus1(k, fp);
         if (s >= 7) n4++;      // Status >= 7 is a Four
         else if (s >= 6) n3++; // Status == 6 is an Open Three
     }
 
     if (n4 > 1 || n3 > 1)
     {
-        SetStatus4(x, y, fp, CarbonTables.ThreatForbid);
+        if (fp == 0) cell.Status4_0 = CarbonTables.ThreatForbid;
+        else cell.Status4_1 = CarbonTables.ThreatForbid;
     }
 }
 ```

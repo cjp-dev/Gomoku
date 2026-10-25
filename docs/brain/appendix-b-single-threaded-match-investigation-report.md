@@ -1,4 +1,6 @@
-# Comprehensive Investigation Report: Single-Threaded Match Divergence
+# Appendix B – Comprehensive Investigation Report: Single-Threaded Match Divergence
+
+[Back to the index](README.md)
 
 **Subject:** Investigation of single-threaded matches between **New Carbon AI (1T)** and **Baseline Carbon AI (1T)**  
 **Target Openings:** Positions #1 (Kagetsu), #2 (Hokuto), #5 (Ungetsu), #21 (Ryusei / Draw), and #24 (Myosei)  

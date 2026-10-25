@@ -15,15 +15,15 @@ Unlike games such as Chess or Othello where material can be captured or discs fl
 When minimax search reaches a leaf node ($h = 0$) where no forced mate has been found by `QuickWinSearch`, the static evaluation function computes the positional advantage for the side to move:
 
 ```csharp
-private int Evaluate()
+private int Evaluate(BitboardPatternBoard pb)
 {
     int pBlack = 0, pWhite = 0;
-    int remCount = _pb.RemCount;
+    int remCount = pb.RemCount;
 
     for (int i = 0; i < remCount; i++)
     {
-        Point pt = _pb.RemPlacedPoints[i];
-        ref PatternBoard.Cell c = ref _pb.Cells[pt.X, pt.Y];
+        Point pt = pb.RemPlacedPoints[i];
+        ref BitboardPatternBoard.Cell c = ref pb.GetCell(pt.X, pt.Y);
         int a = (int)c.Piece;
         if (a is not (0 or 1)) continue;
 
@@ -39,7 +39,7 @@ private int Evaluate()
         else pWhite += stoneScore;
     }
 
-    return _pb.Who == PieceColor.Black ? pBlack - pWhite : pWhite - pBlack;
+    return pb.Who == PieceColor.Black ? pBlack - pWhite : pWhite - pBlack;
 }
 ```
 

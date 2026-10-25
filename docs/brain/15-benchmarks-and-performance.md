@@ -35,7 +35,19 @@ dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -
 
 The following measurements were captured on a modern 64-bit multi-core machine running .NET 10 (Release configuration):
 
-### 1. `PatternBoard` Make/Undo Throughput
+### 1. Board Representation Throughput (Make/Undo Speed)
+
+Empirical make/undo measurements captured via `dotnet run --project tools/Gomoku.Benchmark` on $15 \times 15$ boards:
+
+| Board Implementation | Total Ops Tested | Elapsed Time | Throughput (ops/sec) | Speedup vs Baseline |
+|---|:---:|:---:|:---:|:---:|
+| **Classical `PatternBoard` (2D array + 24 neighbor writes)** | $600,000$ | $2,056\text{ ms}$ | $291,796\text{ ops/sec}$ | $1.00\times$ |
+| **`BitboardPatternBoard` (1D Stride-128 + Chebyshev Dilation)** | $600,000$ | $823\text{ ms}$ | **$728,166\text{ ops/sec}$** | **$2.50\times$ faster** |
+| **`Bitboard15` (16-bit SIMD registers)** | $600,000$ | $33\text{ ms}$ | **$17,927,626\text{ ops/sec}$** | **$61.4\times$ faster** |
+
+*Note: All implementations maintain 100% board consistency across arbitrary make/undo sequences.*
+
+### 2. Classical `PatternBoard` Make/Undo Details
 Measures raw throughput of stone placement, 4-ray bitmask updates, `STATUS1` and `STATUS4` tensor updates, `NSt` live threat counter adjustments, and incremental Zobrist hashing:
 
 $$\text{Test: } 600,000\text{ consecutive 3-ply make/undo cycles on } 15 \times 15\text{ board}$$
@@ -108,7 +120,7 @@ To investigate whether a pure sliding bitboard approach could outperform Carbon'
 **Key Findings:** While Carbon-X achieved fast primitive bitboard evaluations (7.6M ops/sec) and searched 1 ply deeper, Carbon AI won overwhelmingly (**67% to 33%**) because:
 1. Carbon Gomoku's fine-grained `Rank[Config]` directional heuristics encapsulate decades of Gomocup tournament refinements that sliding bitboards lacked.
 2. Carbon's `QuickWinSearch` VCF solver detects forced checkmates up to 24 plies deep that standard depth-5 minimax cannot see.
-Full findings are documented in [`engine-comparison-report.md`](engine-comparison-report.md).
+Full findings are documented in [`appendix-a-engine-comparison-report.md`](appendix-a-engine-comparison-report.md).
 
 ---
 

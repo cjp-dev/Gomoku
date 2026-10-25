@@ -7,13 +7,9 @@ using Gomoku.Core.Models;
 namespace Gomoku.Core.AI;
 
 /// <summary>
-/// Carbon-X Hybrid Gomoku Engine combining:
-/// 1. 16-bit SIMD Bitboard state representation for 15x15.
-/// 2. Principal Variation Search (PVS) with null-window scouting.
-/// 3. Adaptive concurrency: Lazy SMP multithreading across N cores, with zero-overhead single-threaded fallback.
-/// 4. 16-byte lock-free Transposition Table with full 64-bit Zobrist key verification.
-/// 5. Tactical pruning (VCF forced four detection and ONE_CAND overrides).
-/// 6. Opening book integration.
+/// Historical experimental Gomoku engine prototyping concepts from the modern HUST Gomoku C++ engine (Gomoku-main):
+/// 16-bit SIMD bitboard representation (<see cref="Bitboard15"/>), Principal Variation Search (PVS), VCF, and lock-free TT.
+/// Preserved as an intermediate regression baseline. Production clients exclusively use <see cref="CarbonBitboardAiPlayer"/>.
 /// </summary>
 public sealed class CarbonXAiPlayer : IPlayer
 {

@@ -150,13 +150,15 @@ public sealed partial class BrainDocs(HttpClient http)
         _ => "",
     }));
 
-    [GeneratedRegex(@"^(\d\d[-_][a-z0-9_-]+)\.md$")]
+    [GeneratedRegex(@"^((?:\d\d|appendix-[a-z])[-_][a-z0-9_-]+)\.md$")]
     private static partial Regex ChapterFile();
 }
 
 public sealed record DocsChapter(string Slug, string Title)
 {
-    public string Number => Slug[..2];
+    public string Number => Slug.StartsWith("appendix-", StringComparison.OrdinalIgnoreCase)
+        ? Slug[9..10].ToUpperInvariant()
+        : Slug[..2];
 }
 
 public sealed record DocsPage(string Slug, string Title, string Html);

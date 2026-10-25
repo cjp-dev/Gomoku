@@ -5,10 +5,9 @@ using Gomoku.Core.Models;
 namespace Gomoku.Core.AI;
 
 /// <summary>
-/// High-performance Gomoku AI ported from Michał Czardybon's Carbon Gomoku,
-/// augmented with Lazy SMP multithreading and a 16-byte lock-free Transposition Table.
-/// Retains 100% of Carbon's directional ray pattern evaluation, QuickWinSearch VCF,
-/// and tactical candidate pruning heuristics.
+/// Intermediate Carbon Gomoku AI ported from Michał Czardybon's Carbon Gomoku,
+/// utilizing a 2D array <see cref="PatternBoard"/> with Lazy SMP multithreading and a 16-byte lock-free Transposition Table.
+/// Preserved as an architectural baseline. Production clients exclusively use <see cref="CarbonBitboardAiPlayer"/>.
 /// </summary>
 public sealed class CarbonAiPlayer : IPlayer
 {

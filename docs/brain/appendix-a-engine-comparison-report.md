@@ -1,4 +1,6 @@
-# Comparative Architectural Report: Gomoku-main (HUST Bitboard) vs. Carbon Gomoku .NET (Adaptive Multithreading & WebAssembly Feasibility)
+# Appendix A – Comparative Architectural Report: Gomoku-main (HUST Bitboard) vs. Carbon Gomoku .NET
+
+[Back to the index](README.md)
 
 **Author:** Antigravity AI Engineering  
 **Date:** October 2026  

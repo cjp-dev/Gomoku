@@ -309,3 +309,12 @@ A technique that assigns 64-bit pseudo-random values to each stone and turn stat
 
 Previous: [15 Benchmarks and performance](15-benchmarks-and-performance.md) · Next: [17 References](17-references.md)
 
+
+### Chebyshev Dilation
+A bitboard candidate-generation technique where 32-bit row bitmasks are expanded horizontally via shifts (`m | (m << 1) | (m >> 1)`) and OR-ed vertically across adjacent rows. It identifies all valid candidate intersections within Chebyshev distance 2 in single CPU cycles, eliminating 24 separate memory writes per node.
+
+### Stockfish XOR-Checksum Transposition Slot
+A lock-free multi-threading transposition table technique where each 16-byte slot stores `Word0 = Key ^ Word1` and `Word1 = PackedData`. Readers verify that `Word0 ^ Word1 == Key`. If another thread modifies the slot concurrently during reading, the XOR-identity fails, discarding torn data without locks or spinlocks.
+
+### Deputy Thread Architecture
+The multithreaded WebAssembly execution model in modern .NET 10 where the runtime's Managed Main thread runs on a dedicated background Web Worker (Deputy Thread) rather than the browser UI thread. This completely frees the browser UI thread from heavy tree search computation, guaranteeing fluid 60 FPS gameplay.

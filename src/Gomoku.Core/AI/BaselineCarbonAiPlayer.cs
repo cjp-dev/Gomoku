@@ -5,7 +5,9 @@ using Gomoku.Core.Models;
 namespace Gomoku.Core.AI;
 
 /// <summary>
-/// Baseline single-threaded Carbon Gomoku AI player preserved for benchmark regression testing.
+/// Baseline single-threaded Carbon Gomoku AI player directly ported from Michał Czardybon's Carbon Gomoku (2001–2006).
+/// Preserved as an unoptimized reference baseline for deterministic move verification and tournament regression testing.
+/// Production clients exclusively use <see cref="CarbonBitboardAiPlayer"/>.
 /// </summary>
 public sealed class BaselineCarbonAiPlayer : IPlayer
 {

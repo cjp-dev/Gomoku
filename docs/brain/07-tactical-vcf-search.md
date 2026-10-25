@@ -35,38 +35,37 @@ Every pattern formation detected across the 4 discrete ray axes by `STATUS4` cor
 `QuickWinSearch` is invoked at the start of every node in minimax. It performs a fast recursive branch-and-bound search that checks whether the current player can force a win or is facing an unavoidable loss:
 
 ```csharp
-private int QuickWinSearch()
+private int QuickWinSearch(BitboardPatternBoard pb)
 {
-    int who = (int)_pb.Who;
-    int opp = (int)_pb.Opp;
+    int who = (int)pb.Who;
+    int opp = (int)pb.Opp;
 
     // 1. Immediate win available
-    if (_pb.NSt[who, CarbonTables.ThreatA] >= 1) return 1;
+    if (pb.GetNSt(who, CarbonTables.ThreatA) >= 1) return 1;
 
     // 2. Opponent has double five threat: cannot block both
-    if (_pb.NSt[opp, CarbonTables.ThreatA] >= 2) return -2;
+    if (pb.GetNSt(opp, CarbonTables.ThreatA) >= 2) return -2;
 
     // 3. Opponent has a single four threat: must block
-    if (_pb.NSt[opp, CarbonTables.ThreatA] == 1)
+    if (pb.GetNSt(opp, CarbonTables.ThreatA) == 1)
     {
-        for (int y = _pb.UpperLeftCand.Y; y <= _pb.LowerRightCand.Y; y++)
+        for (int y = pb.UpperLeftCand.Y; y <= pb.LowerRightCand.Y; y++)
         {
-            for (int x = _pb.UpperLeftCand.X; x <= _pb.LowerRightCand.X; x++)
+            for (int x = pb.UpperLeftCand.X; x <= pb.LowerRightCand.X; x++)
             {
-                ref PatternBoard.Cell c = ref _pb.Cells[x, y];
-                if (c.Piece == PieceColor.Empty && (c.Adj1 != 0 || c.Adj2 != 0) &&
-                    c.GetStatus4(opp) == CarbonTables.ThreatA)
+                ref BitboardPatternBoard.Cell c = ref pb.GetCell(x, y);
+                if (c.Piece == PieceColor.Empty && c.GetStatus4(opp) == CarbonTables.ThreatA)
                 {
                     // In Renju, Black cannot defend if the blocking cell is a foul
-                    if (_pb.Variant == GomokuVariant.Renju && _pb.Who == _pb.FirstPlayer &&
+                    if (pb.Variant == GomokuVariant.Renju && pb.Who == pb.FirstPlayer &&
                         c.GetStatus4(who) == CarbonTables.ThreatForbid)
                     {
                         return -2;
                     }
 
-                    _pb.MakePaddedMove(x, y);
-                    int q = -QuickWinSearch();
-                    _pb.UndoMove();
+                    pb.MakePaddedMove(x, y);
+                    int q = -QuickWinSearch(pb);
+                    pb.UndoMove();
                     if (q < 0) q--; else if (q > 0) q++;
                     return q;
                 }
@@ -75,31 +74,30 @@ private int QuickWinSearch()
     }
 
     // 4. Open four creates unstoppable win in 3 plies
-    if (_pb.NSt[who, CarbonTables.ThreatB] >= 1) return 3;
+    if (pb.GetNSt(who, CarbonTables.ThreatB) >= 1) return 3;
 
     // 5. Four-Three fork: test if opponent has counter-threats
-    if (_pb.NSt[who, CarbonTables.ThreatC] >= 1)
+    if (pb.GetNSt(who, CarbonTables.ThreatC) >= 1)
     {
-        if (_pb.NSt[opp, CarbonTables.ThreatB] == 0 &&
-            _pb.NSt[opp, CarbonTables.ThreatC] == 0 &&
-            _pb.NSt[opp, CarbonTables.ThreatD] == 0 &&
-            _pb.NSt[opp, CarbonTables.ThreatE] == 0)
+        if (pb.GetNSt(opp, CarbonTables.ThreatB) == 0 &&
+            pb.GetNSt(opp, CarbonTables.ThreatC) == 0 &&
+            pb.GetNSt(opp, CarbonTables.ThreatD) == 0 &&
+            pb.GetNSt(opp, CarbonTables.ThreatE) == 0)
         {
             return 5;
         }
 
         // Branch into VCF attack candidate moves
-        for (int y = _pb.UpperLeftCand.Y; y <= _pb.LowerRightCand.Y; y++)
+        for (int y = pb.UpperLeftCand.Y; y <= pb.LowerRightCand.Y; y++)
         {
-            for (int x = _pb.UpperLeftCand.X; x <= _pb.LowerRightCand.X; x++)
+            for (int x = pb.UpperLeftCand.X; x <= pb.LowerRightCand.X; x++)
             {
-                ref PatternBoard.Cell c = ref _pb.Cells[x, y];
-                if (c.Piece == PieceColor.Empty && (c.Adj1 != 0 || c.Adj2 != 0) &&
-                    c.GetStatus4(who) == CarbonTables.ThreatC)
+                ref BitboardPatternBoard.Cell c = ref pb.GetCell(x, y);
+                if (c.Piece == PieceColor.Empty && c.GetStatus4(who) == CarbonTables.ThreatC)
                 {
-                    _pb.MakePaddedMove(x, y);
-                    int q = -QuickWinSearch();
-                    _pb.UndoMove();
+                    pb.MakePaddedMove(x, y);
+                    int q = -QuickWinSearch(pb);
+                    pb.UndoMove();
                     if (q > 0) return q + 1;
                 }
             }
@@ -107,12 +105,12 @@ private int QuickWinSearch()
     }
 
     // 6. Double-Three fork without opponent counter-threats
-    if (_pb.NSt[who, CarbonTables.ThreatF] >= 1)
+    if (pb.GetNSt(who, CarbonTables.ThreatF) >= 1)
     {
-        if (_pb.NSt[opp, CarbonTables.ThreatB] == 0 &&
-            _pb.NSt[opp, CarbonTables.ThreatC] == 0 &&
-            _pb.NSt[opp, CarbonTables.ThreatD] == 0 &&
-            _pb.NSt[opp, CarbonTables.ThreatE] == 0)
+        if (pb.GetNSt(opp, CarbonTables.ThreatB) == 0 &&
+            pb.GetNSt(opp, CarbonTables.ThreatC) == 0 &&
+            pb.GetNSt(opp, CarbonTables.ThreatD) == 0 &&
+            pb.GetNSt(opp, CarbonTables.ThreatE) == 0)
         {
             return 5;
         }

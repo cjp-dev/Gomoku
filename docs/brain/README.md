@@ -91,6 +91,8 @@ graph TD
 | 15 | [Benchmarks and performance](15-benchmarks-and-performance.md) | Empirical throughput: 100-game head-to-head tournaments, Lazy SMP scaling up to 4.2M NPS on desktop and 3.58M NPS in WebAssembly |
 | 16 | [Glossary](16-glossary.md) | Comprehensive dictionary of Gomoku, Renju, bitboard, search, and engine terminology |
 | 17 | [References](17-references.md) | Academic papers, tournament archives, Carbon Gomoku origins, and external resources |
+| A | [Appendix A: Engine comparison report](appendix-a-engine-comparison-report.md) | Comparative architectural analysis: Gomoku-main (HUST Bitboard) vs. Carbon Gomoku .NET |
+| B | [Appendix B: Single-threaded match report](appendix-b-single-threaded-match-investigation-report.md) | Empirical investigation of single-threaded matches, determinism, and clock jitter |
 
 ---
 

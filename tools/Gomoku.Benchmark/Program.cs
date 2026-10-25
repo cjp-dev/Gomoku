@@ -58,6 +58,7 @@ public static class Program
         Console.WriteLine("=================================================\n");
 
         BenchmarkPatternBoard(quick);
+        BenchmarkBitboardPatternBoard(quick);
         BenchmarkBitboard15(quick);
         BenchmarkTranspositionTable(quick);
         BenchmarkLockFreeTT(quick);
@@ -92,9 +93,35 @@ public static class Program
         Console.WriteLine($"Board Consistency: {(pb.CheckConsistency() ? "PASS" : "FAIL")}\n");
     }
 
+    private static void BenchmarkBitboardPatternBoard(bool quick)
+    {
+        Console.WriteLine("--- 2. BitboardPatternBoard (1D Stride-128 + Chebyshev Dilation) ---");
+        int iterations = quick ? 10_000 : 100_000;
+
+        BitboardPatternBoard pb = new();
+        pb.Start(15, 15, GomokuVariant.Freestyle, PieceColor.Black);
+
+        Stopwatch sw = Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            pb.MakeMove(7, 7);
+            pb.MakeMove(7, 8);
+            pb.MakeMove(8, 7);
+            pb.UndoMove();
+            pb.UndoMove();
+            pb.UndoMove();
+        }
+        sw.Stop();
+
+        long ops = iterations * 6;
+        double opsPerSec = ops / sw.Elapsed.TotalSeconds;
+        Console.WriteLine($"Executed {ops:N0} make/undo operations in {sw.ElapsedMilliseconds} ms ({opsPerSec:N0} ops/sec).");
+        Console.WriteLine($"Board Consistency: {(pb.CheckConsistency() ? "PASS" : "FAIL")}\n");
+    }
+
     private static void BenchmarkBitboard15(bool quick)
     {
-        Console.WriteLine("--- 2. Bitboard15 SIMD Throughput & Move/Undo Speed ---");
+        Console.WriteLine("--- 3. Bitboard15 SIMD Throughput & Move/Undo Speed ---");
         int iterations = quick ? 10_000 : 100_000;
 
         Bitboard15 bb = new();
@@ -118,7 +145,7 @@ public static class Program
 
     private static void BenchmarkTranspositionTable(bool quick)
     {
-        Console.WriteLine("--- 3. Carbon Transposition Table (16-byte packed) ---");
+        Console.WriteLine("--- 4. Carbon Transposition Table (16-byte packed) ---");
         int[] sizes = quick ? [65_536, 1_048_576] : [65_536, 262_144, 1_048_576, 4_194_304];
 
         foreach (int size in sizes)
@@ -143,7 +170,7 @@ public static class Program
 
     private static void BenchmarkLockFreeTT(bool quick)
     {
-        Console.WriteLine("--- 4. Lock-Free Transposition Table (Concurrent Atomic XOR) ---");
+        Console.WriteLine("--- 5. Lock-Free Transposition Table (Concurrent Atomic XOR) ---");
         int size = quick ? 262_144 : 1_048_576;
         int operations = quick ? 100_000 : 1_000_000;
         int[] threadConfigs = [1, Math.Min(4, Environment.ProcessorCount)];
@@ -174,34 +201,51 @@ public static class Program
 
     private static async Task BenchmarkCarbonSearchAsync(bool quick)
     {
-        Console.WriteLine("--- 3. Carbon AI Search Throughput (NPS) ---");
-        BoardSize[] boardSizes = [BoardSize.Size15x15, BoardSize.Size19x19];
+        Console.WriteLine("--- 6. Carbon AI Search Throughput & Multi-Thread Scaling (NPS) ---");
         int depth = quick ? 4 : 6;
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        RuleEngine rules = RuleEngine.Instance;
 
-        foreach (var size in boardSizes)
+        // Seed a standard opening: Black H8, White H9, Black I8
+        state = rules.ApplyMove(state, new Move(7, 7, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(7, 8, PieceColor.White));
+        state = rules.ApplyMove(state, new Move(8, 7, PieceColor.Black));
+        var legal = rules.GetLegalMoves(state);
+        SearchLimits limits = SearchLimits.FixedDepth(depth, useOpeningBook: false);
+
+        // 1. Baseline Carbon (1T)
         {
-            CarbonAiPlayer ai = new();
-            BoardState state = new(size, GomokuVariant.Freestyle);
-            RuleEngine rules = RuleEngine.Instance;
+            BaselineCarbonAiPlayer baseline = new();
+            Stopwatch sw = Stopwatch.StartNew();
+            Move move = await baseline.GetMoveAsync(state, limits, legal);
+            sw.Stop();
+            long nodes = baseline.LastAnalysis?.Nodes ?? 0;
+            double nps = nodes / Math.Max(0.001, sw.Elapsed.TotalSeconds);
+            Console.WriteLine($"Baseline Carbon (1T)         | Depth: {depth} | Move: {move.Position} | Nodes: {nodes:N0} | Time: {sw.ElapsedMilliseconds} ms | NPS: {nps:N0} (1.00x)");
+        }
 
-            // Seed a standard opening: Black H8, White H9, Black I8
-            int cx = size.Width / 2;
-            int cy = size.Height / 2;
-            state = rules.ApplyMove(state, new Move(cx, cy, PieceColor.Black));
-            state = rules.ApplyMove(state, new Move(cx, cy + 1, PieceColor.White));
-            state = rules.ApplyMove(state, new Move(cx + 1, cy, PieceColor.Black));
+        // 2. Production CarbonBitboardAiPlayer across thread configs
+        List<int> threadConfigs = [1, 2, 4];
+        if (Environment.ProcessorCount >= 8 && !threadConfigs.Contains(8))
+        {
+            threadConfigs.Add(8);
+        }
 
-            var legal = rules.GetLegalMoves(state);
-            SearchLimits limits = SearchLimits.FixedDepth(depth, useOpeningBook: false);
-
+        double baselineNps = 0;
+        foreach (int threads in threadConfigs)
+        {
+            CarbonBitboardAiPlayer ai = new(threads);
             Stopwatch sw = Stopwatch.StartNew();
             Move move = await ai.GetMoveAsync(state, limits, legal);
             sw.Stop();
 
-            var a = ai.LastAnalysis;
-            long nodes = a?.Nodes ?? 0;
+            long nodes = ai.LastAnalysis?.Nodes ?? 0;
             double nps = nodes / Math.Max(0.001, sw.Elapsed.TotalSeconds);
-            Console.WriteLine($"Board: {size} | Depth: {depth} plies | Chosen: {move.Position} | Nodes: {nodes:N0} | Time: {sw.ElapsedMilliseconds} ms | NPS: {nps:N0}");
+            if (threads == 1) baselineNps = nps;
+            double scaling = baselineNps > 0 ? nps / baselineNps : 1.0;
+
+            string label = $"Carbon Bitboard ({threads}T)" + (threads == 1 ? "          " : threads < 10 ? "          " : "         ");
+            Console.WriteLine($"{label.Substring(0, 28)} | Depth: {depth} | Move: {move.Position} | Nodes: {nodes:N0} | Time: {sw.ElapsedMilliseconds} ms | NPS: {nps:N0} ({scaling:F2}x vs 1T)");
         }
     }
 }
