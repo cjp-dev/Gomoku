@@ -9,7 +9,7 @@ When no immediate tactical mate can be resolved by `QuickWinSearch`, Carbon Gomo
 The midgame search combines:
 1. **Closed-Interval $[\alpha, \beta]$ Bounds:** Uses the exact interval semantics from original Carbon C++ where bounds are inclusive and fail-soft returns exceed bounds by $\pm 1$.
 2. **Principal Variation / Null Window Probing:** The first candidate is searched with a full window $[-\beta, -\alpha]$; subsequent candidates are probed with a zero-width window $[-\beta, -(\text{best} + 1)]$ and only re-searched on refutation.
-3. **Even-Ply Iterative Deepening:** Explores depths $d = 2, 4, 6, 8, \dots, 20$. In Gomoku, even depths maintain move parity (equal turns for both players), eliminating horizon bias.
+3. **Single-Ply Iterative Deepening:** Explores depths $d = 2, 3, 4, 5, \dots, 20$ (or $d = 1$ for fixed depth 1). Progressing ply-by-ply ensures fine-grained clock management under tournament time limits while populating transposition table bounds and move ordering seeds for subsequent iterations.
 4. **Mate-Distance Score Decay:** Scales tactical winning scores $(\ge 25,000)$ at each ply so that the search prefers the shortest forced win and longest defensive resistance.
 5. **Periodic Time Polling (`TimeoutPrevent`):** Checks elapsed wall-clock time every $1,000$ nodes to guarantee zero engine forfeits on hard tournament time limits.
 
@@ -146,31 +146,43 @@ for (int i = 0; i < nCnd; i++)
 
 ---
 
-## Iterative deepening with even-ply step
+## Iterative deepening progression (single-ply step)
 
-The engine never launches an arbitrary deep search (such as $d = 14$) from scratch. Instead, it begins at depth $d = 2$ and increases by $+2$ plies on each iteration:
+The engine never launches an arbitrary deep search (such as $d = 14$) from scratch. Instead, it begins at depth $d = 2$ (or $d = 1$ in fixed 1-ply mode) and increments ply-by-ply ($d \leftarrow d + 1$):
 
 ```csharp
-for (int depth = 2; depth <= maxDepth; depth += 2)
+for (int depth = (limits.Mode == TimeControlMode.FixedDepth && limits.Depth == 1 ? 1 : 2); depth <= maxTargetDepth; depth++)
 {
-    Cand result = Minimax(depth, true, -Inf, Inf, cancellationToken);
-    if (_terminate) break;
+    cancellationToken.ThrowIfCancellationRequested();
+    _currentDepth = depth;
+    long t0 = Environment.TickCount64;
+    long iterNodes = 0;
 
-    bestMovePoint = new Point(result.X - PatternBoard.Margin, result.Y - PatternBoard.Margin);
-    currentScore = result.Value;
+    Cand best = MinimaxRoot(0, pb, depth, rootCnd, ref iterNodes, cancellationToken, moveNowToken);
+    _totalNodes += iterNodes;
 
-    // Immediate terminal mate found
-    if (Math.Abs(currentScore) >= WinMin)
+    // Check for proven tactical mate
+    if (Math.Abs(best.Value) >= WinMin)
+    {
+        break;
+    }
+
+    // Time-allocation check: will depth + 1 exceed our budget?
+    long t1 = Environment.TickCount64;
+    long td = t1 - t0;
+    if (t1 + TimeoutPrevent * td >= _stopTime)
     {
         break;
     }
 }
 ```
 
-### Why Even Plies in Gomoku?
-In chess or checkers, both players start with equal piece counts and alternating turns. In Gomoku, Black starts with 1 stone, White has 0; after Black's move 3, Black has 2 stones and White has 1.
+### Why Single-Ply Progression ($d \leftarrow d + 1$)?
+Both original `Carbon-Gomoku-master` (`for(depth = 2; depth <= 50; depth++)`) and `Gomoku-main` (`for (int depth = start_depth; depth <= max_depth; ++depth)`), as well as Gomoku .NET, progress **strictly 1 ply per iteration**:
 
-An **odd-ply search** ($d = 3, 5, 7$) ends on a node where the searching player has placed one more stone than their opponent without the opponent having responded. This creates artificial optimism and positional distortion. Searching in **even plies** ($d = 2, 4, 6, 8$) ensures that every leaf node represents a state where both sides have had an equal number of opportunities to place stones, producing stable and balanced evaluations.
+1. **Fine-Grained Time Allocation:** In Gomoku, the effective branching factor is $b_{\text{eff}} \approx 4\text{ to }8$. Stepping by 2 plies at once would increase search time by $4^2 = 16\times$ to $8^2 = 64\times$, making clock management far too coarse. If depth 6 took $100\text{ ms}$, depth 8 would take $2\text{ to }6\text{ seconds}$, risking an immediate time forfeit. Stepping by single plies allows the engine to complete depth 7 smoothly within its turn budget.
+2. **Move Ordering & Transposition Table Seeding:** Every completed iteration $d$ populates the transposition table with accurate best moves and search bounds, allowing iteration $d+1$ to explore the principal variation first and achieve maximum alpha-beta pruning.
+3. **Depth Parity Protection:** Because iterative deepening searches both odd and even depths, remaining depths alternate parity. The transposition table handles this via the parity check `((entry.Depth ^ h) & 1) == 0`: non-terminal evaluations can only be used for cutoffs if the stored entry's depth shares identical parity with the query node, preventing perspective inversion while permitting full 1-ply search progression.
 
 ---
 

@@ -52,6 +52,18 @@ This review audited the 17 chapters, diagrams, tests, and benchmarks in Gomoku .
 ### F. Architectural Baselines Annotation in Code
 - Updated class docstrings for [`BaselineCarbonAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/BaselineCarbonAiPlayer.cs), [`CarbonAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonAiPlayer.cs), and [`CarbonXAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonXAiPlayer.cs) to explicitly identify them as regression baselines.
 
+### G. Iterative Deepening: Single-Ply Progression vs. Erroneous "Even-Ply" Claim
+- **The Issue:** Chapter 08 claimed that iterative deepening progressed with an even-ply step ($d \leftarrow d + 2$: $2, 4, 6, 8\dots$).
+- **The Reconciliation:**
+  - Verified across all three codebases that iterative deepening progresses **strictly 1 ply at a time (`depth++`)**:
+    - `CarbonBitboardAiPlayer.cs`: `for (int depth = ...; depth <= maxTargetDepth; depth++)`
+    - `Carbon-Gomoku-master` (`AICarbon.cpp` L131): `for(depth = 2; depth <= 50; depth++)`
+    - `Gomoku-main` (`engine.hpp` L700): `for (int depth = start_depth; depth <= max_depth; ++depth)`
+  - Corrected [`08-midgame-search.md`](file:///c:/Udvikling/Spil/Gomoku/docs/brain/08-midgame-search.md) to document single-ply progression and explained why it is essential:
+    1. **Clock Allocation Granularity:** With branching factor $b_{\text{eff}} \approx 4\text{ to }8$, jumping by 2 plies multiplies search time by $16\times$ to $64\times$, making clock management far too coarse.
+    2. **TT Move Ordering Seeding:** Every completed depth $D$ seeds the transposition table for depth $D+1$.
+    3. **Depth Parity Protection:** Proved that the TT depth parity check `((entry.Depth ^ h) & 1) == 0` exists precisely because search depths alternate between odd and even plies.
+
 ---
 
 ## 2. Validation & Verification Results
