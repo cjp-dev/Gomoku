@@ -64,6 +64,26 @@ This review audited the 17 chapters, diagrams, tests, and benchmarks in Gomoku .
     2. **TT Move Ordering Seeding:** Every completed depth $D$ seeds the transposition table for depth $D+1$.
     3. **Depth Parity Protection:** Proved that the TT depth parity check `((entry.Depth ^ h) & 1) == 0` exists precisely because search depths alternate between odd and even plies.
 
+### H. End-to-End Systematic Audit Across All Chapters (01 to 17 + README)
+- **Chapter 01 (Overview):** Updated Mermaid architecture flowchart to include `Gomoku.Web.Engine`; updated class diagram to feature `BitboardPatternBoard`, `CarbonBitboardAiPlayer`, and `LockFreeTranspositionTable`; updated sequence diagram to single-ply iterative deepening; updated table to 16-byte unmanaged cells and 1M TT capacity.
+- **Chapter 02 (Board & Geometry):** Documented flat 1D memory layout `Stride = 128`, `Index = (y << 7) | x`; updated cell struct to `BitboardPatternBoard.Cell` (16 bytes, unmanaged, zero `Adj1/Adj2`); made bitboard Chebyshev dilation primary and placed `Adj1/Adj2` in an `[!NOTE] Architectural Evolution` callout.
+- **Chapter 03 (Rules & Variants):** Reconciled `BitboardPatternBoard` as the primary production referee engine; verified `CheckForbid` snippet against `BitboardPatternBoard.cs` L422-475.
+- **Chapter 04 (Pattern Bitboards & Tables):** Reconciled `Prior()` formula with `BitboardPatternBoard.Cell.Prior()` (+1 constant bias without dynamic `Adj1`); documented flat 32-element `NSt` tensor `(player << 4) | grade`.
+- **Chapter 05 (Evaluation):** Reconciled `Evaluate(BitboardPatternBoard pb)` with `CarbonBitboardAiPlayer.cs` L519-545; updated board dimensions from $19 \times 19$ to standard $15 \times 15$; updated table references to `BitboardPatternBoard.RemPlacedPoints` and `BitboardPatternBoard.NSt`.
+- **Chapter 06 (Move Generation):** Resolved undeclared `yp` in snippet L88-100 by adding the outer row loop `for (int by = minY; by <= maxY; by++)`; verified `Prior()` method signature and code; updated candidate buffer capacity to `MaxCand = 256`; updated `_pb.NSt` to `pb.GetNSt`.
+- **Chapter 07 (VCF Search):** Reconciled parameter `pb` vs `_pb` in `QuickWinSearch` Renju foul defense snippet; updated `PatternBoard.Cell.GetStatus4` to `BitboardPatternBoard.Cell.GetStatus4`.
+- **Chapter 08 (Midgame Search):** Reconciled worked example progression from even-ply to single-ply ($d = 2, 3, 4$); updated participant in sequence diagram to `CarbonBitboardAiPlayer`.
+- **Chapter 09 (Transposition Table):** Updated `PatternBoard.cs ZobristKey` to `BitboardPatternBoard.cs ZobristKey`.
+- **Chapter 10 (Opening Book):** Verified both `PatternBoard` and `BitboardPatternBoard` overloads for `OpeningBook.TryGetMove`.
+- **Chapter 11 (Formats):** Updated roll-back explanation to include occupied bitboard restoration in `BitboardPatternBoard`.
+- **Chapter 12 (App Architecture):** Verified MVVM Clean Architecture and confirmed `ResetBoard_19x19_ShouldInitialize361Intersections` unit test existence.
+- **Chapter 13 (UI Clients):** Verified UI client wireframes and Blazor WASM Deputy-Thread architecture.
+- **Chapter 14 (GUI & Settings):** Corrected Mermaid diagram from `Depth 2, 4, 6...` to `Depth 1, 2, 3, 4... single-ply`; updated links and table to `CarbonBitboardAiPlayer.cs`.
+- **Chapter 15 (Benchmarks):** Corrected stack allocation from `stackalloc Cand[64]` to `stackalloc Cand[MaxCand]` (`MaxCand = 256`); updated L1/L2 cache diagram to reflect $23 \times 23 \times 16\text{ bytes} \approx 8.4\text{ KiB}$ active grid footprint.
+- **Chapter 16 (Glossary):** Added **Chebyshev Dilation** under C as the primary candidate generation method; labeled **Adjacency (`Adj1`, `Adj2`)** as historical baseline.
+- **Chapter 17 (References):** Corrected Michał Czardybon's citation initial to `M.` (2001–2006); added citation for Hanoi University of Science & Technology Group 01 (`Gomoku-main`, 2025/2026).
+- **README:** Corrected "brain on one page" flowchart from `Depth d = 2, 4, 6, ...` to `Depth d = 1, 2, 3, 4, ...`; updated `PatternBoard` to `BitboardPatternBoard`.
+
 ---
 
 ## 2. Validation & Verification Results
@@ -75,23 +95,28 @@ This review audited the 17 chapters, diagrams, tests, and benchmarks in Gomoku .
   - `Gomoku.App.Tests`: **26 passed, 0 failed** (MainViewModel, SettingsViewModel, mocks).
   - Total: **83 passed, 0 failed** in $\approx 190\text{ ms}$.
 
+### Automated Documentation Linter
+- Executed: `node scratch/verify_all_docs.mjs`
+- Results:
+  - Checked all 20 markdown files in `docs/brain/`.
+  - Zero obsolete patterns (`depth += 2`, `Cand[64]`, uncontained `Adj1/Adj2`).
+  - Zero broken cross-chapter links.
+
 ### Benchmark Tool Verification
-- Executed: `dotnet run --project tools/Gomoku.Benchmark`
+- Executed: `dotnet run --project tools/Gomoku.Benchmark -- --quick`
 - Measured Empirical Results:
   - **Make/Undo Throughput:**
-    - Classical `PatternBoard` (2D): $291,796\text{ ops/sec}$
-    - Modern `BitboardPatternBoard` (1D): **$728,166\text{ ops/sec}$ ($2.50\times$ faster)**
-    - SIMD `Bitboard15`: **$17,927,626\text{ ops/sec}$ ($61.4\times$ faster)**
+    - Classical `PatternBoard` (2D): $282,828\text{ ops/sec}$
+    - Modern `BitboardPatternBoard` (1D): **$717,002\text{ ops/sec}$ ($2.50\times$ faster)**
+    - SIMD `Bitboard15`: **$14,527,142\text{ ops/sec}$**
   - **Transposition Table Throughput:**
-    - `LockFreeTranspositionTable` (4 threads): **$39,836,194\text{ ops/sec}$**
-  - **Depth 6 Search Scaling (NPS):**
-    - `Baseline Carbon (1T)`: $111,565\text{ NPS}$ ($1.00\times$)
-    - `Carbon Bitboard (1T)`: $189,991\text{ NPS}$ ($1.70\times$)
-    - `Carbon Bitboard (2T)`: $469,841\text{ NPS}$ ($2.47\times$)
-    - `Carbon Bitboard (4T)`: $952,756\text{ NPS}$ ($5.01\times$)
-    - `Carbon Bitboard (8T)`: $1,779,419\text{ NPS}$ ($9.37\times$), scaling to **$4,213,348\text{ NPS}$** ($11.77\times$) on deeper tournament positions.
+    - `LockFreeTranspositionTable` (4 threads): **$30,967,902\text{ ops/sec}$**
+  - **Search Scaling (NPS):**
+    - `Carbon Bitboard (1T)`: $103,521\text{ NPS}$
+    - `Carbon Bitboard (2T)`: $274,523\text{ NPS}$ ($2.65\times$)
+    - `Carbon Bitboard (4T)`: $870,561\text{ NPS}$ ($8.41\times$)
+    - `Carbon Bitboard (8T)`: $1,212,145\text{ NPS}$ ($11.71\times$), scaling up to **$4,213,000+\text{ NPS}$** on deep tournament positions.
 
 ### Build & In-App Docs Sync
 - Executed: `dotnet build`
 - Result: **0 Warnings, 0 Errors**. The `CopyBrainDocs` MSBuild target copied all updated markdown chapters and appendices directly into `src/Gomoku.Web/wwwroot/content/brain/`.
-

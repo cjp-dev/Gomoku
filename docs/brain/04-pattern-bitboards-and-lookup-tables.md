@@ -125,7 +125,10 @@ $$\text{Index} = ((s_0 \times 10 + s_1) \times 10 + s_2) \times 10 + s_3$$
 
 ### 4. `Prior[256][256]` (Tactical Candidate Priority Table)
 To order moves intelligently without searching them first, `Cell.Prior()` sums the tactical density of both players across all 4 rays:
-$$\text{Prior}(x, y) = \sum_{k=0}^{3} \Big( \text{Prior}[\text{pat}_{k,0}][\text{pat}_{k,1}] + \text{Prior}[\text{pat}_{k,1}][\text{pat}_{k,0}] \Big) + \big[\text{Adj1} \neq 0\big]$$
+$\text{Prior}(x, y) = \sum_{k=0}^{3} \Big( \text{Prior}[\text{pat}_{k,0}][\text{pat}_{k,1}] + \text{Prior}[\text{pat}_{k,1}][\text{pat}_{k,0}] \Big) + 1$
+
+> [!NOTE] Architectural Evolution: Priority Offset
+> In baseline `PatternBoard.cs`, the formula added $+1$ dynamically if $\text{Adj1} \neq 0$. In `BitboardPatternBoard`, candidate generation already guarantees that any evaluated cell is within Chebyshev distance $\le 2$ of existing stones via bitboard dilation, so the $+1$ bias is added unconditionally.
 
 - Squares that advance friendly threats while simultaneously blocking opponent threats receive composite priorities of 50 to 500+.
 - Candidates with $\text{Prior} \le 1$ are immediately discarded from search consideration.
@@ -141,10 +144,15 @@ This provides smooth, highly accurate positional evaluation in a fraction of a m
 
 ---
 
-## Live threat tracking: `NSt[2, 10]`
+## Live threat tracking: `NSt` (Threat Tensor)
 
-`PatternBoard` maintains a live $2 \times 10$ integer matrix tracking the total count of squares on the board that currently possess each threat grade for Black and White:
-$$\text{NSt}[\text{player}, \text{grade}]$$
+In `BitboardPatternBoard`, live threat counts for Black and White across each threat grade (grades $0 \dots 9$) are maintained in a flat 32-element array with single-cycle bitwise indexing:
+```csharp
+public readonly int[] NSt = new int[32]; // Flat: (player << 4) | grade
+[MethodImpl(MethodImplOptions.AggressiveInlining)]
+public ref int GetNSt(int player, int grade) => ref NSt[(player << 4) | grade];
+```
+*(In historical `PatternBoard.cs`, this was stored as a 2D managed matrix `int[2, 10]`)*.
 
 When a stone is placed at $(xp, yp)$:
 1. The old `Status4` grades of the 32 affected ray cells are decremented from `NSt`.
@@ -167,9 +175,9 @@ Because `NSt` is updated incrementally in $O(1)$ time, `CarbonAiPlayer` can inst
 |---|---|---|
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `CarbonTables` | Precomputed static tables: `STATUS1`, `STATUS4`, `Prior`, `Rank`, `Config` |
 | [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-throughput flat 1D pattern board with Chebyshev dilation candidate masks |
-| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard.Cell` | 8-cell bitmasks (`Pattern00..Pattern31`), `Update1`, `Update4`, `Prior()` |
-| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `MakePaddedMove` | Incremental ray updates and `NSt` threat tracking |
-| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `CheckConsistency` | Verification method ensuring `NSt` matches whole-board scans |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard.Cell` | 8-cell bitmasks (`Pattern00..Pattern31`), `Update1`, `Update4`, `Prior()` |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `MakePaddedMove` | Incremental ray updates and `NSt` threat tracking |
+| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard` | Baseline reference 2D pattern board with `CheckConsistency` and `Adj1/Adj2` |
 
 ---
 

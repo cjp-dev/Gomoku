@@ -44,13 +44,13 @@ private int Evaluate(BitboardPatternBoard pb)
 ```
 
 ### Algorithmic Breakdown:
-1. **Iteration over Placed Stones:** The engine iterates only over placed stones using `RemPlacedPoints[0 .. RemCount - 1]`. On a $19 \times 19$ board on move 12, this inspects only 12 cells instead of looping over all 361 intersections.
+1. **Iteration over Placed Stones:** The engine iterates only over placed stones using `RemPlacedPoints[0 .. RemCount - 1]`. On a $15 \times 15$ board on move 12, this inspects only 12 cells instead of looping over all 225 intersections.
 2. **4-Ray Evaluation per Stone:** For each placed stone, its 8-bit friendly pattern (`patMe`) and opponent pattern (`patOpp`) are extracted across the 4 axes ($k = 0, 1, 2, 3$).
 3. **Configuration Classification (`Config`):**
    The $256 \times 256 = 65,536$ pattern pairs are mapped by `CarbonTables.Config[patMe, patOpp]` into $106$ canonical geometric equivalence classes (open four, blocked four, open three, broken three, etc.).
 4. **Empirical Weight Lookup (`Rank`):**
    `CarbonTables.Rank[config]` returns the precomputed strategic weight of that configuration. Open formations with growth potential receive exponentially higher weights than formations blocked by the board border or opponent stones.
-5. **Negamax Perspective:** The evaluation is returned relative to the player whose turn it is to move (`_pb.Who`):
+5. **Negamax Perspective:** The evaluation is returned relative to the player whose turn it is to move (`pb.Who`):
    $$\text{Eval} = \begin{cases} 
    P_{\text{Black}} - P_{\text{White}} & \text{if SideToMove} = \text{Black} \\ 
    P_{\text{White}} - P_{\text{Black}} & \text{if SideToMove} = \text{White} 
@@ -100,7 +100,7 @@ flowchart LR
 
 ## Positional threat counts (`NSt` Tensor)
 
-Beyond the leaf evaluation, the live threat counter `PatternBoard.NSt[player, grade]` acts as a real-time heuristic radar throughout the entire search tree:
+Beyond the leaf evaluation, the live threat tensor `BitboardPatternBoard.GetNSt(player, grade)` acts as a real-time heuristic radar throughout the entire search tree:
 
 | Threat Pattern | Status | Tactical Evaluation Impact |
 |---|:---:|---|
@@ -120,8 +120,8 @@ If `NSt[who, ThreatB] >= 1` or `NSt[who, ThreatC] >= 1`, `QuickWinSearch` immedi
 |---|---|---|---|
 | `CarbonTables.Rank` | `byte[106]` | 106 bytes | Empirical stone scoring weights |
 | `CarbonTables.Config` | `byte[256, 256]` | 64 KiB | Equivalence class mapping for 8-cell ray pairs |
-| `PatternBoard.RemPlacedPoints`| `Point[2048]` | 16 KiB | Stack of placed stone coordinates for $O(\text{plies})$ leaf evaluation |
-| `PatternBoard.NSt` | `int[2, 10]` | 80 bytes | Live board threat counts by player and threat grade |
+| `BitboardPatternBoard.RemPlacedPoints`| `Point[2048]` | 16 KiB | Stack of placed stone coordinates for $O(\text{plies})$ leaf evaluation |
+| `BitboardPatternBoard.NSt` | `int[32]` | 128 bytes | Live flat board threat counts by `(player << 4) | grade` |
 
 ---
 

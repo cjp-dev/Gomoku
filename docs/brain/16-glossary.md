@@ -16,11 +16,11 @@ This glossary defines standard terminology used across Gomoku and Renju rules, c
 
 ### A
 
-#### Adjacency (`Adj1`, `Adj2`)
-The geometric stone proximity counters tracked for each board intersection.
+#### Adjacency (`Adj1`, `Adj2`) *(Historical Baseline)*
+The geometric stone proximity counters tracked for each board intersection in original Carbon Gomoku and baseline `PatternBoard.cs`.
 - **`Adj1` (1-Ring):** Count of stones in the 8 immediate Moore neighbor cells ($\max(|dx|, |dy|) = 1$).
 - **`Adj2` (2-Ring):** Count of stones in the 16 secondary neighbor cells at Chebyshev distance 2 ($\max(|dx|, |dy|) = 2$).
-Cells with $\text{Adj1} == 0 \land \text{Adj2} == 0$ are pruned during candidate move generation.
+In the modern `BitboardPatternBoard` engine, these 24 memory writes per node are replaced by whole-board bitwise **Chebyshev Dilation**.
 
 #### Ahead-of-Time Compilation (AOT)
 A compilation process where intermediate code (C# IL) is translated into native machine code (WebAssembly bytecode) before deployment, eliminating runtime JIT overhead in the browser.
@@ -177,7 +177,7 @@ A Transposition Table entry representing a beta cutoff score ($\ge \beta$).
 ### M
 
 #### MakeMove / UndoMove
-The complementary pair of operations that place a stone on `PatternBoard` and roll it back, incrementally updating ray bitboards, neighbor adjacency counters, and Zobrist hashes in $\mathcal{O}(1)$ time.
+The complementary pair of operations that place a stone on `BitboardPatternBoard` and roll it back, incrementally updating 4-axis ray bitboards, occupied bitboards, threat tensors (`NSt`), and Zobrist hashes in $\mathcal{O}(1)$ time.
 
 #### Moore Neighborhood (`Adj1`)
 The 8 cells surrounding a central cell on a square two-dimensional grid.
@@ -195,7 +195,7 @@ Allows both players to be evaluated using a single recursive maximizing function
 The standard metric of engine search throughput, measuring how many game tree positions the engine evaluates per second of wall-clock time.
 
 #### `NSt` Tensor
-The live $2 \times 10$ integer array maintained incrementally on `PatternBoard`, tracking the exact number of active board threats by player and threat category.
+The live 32-element threat tensor array maintained incrementally on `BitboardPatternBoard` (indexed by `(player << 4) | grade`), tracking the exact number of active board threats by player and threat category.
 
 #### Null Window Search (NWS)
 An alpha-beta search where the window width is reduced to 1 ($[v_A, v_B] = [-\beta, -(\text{best} + 1)]$) to rapidly test whether a candidate move can beat the current best score without exploring a full minimax tree.

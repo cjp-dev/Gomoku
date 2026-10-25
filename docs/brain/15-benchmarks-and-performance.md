@@ -7,7 +7,7 @@
 Gomoku engines require extreme computational throughput: evaluating deep tactical combinations and searching 10 to 14 plies ahead within strict tournament time budgets demands hundreds of thousands of node evaluations per second.
 
 Gomoku .NET achieves performance parity with native C++ engines through careful systems-level engineering:
-- **Zero Heap Allocations on Hot Paths:** Candidate generation uses `stackalloc Cand[64]`, bitboards operate on primitives, and move undo/redo operates via pre-allocated structures.
+- **Zero Heap Allocations on Hot Paths:** Candidate generation uses `stackalloc Cand[MaxCand]` (`MaxCand = 256`), bitboards operate on primitives, and move undo/redo operates via pre-allocated structures.
 - **Incremental Pattern Bitboard Maintenance:** `MakeMove()` and `UndoMove()` update 4-directional ray bitmasks and recalculate threat tensors in strictly $\mathcal{O}(1)$ time.
 - **Empirical Throughput:**
   - `PatternBoard` make/undo throughput: **$1,340,000+\text{ ops/sec}$**.
@@ -185,7 +185,7 @@ Total Heap Bytes Allocated: 0 bytes
 
 ### How Zero Heap Allocation is Achieved:
 1. **`Span<Cand> cnd = stackalloc Cand[MaxCand]`:** The candidate move array is allocated on the execution stack. Stack frames are reclaimed instantly upon function return.
-2. **Pre-allocated Structures in `PatternBoard`:** `RemPlacedPoints[2048]`, `RemMoves[2048]`, and `Cells[28, 28]` are allocated once when the board is initialized and reused for the lifetime of the match.
+2. **Pre-allocated Structures in `BitboardPatternBoard`:** `RemPlacedPoints[2048]`, `_remMove[2048]`, `Occupied[31]`, and `Cells[Stride * (MaxHeight + 8)]` are allocated once when the board is initialized and reused for the lifetime of the match.
 3. **Value-Type Structs:** `Point`, `Cand`, `TranspositionEntry`, and `BoardSize` are immutable or sequential `struct` value types passed by value or `ref`.
 
 ---
@@ -196,17 +196,23 @@ The memory layout of `PatternBoard` was explicitly designed to fit inside modern
 
 ```mermaid
 flowchart LR
-    L1["CPU L1 Data Cache (32 KiB)"]
-    Cells["PatternBoard.Cells[28, 28]<br/>784 cells * 36 bytes = 27.5 KiB"]
+    L1["CPU L1 Data Cache (32 KiB to 48 KiB)"]
+    Cells["BitboardPatternBoard Active Grid<br/>23 x 23 cells * 16 bytes = 8.4 KiB"]
+    Bitboards["Occupied Row Bitboards<br/>23 * 4 bytes = 92 bytes"]
     Tensor["Threat Tensors &amp; NSt<br/>~1.2 KiB"]
     
     Cells --> L1
+    Bitboards --> L1
     Tensor --> L1
 ```
 
-- **Board Grid Size:** $28 \times 28 \text{ cells} \times 36\text{ bytes per cell} = 28,224\text{ bytes} \approx 27.5\text{ KiB}$.
-- **L1 Cache Capacity:** Modern AMD Zen 4/5 and Intel Raptor Lake cores feature $32\text{ KiB}$ to $48\text{ KiB}$ of 8-way associative L1 data cache per core.
-- **Result:** The entire active game board resides continuously inside L1 data cache throughout minimax search, yielding zero L1 cache misses during ray pattern bitboard queries.
+- **Active Grid Footprint:** The playable $15 \times 15$ grid plus 4-cell margin padding occupies $23 \times 23 = 529$ cells. At 16 bytes per cell, this is **$8,464\text{ bytes} \approx 8.3\text{ KiB}$**.
+- **Row Bitboard Footprint:** 23 32-bit row integers $= 92\text{ bytes}$.
+- **L1 Cache Capacity:** Modern AMD Zen 4/5 and Intel Raptor Lake/Arrow Lake cores feature $32\text{ KiB}$ to $48\text{ KiB}$ of 8-way associative L1 data cache per core.
+- **Result:** The entire active search board and all threat bitboards easily reside within L1 cache, eliminating L1 data cache misses during minimax tree traversal.
+
+> [!NOTE] Architectural Evolution: Memory Optimization
+> The baseline `PatternBoard` required $28 \times 28 \times 36\text{ bytes} = 28.2\text{ KiB}$ for its 2D cell grid with adjacency counters. By stripping `Adj1/Adj2` and standardizing on compact 16-byte unmanaged cells, `BitboardPatternBoard` reduced active memory footprint by **$70\%$**, freeing valuable L1 cache space for lookup tables and the transposition table cache line entries.
 
 ---
 

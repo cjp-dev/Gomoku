@@ -261,7 +261,7 @@ sequenceDiagram
     autonumber
     participant UI as User Interface (WPF / Web)
     participant VM as MainViewModel
-    participant AI as CarbonAiPlayer
+    participant AI as CarbonBitboardAiPlayer
 
     VM->>AI: GetMoveAsync(state, limits, moves, progress, token)
     loop Iterative Deepening (Depth d = 2, 3, 4...)
@@ -294,12 +294,16 @@ When playing the opening center move on Move 1 or matching an opening book patte
 
 ## Worked example: search progression on depth 4
 
-Consider searching move 15 for Black.
+Consider searching move 15 for Black with single-ply iterative deepening ($d = 2, 3, 4$):
 1. **Depth 2 Completed:**
    - Evaluated 42 nodes in $0.3\text{ ms}$.
    - Best move found: **H9** with score $+120$.
    - **H9** is stored in the Transposition Table.
-2. **Depth 4 Commences:**
+2. **Depth 3 Completed:**
+   - Explores odd-ply refutations in $1.1\text{ ms}$ (280 nodes).
+   - Validates that White cannot create an immediate counter-four.
+   - Refined evaluations update TT entries with depth 3 parity flags.
+3. **Depth 4 Commences:**
    - `GenerateCand()` retrieves **H9** from TT and places it at `cnd[0]` with score $10,000$.
    - **H9** is searched first with full window $[-32000, 32000]$.
    - At ply 1, White's replies are evaluated. White plays **H8**, Black replies **I10**, White replies **G10**.

@@ -86,16 +86,27 @@ $\text{Dilate}_2(m) = \text{Dilate}\big(\text{Dilate}(m)\big)$
 ### 3. Bitwise Candidate Extraction
 For each row $y$ within the vertical bounding box $[y_{\min} \dots y_{\max}]$, the candidate mask is obtained in 3 bitwise operations by OR-ing rows $y-2 \dots y+2$ and masking out occupied cells:
 ```csharp
-uint mask = pb.GetCandidateMask(by, dilated, boardMask);
-while (mask != 0)
-{
-    int bx = BitOperations.TrailingZeroCount(mask);
-    mask &= (mask - 1); // Clear least significant set bit
-    int xp = bx + BitboardPatternBoard.Margin;
+int minY = Math.Max(0, pb.UpperLeftCand.Y - BitboardPatternBoard.Margin);
+int maxY = Math.Min(pb.BoardHeight - 1, pb.LowerRightCand.Y - BitboardPatternBoard.Margin);
 
-    ref BitboardPatternBoard.Cell c = ref pb.GetCell(xp, yp);
-    short pr = c.Prior();
-    if (pr > 1) cnd[nCnd++] = new Cand(xp, yp, pr);
+for (int by = minY; by <= maxY; by++)
+{
+    uint mask = pb.GetCandidateMask(by, dilated, boardMask);
+    int yp = by + BitboardPatternBoard.Margin;
+
+    while (mask != 0)
+    {
+        int bx = BitOperations.TrailingZeroCount(mask);
+        mask &= (mask - 1); // Clear least significant set bit
+        int xp = bx + BitboardPatternBoard.Margin;
+
+        ref BitboardPatternBoard.Cell c = ref pb.GetCell(xp, yp);
+        short pr = c.Prior();
+        if (pr > 1)
+        {
+            cnd[nCnd++] = new Cand(xp, yp, pr);
+        }
+    }
 }
 ```
 This achieves zero branch mispredictions on non-candidate cells and processes candidate extraction at **over 700,000 operations per second**.
@@ -117,12 +128,15 @@ For every candidate cell satisfying proximity constraints, its heuristic quality
 [MethodImpl(MethodImplOptions.AggressiveInlining)]
 public short Prior()
 {
-    int s = 0;
-    for (int k = 0; k < 4; k++)
-    {
-        s += CarbonTables.Prior[Pattern[k, 0], Pattern[k, 1]];
-    }
-    return (short)s;
+    return (short)(
+        CarbonTables.GetPrior(Pattern00, Pattern01) +
+        CarbonTables.GetPrior(Pattern10, Pattern11) +
+        CarbonTables.GetPrior(Pattern20, Pattern21) +
+        CarbonTables.GetPrior(Pattern30, Pattern31) +
+        CarbonTables.GetPrior(Pattern01, Pattern00) +
+        CarbonTables.GetPrior(Pattern11, Pattern10) +
+        CarbonTables.GetPrior(Pattern21, Pattern20) +
+        CarbonTables.GetPrior(Pattern31, Pattern30) + 1);
 }
 ```
 
@@ -140,23 +154,23 @@ When tactical checkmates or unstoppable attacks exist on the board, standard min
 
 ```csharp
 // 1. Immediate win available: play the winning five
-if (_pb.NSt[who, CarbonTables.ThreatA] > 0)
+if (pb.GetNSt(who, CarbonTables.ThreatA) > 0)
 {
-    ForceOneCand(cnd, ref nCnd, who, CarbonTables.ThreatA);
+    ForceOneCand(pb, cnd, ref nCnd, who, CarbonTables.ThreatA);
     return;
 }
 
 // 2. Opponent has an unblocked four: must block the winning square
-if (_pb.NSt[opp, CarbonTables.ThreatA] > 0)
+if (pb.GetNSt(opp, CarbonTables.ThreatA) > 0)
 {
-    ForceOneCand(cnd, ref nCnd, opp, CarbonTables.ThreatA);
+    ForceOneCand(pb, cnd, ref nCnd, opp, CarbonTables.ThreatA);
     return;
 }
 
 // 3. I have an open four: play the unstoppable win
-if (_pb.NSt[who, CarbonTables.ThreatB] > 0)
+if (pb.GetNSt(who, CarbonTables.ThreatB) > 0)
 {
-    ForceOneCand(cnd, ref nCnd, who, CarbonTables.ThreatB);
+    ForceOneCand(pb, cnd, ref nCnd, who, CarbonTables.ThreatB);
     return;
 }
 ```
@@ -174,11 +188,10 @@ This collapses the candidate list from $40+$ moves down to $2\text{ to }5$ moves
 
 | Type | Member | Memory | Role |
 |---|---|:---:|---|
-| `Cand` | `struct (int X, int Y, int Value)` | 12 bytes | Candidate move with board coordinates and priority score |
-| `PatternBoard.Cell.Adj1` | `byte` | 1 byte | Immediate 8-neighbor stone count |
-| `PatternBoard.Cell.Adj2` | `byte` | 1 byte | 2-ring 16-neighbor stone count |
-| `PatternBoard.UpperLeftCand` | `Point` | 2 bytes | Bounding box minimum coordinate $(x_{\min}-2, y_{\min}-2)$ |
-| `PatternBoard.LowerRightCand`| `Point` | 2 bytes | Bounding box maximum coordinate $(x_{\max}+2, y_{\max}+2)$ |
+| `Cand` | `struct (int X, int Y, int Value)` | 12 bytes | Candidate move with padded board coordinates and priority score |
+| `BitboardPatternBoard.Occupied` | `uint[]` | 76 bytes | Whole-board 32-bit row bitboards for instant Chebyshev dilation |
+| `BitboardPatternBoard.UpperLeftCand` | `Point` | 8 bytes | Bounding box minimum coordinate $(x_{\min}-2, y_{\min}-2)$ |
+| `BitboardPatternBoard.LowerRightCand`| `Point` | 8 bytes | Bounding box maximum coordinate $(x_{\max}+2, y_{\max}+2)$ |
 | `CarbonTables.Prior` | `short[256, 256]` | 128 KiB | Static heuristic priority table mapping ray pairs to priority scores |
 
 ---
@@ -193,7 +206,7 @@ Carbon uses a three-tier ordering strategy:
    ```csharp
    cnd[..nCnd].Sort((a, b) => b.Value.CompareTo(a.Value));
    ```
-3. **Fallback Expansion (Tier 2):** If all candidates have priority $\le 1$ or if all candidate moves are illegal Renju fouls, the generator falls back to scanning all empty cells with $\text{Adj1} > 0 \lor \text{Adj2} > 0$ with score 0.
+3. **Fallback Expansion (Tier 2):** If all candidates have priority $\le 1$ or if all candidate moves are illegal Renju fouls, the generator falls back to scanning all empty cells within the bounding box with score 0 (up to `MaxCand = 256`).
 
 ---
 
@@ -213,7 +226,7 @@ Consider a game on a $15 \times 15$ board after 6 moves:
 - Total intersections scanned: $8 \times 7 = 56$ cells (out of 225 cells on the board—a $75\%$ reduction).
 
 ### 2. Adjacency & Prior Filtering
-- Out of 56 scanned cells, 24 have `Adj1 == 0 && Adj2 == 0` and are skipped in 1 cycle.
+- Out of 56 scanned cells inside the bounding box, bitboard Chebyshev dilation (`DilateRow`) identifies 32 candidate cells within Chebyshev distance $\le 2$ via bitwise operations in sub-microsecond time.
 - The remaining 32 empty cells are evaluated via `c.Prior()`:
   - **I10:** Extends Black's diagonal line $\implies \text{Prior} = 142$
   - **E9:** Blocks White's row extension $\implies \text{Prior} = 98$

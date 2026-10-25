@@ -21,10 +21,12 @@ This document compiles the academic literature, tournament papers, rule specific
 
 ---
 
-## 2. Carbon Gomoku and Gomocup engine architecture
+## 2. Carbon Gomoku, HUST Gomoku, and Gomocup engine architectures
 
-- **Czardybon, T. (2006).** *Carbon Gomoku: Architecture, Threat Tensors, and Search Techniques*. Gomocup Technical Reports and Source Forensics.
-  - *Significance:* The original C++ source code and architectural documentation that inspired this project. Introduced the 4-ray pattern bitboard representation, the $10,000$-element `STATUS4` tensor, and closed-interval Negamax search.
+- **Czardybon, M. (2001–2006).** *Carbon Gomoku: Architecture, Threat Tensors, and Search Techniques*. Gomocup Technical Reports and Source Forensics.
+  - *Significance:* The original C++ source code and architectural documentation that inspired this project (`Carbon-Gomoku-master`). Introduced 4-axis ray bitboards, precomputed threat lookup tables, and tactical VCF search.
+- **Dao, M. T., et al. (2025/2026).** *Gomoku AI Engine: 16-Bit SIMD Bitboard Representation and PVS Search*. Course Project Report, Hanoi University of Science & Technology (HUST Group 01).
+  - *Significance:* Explored 16-bit register SIMD bitboards and bitwise candidate generation on $15 \times 15$ boards (`Gomoku-main`), inspiring Gomoku .NET's bitboard Chebyshev dilation hybrid architecture.
 - **Gomocup Tournament Archives (2000–2025).** *Annual International Computer Gomoku and Renju Tournament*.
   - *Significance:* Global competitive benchmark for Gomoku engines (featuring Carbon, Yixin, SlowChess, Embryo). Provided standardized test suites and cross-engine protocol specifications. Available at: [gomocup.org](https://gomocup.org).
 - **Sun, K. (2014).** *Yixin: An Artificial Intelligence Program for Gomoku and Renju*. Technical Report, Tsinghua University.

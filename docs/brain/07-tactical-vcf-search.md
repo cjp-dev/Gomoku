@@ -204,7 +204,7 @@ Under Renju rules, Black is forbidden from playing Double-Three (3x3), Double-Fo
 1. **Foul Trap as Defense:**
    If White creates a Four that Black can only block by playing into a square that forms a 3x3 or 4x4 foul for Black, Black is forbidden from making the move:
    ```csharp
-   if (_pb.Variant == GomokuVariant.Renju && _pb.Who == _pb.FirstPlayer &&
+   if (pb.Variant == GomokuVariant.Renju && pb.Who == pb.FirstPlayer &&
        c.GetStatus4(who) == CarbonTables.ThreatForbid)
    {
        return -2; // Cannot defend due to forbidden square
@@ -220,8 +220,8 @@ Under Renju rules, Black is forbidden from playing Double-Three (3x3), Double-Fo
 
 | Member | Type | Memory | Role |
 |---|---|:---:|---|
-| `PatternBoard.NSt` | `int[2, 10]` | 80 bytes | Real-time threat counters by player and threat category |
-| `PatternBoard.Cell.GetStatus4` | `byte` | 1 byte | Cell threat classification (`ThreatA` through `ThreatForbid`) |
+| `BitboardPatternBoard.NSt` | `int[32]` | 128 bytes | Real-time threat tensor indexed by `(player << 4) | grade` |
+| `BitboardPatternBoard.Cell.GetStatus4` | `byte` | 1 byte | Cell threat classification (`ThreatA` through `ThreatForbid`) |
 | `CarbonTables.ThreatA` | `const byte = 8` | Inlined | Constant for Five in a row threat |
 | `CarbonTables.ThreatB` | `const byte = 7` | Inlined | Constant for Open Four threat |
 | `CarbonTables.ThreatC` | `const byte = 6` | Inlined | Constant for Four-Three fork threat |
@@ -236,7 +236,7 @@ Under Renju rules, Black is forbidden from playing Double-Three (3x3), Double-Fo
 | [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `QuickWinSearch()` | Primary 1D bitboard VCF mate solver returning ply distance $q$ |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | Reference recursive VCF mate solver returning ply distance $q$ |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Evaluates $q$ at root and internal nodes, assigning $[\text{WinMin}, \text{WinMax}]$ |
-| [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `NSt` | Live $2 \times 10$ threat state tensor updated incrementally on make/undo |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `NSt` | Live 32-element threat state tensor updated incrementally on make/undo |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `ThreatA` .. `ThreatForbid` | Canonical tactical threat status constants |
 
 ---

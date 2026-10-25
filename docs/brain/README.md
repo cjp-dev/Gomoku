@@ -25,11 +25,11 @@ flowchart TD
     Opening -- "yes" --> Center["Play geometric center<br/>(H8 / J10 / K11)"]
     Opening -- "no" --> BookCheck{"Opening book enabled &amp;<br/>position in book?"}
     BookCheck -- "yes" --> BookMove["Play dihedral book move"]
-    BookCheck -- "no" --> Init["Initialize PatternBoard<br/>Replay placed stones into bitboards"]
+    BookCheck -- "no" --> Init["Initialize BitboardPatternBoard<br/>Replay placed stones into bitboards"]
     Init --> Limits["Configure time limits<br/>(FixedDepth, TimePerMove, TimePerGame)"]
     Limits --> VCF{"QuickWinSearch()<br/>Forced VCF win or loss?"}
     VCF -- "win found (q &gt; 0)" --> PlayWin["Play immediate winning move"]
-    VCF -- "no immediate win" --> Iter["Iterative Deepening<br/>Depth d = 2, 4, 6, ..."]
+    VCF -- "no immediate win" --> Iter["Iterative Deepening<br/>Depth d = 1, 2, 3, 4, ..."]
     Iter --> Search["Closed-Interval Negamax [alpha, beta]<br/>GenerateCand, ONE_CAND pruning,<br/>TT probe/store, mate distance"]
     Search --> TimeCheck{"Time expired or<br/>proven mate found?"}
     TimeCheck -- "no" --> Iter
@@ -59,7 +59,7 @@ graph TD
     end
 
     subgraph Core Domain
-        CORE["Gomoku.Core<br/>PatternBoard • CarbonAiPlayer • CarbonTables"]
+        CORE["Gomoku.Core<br/>BitboardPatternBoard • CarbonBitboardAiPlayer • CarbonTables"]
     end
 
     WPF --> APP

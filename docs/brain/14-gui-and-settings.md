@@ -207,14 +207,14 @@ flowchart TD
         C_Book{"Opening Book?"} -- "yes" --> C_PlayBook["Dihedral D4 Move (67 Patterns)"]
         C_Book -- "no" --> C_VCF{"QuickWinSearch()<br/>VCF Solver"}
         C_VCF -- "mate found" --> C_Mate["Immediate forced win"]
-        C_VCF -- "no mate" --> C_ID["Iterative Deepening<br/>Depth 2, 4, 6... up to 50"]
+        C_VCF -- "no mate" --> C_ID["Iterative Deepening<br/>Depth 1, 2, 3, 4... single-ply"]
         C_ID --> C_AB["Closed-Interval Negamax<br/>• Lazy SMP Multi-Threading<br/>• Bitboard threat tensors<br/>• 64-bit Zobrist TT<br/>• ONE_CAND tactical overrides"]
     end
 ```
 
 #### Detailed Comparison
 
-| Engine Property | [Simple AI](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | [Carbon AI (Bitboard)](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) |
+| Engine Property | [Simple AI](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | [Carbon AI (Bitboard)](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) |
 |---|---|---|
 | **Origin** | Ported from Carbon Gomoku's `AISimple` | Direct port of Michał Czardybon's championship engine with directional ray bitboards and Lazy SMP |
 | **Search Depth** | **1 ply** (no tree search) | **6 to 14+ plies** (iterative deepening tree search) |
@@ -347,7 +347,8 @@ In single-threaded fallback execution:
 | [`MainViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/MainViewModel.cs) | `MainViewModel` | Central orchestrator managing modes, competitive integrity (`IsGameModified`), per-ply clock snapshots (`_timeAtPly`), turn dispatching, and telemetry subscriptions |
 | [`AnalysisViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/AnalysisViewModel.cs) | `AnalysisViewModel` | Observable ViewModel formatting depth strings, centipawn scores, node rates, and elapsed time (`m\:ss\.f`) |
 | [`SettingsViewModel.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.App/ViewModels/SettingsViewModel.cs) | `SettingsViewModel` | Data backing for the Settings dialog (board size, rules, engines, time controls, multi-threading, opening book, and transposition table capacity) |
-| [`CarbonAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `CarbonAiPlayer` | Tournament Minimax search engine with iterative deepening and VCF quick-win solver |
+| [`CarbonBitboardAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `CarbonBitboardAiPlayer` | Primary tournament Minimax search engine with Lazy SMP and bitboard candidate generation |
+| [`CarbonAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `CarbonAiPlayer` | Reference single-threaded Minimax search engine with iterative deepening and VCF solver |
 | [`SimpleAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SimpleAiPlayer.cs) | `SimpleAiPlayer` | Fast 1-ply heuristic pattern evaluator for beginner and casual gameplay |
 | [`SearchAnalysis.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchAnalysis.cs) | `SearchAnalysis` | Immutable record transporting live telemetry snapshots across thread boundaries |
 

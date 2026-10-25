@@ -16,7 +16,9 @@ The solution [Gomoku.slnx](https://github.com/cjp-dev/Gomoku/blob/main/Gomoku.sl
 flowchart LR
     Wpf["Gomoku.Wpf<br/>WPF Desktop App<br/>net10.0-windows"] --> Shared["Gomoku.App<br/>ViewModels &amp; Services<br/>net10.0"]
     Web["Gomoku.Web<br/>Blazor WebAssembly App<br/>net10.0"] --> Shared
-    Shared --> Core["Gomoku.Core<br/>Domain &amp; Carbon Engine<br/>net10.0"]
+    WebEngine["Gomoku.Web.Engine<br/>AOT WASM Engine Runtime<br/>net10.0"] --> Core["Gomoku.Core<br/>Domain &amp; Carbon Engine<br/>net10.0"]
+    Web -.->|"Launches Worker"| WebEngine
+    Shared --> Core
     AppTests["Gomoku.App.Tests<br/>ViewModel &amp; Service Tests"] --> Shared
     AppTests --> Core
     CoreTests["Gomoku.Core.Tests<br/>Engine, Rules &amp; AI Tests"] --> Core
@@ -68,17 +70,18 @@ classDiagram
         +Clone() BoardState
     }
 
-    class PatternBoard {
-        +Cell[,] Cells
+    class BitboardPatternBoard {
+        +Cell[] Cells
+        +uint[] Occupied
         +int BoardWidth
         +int BoardHeight
         +GomokuVariant Variant
         +PieceColor Who
         +ulong ZobristKey
-        +int[,] NSt
         +Point UpperLeftCand
         +Point LowerRightCand
-        +Start(width, height, variant, firstPlayer)
+        +DilateRow(m, boardMask)$ uint
+        +GetCandidateMask(by, dilatedRows, boardMask) uint
         +MakeMove(x, y)
         +MakePaddedMove(xp, yp)
         +UndoMove()
@@ -89,23 +92,24 @@ classDiagram
     class Cell {
         +PieceColor Piece
         +byte Pattern00, Pattern01
+        +byte Pattern10, Pattern11
+        +byte Pattern20, Pattern21
+        +byte Pattern30, Pattern31
         +byte Status1_00, Status1_01
         +byte Status4_0, Status4_1
-        +sbyte Adj1, Adj2
         +Update1(k, exact5)
         +Update4()
         +Prior() short
     }
 
-    class CarbonAiPlayer {
-        +TranspositionTable Table
+    class CarbonBitboardAiPlayer {
+        +LockFreeTranspositionTable Table
         +GetMoveAsync(state, limits, legalMoves, progress, token) ValueTask~Move~
-        -MinimaxRootAsync(depth, token) ValueTask~Cand~
-        -Minimax(h, alpha, beta, token) Cand
-        -QuickWinSearch() int
-        -GenerateCand(cnd, nCnd, ttBest)
-        -ForceOneCand(cnd, nCnd, player, targetStatus)
-        -Evaluate() int
+        -SearchLazySmp(state, limits, token, moveNowToken) Cand
+        -MinimaxWorker(workerId, depth, alpha, beta, token) Cand
+        -QuickWinSearch(pb) int
+        -GenerateCand(pb, cnd, nCnd, ttBest)
+        -Evaluate(pb) int
     }
 
     class SimpleAiPlayer {
@@ -114,19 +118,18 @@ classDiagram
         -CountStonesIn5(state, startX, startY, dx, dy, who) int
     }
 
-    class TranspositionTable {
+    class LockFreeTranspositionTable {
         +int Capacity
-        +long Hits
-        +TryProbe(key, entry) bool
-        +Store(key, depth, score, bound, bestMove)
+        +TryProbe(key, depth, eval, bound, bestMove) bool
+        +Store(key, depth, eval, bound, bestMove)
         +NewSearch()
         +Clear()
     }
 
-    PatternBoard *-- Cell : (MaxWidth+8) x (MaxHeight+8)
-    CarbonAiPlayer *-- PatternBoard : incremental board
-    CarbonAiPlayer *-- TranspositionTable : cache
-    BoardState <.. CarbonAiPlayer : input position
+    BitboardPatternBoard *-- Cell : 1D Padded Array (Stride 128)
+    CarbonBitboardAiPlayer *-- BitboardPatternBoard : per-worker board clones
+    CarbonBitboardAiPlayer *-- LockFreeTranspositionTable : shared lock-free cache
+    BoardState <.. CarbonBitboardAiPlayer : input position
     BoardState <.. SimpleAiPlayer : input position
 ```
 
@@ -194,11 +197,11 @@ sequenceDiagram
     autonumber
     actor Player as Human Player
     participant VM as MainViewModel (UI Thread)
-    participant Worker as Task.Run (Worker Thread)
-    participant AI as CarbonAiPlayer
+    participant Worker as Task.Run / Web Worker
+    participant AI as CarbonBitboardAiPlayer
     participant Book as OpeningBook
-    participant PB as PatternBoard
-    participant TT as TranspositionTable
+    participant PB as BitboardPatternBoard
+    participant TT as LockFreeTranspositionTable
     participant Sound as ISoundService
 
     Player->>VM: Clicks Intersection (x, y)
@@ -207,27 +210,27 @@ sequenceDiagram
     VM->>VM: UpdateUiState() (check Renju fouls, clocks, game over)
     
     alt Is AI Turn
-        VM->>Worker: Task.Run(() => AI.GetMoveAsync(state, limits, legalMoves))
-        Worker->>AI: GetMoveAsync(...)
+        VM->>Worker: Dispatch GetMoveAsync(state, limits, legalMoves)
+        Worker->>AI: SearchLazySmp(...)
         
         opt MoveCount == 0
-            AI-->>VM: Play Geometric Center (H8 / J10)
+            AI-->>VM: Play Geometric Center (H8)
         end
 
         opt MoveCount in [1..6] & Book Enabled
-            AI->>Book: TryGetMove(pb, out bookPoint)
+            AI->>Book: TryGetMove(state, out bookPoint)
             Book-->>AI: Found book move (Dihedral D4 match)
             AI-->>VM: Return Book Move
         end
 
         AI->>PB: Start() & Replay Placed Stones
-        AI->>TT: NewSearch() (increment age, reset stats)
+        AI->>TT: NewSearch() (increment age)
         
-        loop Iterative Deepening (Depth d = 2, 4, 6, ...)
-            AI->>AI: QuickWinSearch() (VCF tactical check)
-            AI->>TT: TryProbe(zobristKey, out entry)
-            AI->>AI: GenerateCand() (bounding box + ONE_CAND)
-            AI->>AI: Minimax(d, root, alpha, beta)
+        loop Iterative Deepening (Depth d = 1, 2, 3, 4, ...)
+            AI->>AI: QuickWinSearch() (VCF tactical mate check)
+            AI->>TT: TryProbe(zobristKey, out ttMove)
+            AI->>AI: GenerateCand() (Chebyshev dilation + ONE_CAND)
+            AI->>AI: MinimaxWorker(d, alpha, beta) across Lazy SMP threads
             AI-->>VM: Progress.Report(SearchAnalysis) (Depth, Score, NPS, PV)
             Note over VM: Updates live analysis card on UI thread
         end
@@ -262,9 +265,9 @@ sequenceDiagram
 | Metric | Measurement / Specification |
 |---|---|
 | **Board cell array** | Standard $15 \times 15$ tournament geometry ($23 \times 23$ sentinel-padded array in flat 1D layout) |
-| **Cell memory footprint** | 16 bytes per cell in `PatternBoard.Cell` (bitboards, status values, proximity counters) |
+| **Cell memory footprint** | 16 bytes unmanaged struct in `BitboardPatternBoard.Cell` (piece, 4 ray bitmasks, directional and 4-way threat grades; zero per-node proximity write overhead) |
 | **Transposition entry** | Exactly 16 bytes packed (`TranspositionEntry`), 4 entries per 64-byte CPU cache line |
-| **Default Transposition Table** | $2^{22} = 4,194,304$ entries ($64 \text{ MiB}$ of RAM), user-configurable from $1\text{ MB}$ to $256\text{ MB}$ |
+| **Default Transposition Table** | $1,048,576$ entries ($16 \text{ MiB}$ default), user-configurable from $1\text{ MB}$ to $256\text{ MB}$ ($2^{16}$ to $2^{24}$ slots) |
 | **Precomputed table sizes** | `STATUS1` ($256 \times 256$), `STATUS4` ($10,000$ shorts), `Prior` ($256 \times 256$), `Rank` ($106$ bytes) |
 | **PatternBoard throughput** | $> 1,300,000$ make/undo operations per second (single core) |
 | **Transposition Table probe speed** | $> 170,000,000$ probes per second with power-of-two bitwise mask and lock-free atomic updates |
