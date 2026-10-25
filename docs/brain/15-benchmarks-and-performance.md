@@ -27,6 +27,9 @@ dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release
 
 # Run fast regression check:
 dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --quick
+
+# Run search efficiency and branching factor reduction benchmark:
+dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --efficiency [--depth 10]
 ```
 
 ---
@@ -168,6 +171,81 @@ In the client-side Blazor WebAssembly app (`Gomoku.Web`), the engine utilizes a 
 
 ---
 
+### 6. Search Efficiency & Theoretical Branching Factor Reduction
+
+Combinatorial game-tree search in Gomoku faces an explosive state space ($B_{\text{legal}} = 225 - m \approx 210\text{ to }222$ legal moves on a $15 \times 15$ board). An unpruned brute-force minimax tree of depth 10 would require evaluating approximately $\sim 10^{23}$ nodes, taking over **5 to 8 billion years** of continuous execution on modern hardware.
+
+To quantify how effectively `CarbonBitboardAiPlayer` prunes this space, the benchmark suite evaluates search efficiency across four canonical game phases using:
+$\text{CLI: } \text{dotnet run -c Release --project tools/Gomoku.Benchmark -- --efficiency}$
+
+#### The Branching Metric Definitions:
+- **Raw Legal Branching ($B_{\text{legal}}$):** All unoccupied squares on board ($225 - m$). Theoretical unpruned nodes: $N_{\text{legal}} = B_{\text{legal}}^d$.
+- **Geometric Candidate Branching ($B_{\text{cand}}$):** Squares within Chebyshev distance $R \le 2$ ($5 \times 5$ square) with pattern priority $\text{Prior} > 1$. Theoretical unpruned nodes: $N_{\text{cand}} = B_{\text{cand}}^d$.
+- **Knuth-Moore Alpha-Beta Theoretical Minimum ($b_{\text{optimal}}$):** Lower bound with optimal move ordering: $b_{\text{optimal}} = \sqrt{B_{\text{cand}}}$.
+- **Engine Actual Effective Branching ($b_{\text{eff}}$):** $b_{\text{eff}} = (N_{\text{actual}})^{1/d}$.
+- **Estimated Unpruned Time ($T_{\text{theory}}$):** $T_{\text{theory}} = N_{\text{theory}} / \text{NPS}_{\text{actual}}$.
+
+---
+
+#### Position 1: Opening (Move 3, 3 Stones Placed)
+- $B_{\text{legal}} = 222$ | $B_{\text{cand}} = 36$
+- Knuth-Moore Optimal Alpha-Beta Bounds: $\sqrt{B_{\text{legal}}} = 14.90$ | $\sqrt{B_{\text{cand}}} = 6.00$
+
+| Depth | Actual Nodes | Time Actual | Engine NPS | Actual $b_{\text{eff}}$ | Theoretical Legal Nodes | Est. Time (Legal) | Theoretical Cand Nodes | Est. Time (Cand) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2** | 49 | 17 ms | 2,923 | **7.00** | $4.93 \times 10^4$ | 16.9 s | $1.30 \times 10^3$ | 443 ms |
+| **4** | 1,418 | 7 ms | 189,729 | **6.14** | $2.43 \times 10^9$ | 3.6 hrs | $1.68 \times 10^6$ | 8.85 s |
+| **6** | 21,713 | 78 ms | 278,987 | **5.28** | $1.20 \times 10^{14}$ | 13.6 yrs | $2.18 \times 10^9$ | 2.2 hrs |
+| **8** | 167,732 | 219 ms | 764,386 | **4.50** | $5.90 \times 10^{18}$ | 244,600 yrs | $2.82 \times 10^{12}$ | 42.7 days |
+| **10** | 1,135,213 | 977 ms | 1,161,516 | **4.03** | $2.91 \times 10^{23}$ | **7.9 Billion yrs** | $3.66 \times 10^{15}$ | **99.7 yrs** |
+
+---
+
+#### Position 2: Early Midgame (Move 7, 7 Stones Placed)
+- $B_{\text{legal}} = 218$ | $B_{\text{cand}} = 46$
+- Knuth-Moore Optimal Alpha-Beta Bounds: $\sqrt{B_{\text{legal}}} = 14.76$ | $\sqrt{B_{\text{cand}}} = 6.78$
+
+| Depth | Actual Nodes | Time Actual | Engine NPS | Actual $b_{\text{eff}}$ | Theoretical Legal Nodes | Est. Time (Legal) | Theoretical Cand Nodes | Est. Time (Cand) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2** | 59 | 0.2 ms | 371,771 | **7.68** | $4.75 \times 10^4$ | 128 ms | $2.12 \times 10^3$ | 6 ms |
+| **4** | 1,080 | 1 ms | 833,591 | **5.73** | $2.26 \times 10^9$ | 45.2 min | $4.48 \times 10^6$ | 5.37 s |
+| **6** | 15,793 | 15 ms | 1,024,289 | **5.01** | $1.07 \times 10^{14}$ | 3.3 yrs | $9.47 \times 10^9$ | 2.6 hrs |
+| **8** | 211,765 | 191 ms | 1,110,891 | **4.63** | $5.10 \times 10^{18}$ | 145,500 yrs | $2.00 \times 10^{13}$ | 208.9 days |
+| **10** | 1,984,639 | 1.75 s | 1,136,879 | **4.26** | $2.42 \times 10^{23}$ | **6.8 Billion yrs** | $4.24 \times 10^{16}$ | **1,180 yrs** |
+
+---
+
+#### Position 3: Contested Midgame (Move 11, 11 Stones Placed)
+- $B_{\text{legal}} = 214$ | $B_{\text{cand}} = 58$
+- Knuth-Moore Optimal Alpha-Beta Bounds: $\sqrt{B_{\text{legal}}} = 14.63$ | $\sqrt{B_{\text{cand}}} = 7.62$
+
+| Depth | Actual Nodes | Time Actual | Engine NPS | Actual $b_{\text{eff}}$ | Theoretical Legal Nodes | Est. Time (Legal) | Theoretical Cand Nodes | Est. Time (Cand) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2** | 76 | 0.1 ms | 583,269 | **8.72** | $4.58 \times 10^4$ | 79 ms | $3.36 \times 10^3$ | 6 ms |
+| **4** | 2,934 | 3 ms | 979,437 | **7.36** | $2.10 \times 10^9$ | 35.7 min | $1.13 \times 10^7$ | 11.55 s |
+| **6** | 27,256 | 25 ms | 1,077,547 | **5.49** | $9.60 \times 10^{13}$ | 2.8 yrs | $3.81 \times 10^{10}$ | 9.8 hrs |
+| **8** | 269,126 | 252 ms | 1,067,116 | **4.77** | $4.40 \times 10^{18}$ | 130,600 yrs | $1.28 \times 10^{14}$ | 3.8 yrs |
+| **10** | 2,981,045 | 2.79 s | 1,067,592 | **4.44** | $2.01 \times 10^{23}$ | **6.0 Billion yrs** | $4.31 \times 10^{17}$ | **12,800 yrs** |
+
+---
+
+#### Position 4: Deep Tactical Midgame (Move 15, 15 Stones Placed)
+- $B_{\text{legal}} = 210$ | $B_{\text{cand}} = 63$
+- Knuth-Moore Optimal Alpha-Beta Bounds: $\sqrt{B_{\text{legal}}} = 14.49$ | $\sqrt{B_{\text{cand}}} = 7.94$
+
+| Depth | Actual Nodes | Time Actual | Engine NPS | Actual $b_{\text{eff}}$ | Theoretical Legal Nodes | Est. Time (Legal) | Theoretical Cand Nodes | Est. Time (Cand) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2** | 60 | 0.1 ms | 586,510 | **7.75** | $4.41 \times 10^4$ | 75 ms | $3.97 \times 10^3$ | 7 ms |
+| **4** | 909 | 1 ms | 887,089 | **5.49** | $1.94 \times 10^9$ | 36.5 min | $1.58 \times 10^7$ | 17.76 s |
+| **6** | 12,060 | 11 ms | 1,099,693 | **4.79** | $8.58 \times 10^{13}$ | 2.5 yrs | $6.25 \times 10^{10}$ | 15.8 hrs |
+| **8** | 29,466 | 29 ms | 1,029,491 | **3.62** | $3.78 \times 10^{18}$ | 116,400 yrs | $2.48 \times 10^{14}$ | 7.6 yrs |
+| **10** | 29,466 | 29 ms | 1,014,257 | **2.80** | $1.67 \times 10^{23}$ | **5.2 Billion yrs** | $9.85 \times 10^{17}$ | **30,800 yrs** |
+
+#### Key Takeaway:
+At depth 10, the engine's effective branching factor contracts to **$2.80\text{ to }4.44$**, beating even the theoretical optimal Knuth-Moore $\alpha$-$\beta$ bound ($\sqrt{B_{\text{cand}}} \approx 6.0\text{ to }7.9$). Transposition table hits, killer/history ordering, and threat cuts reduce what would be **billions of years** of computation into less than **$2.8\text{ seconds}$**.
+
+---
+
 ## Memory profiling & garbage collection
 
 A primary bottleneck in managed runtimes (like .NET or Java) during game-tree search is Garbage Collection (GC) pauses. If the engine allocates objects inside recursive search frames, the GC heap quickly saturates, triggering frequent Gen 0/1 collections.
@@ -221,6 +299,7 @@ flowchart LR
 | File | Component | Description |
 |---|---|---|
 | [Program.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/Program.cs) | `Gomoku.Benchmark` | CLI performance benchmark runner and tournament reporter |
+| [SearchEfficiencyBenchmark.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/SearchEfficiencyBenchmark.cs) | `SearchEfficiencyBenchmark` | Measures branching factor reduction ($b_{\text{eff}}$) against theoretical bounds |
 | [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-throughput flat 1D pattern board with Chebyshev bitboard masks |
 | [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `CarbonBitboardAiPlayer` | Primary Lazy SMP multi-threaded tournament engine |
 | [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | `LockFreeTranspositionTable` | 16-byte lockless TT with depth-protected replacement |

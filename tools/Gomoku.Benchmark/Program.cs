@@ -51,6 +51,26 @@ public static class Program
             return;
         }
 
+        if (args.Contains("--efficiency"))
+        {
+            int maxDepth = 10;
+            int depthIdx = Array.IndexOf(args, "--depth");
+            if (depthIdx >= 0 && depthIdx + 1 < args.Length && int.TryParse(args[depthIdx + 1], out int d))
+            {
+                maxDepth = d;
+            }
+
+            int threads = 1;
+            int threadIdx = Array.IndexOf(args, "--threads");
+            if (threadIdx >= 0 && threadIdx + 1 < args.Length && int.TryParse(args[threadIdx + 1], out int th))
+            {
+                threads = th;
+            }
+
+            await SearchEfficiencyBenchmark.RunAsync(maxDepth, threads);
+            return;
+        }
+
         bool quick = args.Contains("--quick");
         Console.WriteLine("=================================================");
         Console.WriteLine("       Gomoku .NET - Engine Benchmark Tool       ");
