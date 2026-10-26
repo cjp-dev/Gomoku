@@ -6,7 +6,7 @@
 
 In Gomoku, early moves dictate the strategic character and initiative of the entire game. In Freestyle Gomoku, Black possesses a massive first-mover advantage; in Renju, the 26 canonical openings (13 Direct, 13 Indirect) channel the game into balanced territory.
 
-Carbon Gomoku incorporates an opening book ported directly from Carbon's `databaseMove`. Rather than storing hundreds of thousands of absolute board positions, the book stores **67 master opening pattern clusters** encoded with relative offsets. By leveraging the **Dihedral Group $D_4$** (the 8 symmetries of the square board), each stored opening pattern automatically matches 8 distinct orientations on the board, providing comprehensive opening coverage in just $1.2\text{ KiB}$ of static data.
+Carbon Gomoku incorporates an opening book ported directly from Carbon's `databaseMove`. Rather than storing hundreds of thousands of absolute board positions, the book stores **80 opening records** encoded with relative offsets. By leveraging the **Dihedral Group $D_4$** (the 8 symmetries of the square board), each stored opening pattern automatically matches 8 distinct orientations on the board, providing comprehensive opening coverage in just $1.2\text{ KiB}$ of static data.
 
 ![Dihedral Group D4 Symmetries](images/dihedral-symmetries.svg)
 
@@ -170,11 +170,11 @@ This makes the opening book completely symmetrical and agnostic to whether the A
 
 ## Direct zero-allocation bitboard matching (`BitboardPatternBoard`)
 
-In the primary engine, [`OpeningBook.TryGetMove(BitboardPatternBoard pb, out Point move)`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/OpeningBook.cs) executes directly against `BitboardPatternBoard`.
+In the primary engine, [`OpeningBook.TryGetMove(BitboardPatternBoard pb, out Point move)`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) executes directly against `BitboardPatternBoard`.
 
 Previously, querying the opening book required instantiating a temporary legacy `PatternBoard` and replaying moves sequentially on every turn. The modernized bitboard overload queries coordinates directly from flat 1D memory `(y << 7) | x` with:
 - **Zero Heap Allocations:** Operates entirely over `ReadOnlySpan<sbyte>` with no managed objects created.
-- **Microsecond Latency:** Completes full dihedral 8-fold pattern checks across 67 clusters in under $1\text{ microsecond}$.
+- **Microsecond Latency:** Completes full dihedral 8-fold pattern checks across 80 records in under $1\text{ microsecond}$.
 - **Direct Engine Integration:** `CarbonBitboardAiPlayer` calls this overload natively on turns 1 through 6 before launching tree search.
 
 ---
@@ -215,7 +215,7 @@ Consider White's reply on a $15 \times 15$ board after three moves:
 
 | Member | Type | Memory | Role |
 |---|---|:---:|---|
-| `CarbonTables.OpeningBookData` | `sbyte[1204]` | $1.2\text{ KiB}$ | Compact byte stream of 67 opening pattern clusters |
+| `CarbonTables.OpeningBookData` | `sbyte[1204]` | $1.2\text{ KiB}$ | Compact byte stream of 80 opening records |
 | `OpeningBook.Rng` | `Random` | 32 bytes | Pseudo-random number generator for candidate response variation |
 | `borderMargin` | `const int = 4` | Inlined | Safety margin preventing edge openings |
 

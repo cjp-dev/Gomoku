@@ -29,7 +29,7 @@ However, in individual paired matches under 0.20s/move time controls, there were
 
 ## 2. Timed Mode Divergence Telemetry (0.20s / Move)
 
-Using our diagnostic telemetry tool [`MatchInspector.cs`](file:///c:/Udvikling/Spil/Gomoku/tools/Gomoku.Benchmark/MatchInspector.cs), we replayed the 5 positions move-by-move under the exact 0.20s tournament conditions, capturing the exact ply where move decisions first diverged:
+Using our diagnostic telemetry tool [`MatchInspector.cs`](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/MatchInspector.cs), we replayed the 5 positions move-by-move under the exact 0.20s tournament conditions, capturing the exact ply where move decisions first diverged:
 
 | Position | Opening Name | Game # | Side | Divergence Ply | New Carbon AI (1T) Move | Baseline Carbon AI (1T) Move | Root Cause & Telemetry |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :--- |

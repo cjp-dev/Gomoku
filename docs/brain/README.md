@@ -9,7 +9,7 @@ The "brain" consists of:
 - **The tactical solver (QuickWinSearch):** Sub-millisecond Victory by Continuous Fours (VCF) search detecting checkmates up to 24 plies deep;
 - **The midgame search:** Iterative deepening closed-interval Negamax Alpha-Beta with mate-distance scaling, move ordering, and **Lazy SMP multi-threaded search** scaling up to **$4,213,000+\text{ NPS}$** ($11.8\times$ speedup on 8 cores);
 - **The transposition table:** 16-byte cache-aligned **Lock-Free Transposition Table** (`LockFreeTranspositionTable`) with atomic lockless updates, depth-protection against shallow worker overwrites, and configurable $1\text{ MB}$ to $256\text{ MB}$ memory allocation;
-- **The opening book:** Dihedral group $D_4$ symmetry matching across 67 canonical opening pattern clusters with zero-allocation direct bitboard queries.
+- **The opening book:** Dihedral group $D_4$ symmetry matching across 80 opening records with zero-allocation direct bitboard queries.
 
 These documents explain how all engine subsystems work, how they are implemented in C#, and how they fit together.
 
@@ -90,7 +90,7 @@ graph TD
 | 07 | [Tactical VCF search](07-tactical-vcf-search.md) | Victory by Continuous Fours, QuickWinSearch, forcing sequences, and branching collapse |
 | 08 | [Midgame search](08-midgame-search.md) | Closed-interval Negamax Alpha-Beta, PVS, Lazy SMP multi-threaded search, and iterative deepening |
 | 09 | [Transposition table](09-transposition-table.md) | 16-byte lock-free transposition table, atomic updates, 64-bit Zobrist hashing, and depth-protection |
-| 10 | [Opening book](10-opening-book.md) | Dihedral group $D_4$ symmetries, 67 master opening pattern clusters, and zero-allocation direct bitboard matching |
+| 10 | [Opening book](10-opening-book.md) | Dihedral group $D_4$ symmetries, 80 opening records, and zero-allocation direct bitboard matching |
 | 11 | [Game record and formats](11-game-record-and-formats.md) | GameSession, SGF `GM[11]`, `.gomoku` algebraic coordinate format, and undo/redo history |
 | 12 | [App architecture and audio](12-app-architecture-and-audio.md) | Clean MVVM architecture, MainViewModel, service abstractions, and procedural 16-bit PCM audio |
 | 13 | [UI clients](13-ui-clients.md) | WPF desktop client with Lazy SMP controls and Blazor WebAssembly client with multithreaded WASM engine and fallback worker |

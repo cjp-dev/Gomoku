@@ -164,7 +164,7 @@ flowchart TD
 
 ## Lock-free parallel concurrency (`LockFreeTranspositionTable`)
 
-To support multi-threaded **Lazy SMP search** across multiple CPU cores without thread synchronization bottlenecks, the primary engine implements [`LockFreeTranspositionTable.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs):
+To support multi-threaded **Lazy SMP search** across multiple CPU cores without thread synchronization bottlenecks, the primary engine implements [`LockFreeTranspositionTable.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs):
 
 ```mermaid
 flowchart LR

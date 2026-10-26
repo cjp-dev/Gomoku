@@ -224,7 +224,7 @@ Traditional parallel game-tree algorithms (such as Young Brothers Wait Concept o
 
 In **Lazy SMP**:
 1. **Independent Workers:** Each thread runs its own full iterative deepening search on a private copy of `BitboardPatternBoard`.
-2. **Organic Coordination via Shared TT:** All threads read and write to the same shared [`LockFreeTranspositionTable`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs).
+2. **Organic Coordination via Shared TT:** All threads read and write to the same shared [`LockFreeTranspositionTable`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs).
 3. **Instant Branch Cutoffs:** When one thread finds a refutation or computes a deep evaluation, it stores the result in the shared table. When any other thread reaches that position, it probes the table and receives an instantaneous cutoff or an optimal hash move for `cnd[0]`.
 4. **Depth-Protection Guard:** Shallow searches from faster helper threads are strictly prevented from overwriting deeper evaluations computed by slower or deeper threads:
    ```csharp

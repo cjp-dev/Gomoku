@@ -64,7 +64,7 @@ for (byte p = 8; p != 0; p >>= 1) // p = 8, 4, 2, 1 (-1, -2, -3, -4)
 On `UndoMove()`, the exact same loop executes with `SetPatternXor`, cleanly toggling the bits back to zero in $O(1)$ time without requiring board recalculation!
 
 ### High-Performance 1D Layout (`BitboardPatternBoard`)
-While the classical `PatternBoard` stores cells in a 2D managed array `Cell[,]`, the modernized primary engine introduces [`BitboardPatternBoard.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/Engine/BitboardPatternBoard.cs), which flattens the board into a 1D unmanaged buffer:
+While the classical `PatternBoard` stores cells in a 2D managed array `Cell[,]`, the modernized primary engine introduces [`BitboardPatternBoard.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs), which flattens the board into a 1D unmanaged buffer:
 $$\text{Index} = (y \ll 7) \mid x$$
 1. **Stride-128 Indexing:** Shifting $y$ left by 7 bits ($y \times 128$) computes row offsets in a single CPU cycle ($0.3\text{ ns}$), completely eliminating the array-of-arrays pointer indirection and bounds checking overhead.
 2. **Chebyshev Row Bitmasks:** In addition to ray bitboards, each row maintains a 32-bit `uint` candidate bitmask. When a stone is placed, 1-ring and 2-ring Chebyshev neighbors are bitwise OR-ed using shifts across rows $y-2 \dots y+2$, replacing 24 array element writes with 5 bitwise operations.

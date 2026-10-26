@@ -28,7 +28,7 @@ This report provides an in-depth technical analysis comparing the newly evaluate
 | **Transposition Table** | **Packed 64-bit entry (8 bytes)**; stored key is only 16 bits. | **Packed 16-byte entry**; full 64-bit Zobrist key verification; depth parity. | **Winner: Carbon.** 16-bit keys suffer hash collisions in deep searches. We propose a lock-free 16-byte entry. |
 | **Evaluation Model** | **15-grade threat taxonomy** evaluating empty cell threat potentials; weighted offense + defense. | **4-direction stone configuration tensor (`STATUS4`)** and `CarbonTables.Rank` weights. | **Winner: Gomoku-main for fork detection; Carbon for positional midgame.** |
 | **Rules & Variants** | **Freestyle Gomoku only** (5+ stones in a row wins). | **Freestyle, Exact 5, and Renju** (with 3x3, 4x4, and overline foul rules). | **Winner: Carbon.** `Gomoku-main` has zero Renju or Exact 5 support. |
-| **Opening Theory** | Center stone on move 1; no opening book. | **Dihedral $D_4$ Opening Book** with 22 master opening systems (67 patterns). | **Winner: Carbon.** Instant, perfect book opening play. |
+| **Opening Theory** | Center stone on move 1; no opening book. | **Dihedral $D_4$ Opening Book** with 80 opening records. | **Winner: Carbon.** Instant, perfect book opening play. |
 
 ---
 
@@ -396,7 +396,7 @@ graph TD
         B3["Adaptive Concurrency Model<br/>Lazy SMP (8-16 Cores Desktop • 4 Workers WASM) • Fallback to 1"]
         B4["Fast Candidate Selection (No std::sort)<br/>ONE_CAND Pruning • QuickWinSearch VCF"]
         B5["Lock-Free 16-Byte TT<br/>Full 64-bit Zobrist Verification • 0% Collisions"]
-        B6["Embedded Opening Book<br/>67 Canonical Dihedral D4 Patterns"]
+        B6["Embedded Opening Book<br/>80 Dihedral D4 Opening Records"]
         B7["Full Variant Engine<br/>Freestyle • Exact 5 • Renju Fouls"]
     end
 
@@ -422,10 +422,10 @@ graph TD
 ## 9. Implementation Summary (Phases 2 & 3)
 
 The prototype and hybrid engine were implemented in .NET 10:
-* [`Bitboard15.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/Engine/Bitboard15.cs): SIMD 16-bit bitboard board representation for $15 \times 15$ with Exact 5 / Renju overline masks and $O(1)$ fast threat generation.
-* [`LockFreeTranspositionTable.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs): 16-byte lock-free TT using Stockfish-style XOR verification (`KeyXorData = Key ^ Data`) achieving over $210\text{M ops/sec}$.
-* [`CarbonXAiPlayer.cs`](file:///c:/Udvikling/Spil/Gomoku/src/Gomoku.Core/AI/CarbonXAiPlayer.cs): PVS search engine with null-window scouting, Lazy SMP threading with isolated worker clones, and SIMD Chebyshev candidate generation.
-* [`MatchRunner.cs`](file:///c:/Udvikling/Spil/Gomoku/tools/Gomoku.Benchmark/MatchRunner.cs): Paired opening tournament runner testing single-threaded and multi-threaded matches across canonical Gomoku openings.
+* [`Bitboard15.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/Bitboard15.cs): SIMD 16-bit bitboard board representation for $15 \times 15$ with Exact 5 / Renju overline masks and $O(1)$ fast threat generation.
+* [`LockFreeTranspositionTable.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs): 16-byte lock-free TT using Stockfish-style XOR verification (`KeyXorData = Key ^ Data`) achieving over $210\text{M ops/sec}$.
+* [`CarbonXAiPlayer.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonXAiPlayer.cs): PVS search engine with null-window scouting, Lazy SMP threading with isolated worker clones, and SIMD Chebyshev candidate generation.
+* [`MatchRunner.cs`](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/MatchRunner.cs): Paired opening tournament runner testing single-threaded and multi-threaded matches across canonical Gomoku openings.
 
 ---
 
