@@ -37,7 +37,10 @@ internal sealed record ProgressDto(
     long EvaluationsPerSec,
     long ElapsedMs,
     string? StatusMessage,
-    bool IsSearching);
+    bool IsSearching,
+    int? CurrentMoveX = null,
+    int? CurrentMoveY = null,
+    int? CurrentMovePlayer = null);
 
 internal sealed record MoveResponse(
     int MoveX,
@@ -117,7 +120,10 @@ internal static class EngineProtocol
             info.EvaluationsPerSec,
             (long)info.Elapsed.TotalMilliseconds,
             info.StatusMessage,
-            info.IsSearching);
+            info.IsSearching,
+            info.CurrentMove?.X,
+            info.CurrentMove?.Y,
+            info.CurrentMove.HasValue ? (int)info.CurrentMove.Value.Player : null);
         return JsonSerializer.Serialize(dto, EngineProtocolJson.Default.ProgressDto);
     }
 
@@ -135,7 +141,10 @@ internal static class EngineProtocol
             dto.EvaluationsPerSec,
             TimeSpan.FromMilliseconds(dto.ElapsedMs),
             dto.StatusMessage,
-            dto.IsSearching);
+            dto.IsSearching,
+            dto.CurrentMoveX.HasValue && dto.CurrentMoveY.HasValue && dto.CurrentMovePlayer.HasValue
+                ? new Move(dto.CurrentMoveX.Value, dto.CurrentMoveY.Value, (PieceColor)dto.CurrentMovePlayer.Value)
+                : null);
     }
 
     public static string WriteResponse(Move move, SearchAnalysis? last)

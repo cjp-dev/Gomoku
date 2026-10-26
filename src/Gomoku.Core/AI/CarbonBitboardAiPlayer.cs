@@ -45,6 +45,14 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
     private int _currentMoveNumber;
     private PieceColor _currentSideToMove;
     private Point _activeBestMovePoint;
+
+    // The root move worker 0 is examining, shown as the analysis panel's Move.
+    private Point _activeRootMovePoint = Point.Empty;
+
+    private Move? CurrentRootMove(BitboardPatternBoard pb) =>
+        _activeRootMovePoint.IsValid(pb.BoardWidth, pb.BoardHeight)
+            ? new Move(_activeRootMovePoint.X, _activeRootMovePoint.Y, _currentSideToMove)
+            : null;
     private int _activeBestScore;
 
     public struct Cand
@@ -198,6 +206,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         _currentMoveNumber = state.MoveCount + 1;
         _currentSideToMove = state.SideToMove;
         _activeBestMovePoint = Point.Empty;
+        _activeRootMovePoint = Point.Empty;
         _activeBestScore = 0;
 
         Span<Cand> rootCnd = stackalloc Cand[MaxCand];
@@ -304,6 +313,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         _currentMoveNumber = state.MoveCount + 1;
         _currentSideToMove = state.SideToMove;
         _activeBestMovePoint = Point.Empty;
+        _activeRootMovePoint = Point.Empty;
         _activeBestScore = 0;
 
         // Workers 1..N-1: Helper scouts
@@ -884,6 +894,11 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                 continue;
             }
 
+            if (workerId == 0)
+            {
+                _activeRootMovePoint = new Point(cx - BitboardPatternBoard.Margin, cy - BitboardPatternBoard.Margin);
+            }
+
             iterNodes++;
             pb.MakePaddedMove(cx, cy);
 
@@ -947,7 +962,8 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                     speed,
                     _activeSw.Elapsed,
                     StatusMessage: "Searching...",
-                    IsSearching: true));
+                    IsSearching: true,
+                    CurrentMove: CurrentRootMove(pb)));
             }
 
             if (_terminate || cancellationToken.IsCancellationRequested || moveNowToken.IsCancellationRequested) break;
@@ -1005,7 +1021,8 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                     speed,
                     _activeSw.Elapsed,
                     StatusMessage: "Searching...",
-                    IsSearching: true));
+                    IsSearching: true,
+                    CurrentMove: CurrentRootMove(pb)));
             }
 
             if (cancellationToken.IsCancellationRequested || now >= _stopTime || moveNowToken.IsCancellationRequested)

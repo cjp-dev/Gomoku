@@ -37,7 +37,6 @@ public sealed partial class AnalysisViewModel : ObservableObject
 
     public void Update(SearchAnalysis analysis)
     {
-        Move = analysis.MoveNumber > 0 ? analysis.MoveNumber.ToString(CultureInfo.InvariantCulture) : "-";
 
         if (analysis.StatusMessage is "Opening book" or "Center opening")
         {
@@ -68,6 +67,9 @@ public sealed partial class AnalysisViewModel : ObservableObject
         }
 
         BestMove = analysis.BestMove.HasValue ? analysis.BestMove.Value.Position.ToCoordinateString() : "-";
+
+        // The move being examined while searching (as in the other games); afterwards the move found.
+        Move = analysis.CurrentMove is { } current ? current.Position.ToCoordinateString() : BestMove;
         Nodes = analysis.Nodes.ToString("N0", CultureInfo.InvariantCulture);
         Speed = analysis.EvaluationsPerSec > 0 ? $"{analysis.EvaluationsPerSec.ToString("N0", CultureInfo.InvariantCulture)} nps" : "-";
         Time = analysis.Elapsed.ToString(@"m\:ss\.f");

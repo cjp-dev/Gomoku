@@ -50,6 +50,43 @@ public class CarbonBitboardAiTests
         original.MoveCount.Should().Be(2);
     }
 
+    [Fact]
+    public async Task CarbonBitboardAi_Progress_ShouldReportTheRootMoveBeingSearched()
+    {
+        CarbonBitboardAiPlayer ai = new(threadCount: 1);
+        BoardState state = new(BoardSize.Size15x15, GomokuVariant.Freestyle);
+        var rules = RuleEngine.Instance;
+        state = rules.ApplyMove(state, new Move(7, 7, PieceColor.Black));
+        state = rules.ApplyMove(state, new Move(8, 8, PieceColor.White));
+        var legal = rules.GetLegalMoves(state);
+        var reports = new SyncProgress();
+
+        await ai.GetMoveAsync(state, SearchLimits.TimePerMove(TimeSpan.FromMilliseconds(600), useOpeningBook: false), legal, reports);
+
+        List<SearchAnalysis> searching = [.. reports.Items.Where(r => r.IsSearching && r.CurrentMove.HasValue)];
+        searching.Should().NotBeEmpty();
+        searching.Should().OnlyContain(r =>
+            r.CurrentMove!.Value.Player == PieceColor.Black &&
+            legal.Any(m => m.Position == r.CurrentMove.Value.Position));
+    }
+
+    // Records reports on the reporting thread (Progress<T> would post them later).
+    private sealed class SyncProgress : IProgress<SearchAnalysis>
+    {
+        private readonly object _gate = new();
+        private readonly List<SearchAnalysis> _items = [];
+
+        public List<SearchAnalysis> Items
+        {
+            get { lock (_gate) return [.. _items]; }
+        }
+
+        public void Report(SearchAnalysis value)
+        {
+            lock (_gate) _items.Add(value);
+        }
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(4)]

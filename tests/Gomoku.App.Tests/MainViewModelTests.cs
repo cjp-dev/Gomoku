@@ -195,6 +195,29 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void AnalysisViewModel_Move_ShowsTheMoveBeingSearchedThenTheMoveFound()
+    {
+        AnalysisViewModel vm = new();
+        SearchAnalysis searching = new(
+            MoveNumber: 5,
+            Depth: 6,
+            Score: 120,
+            BestMove: new Move(7, 7, PieceColor.Black),
+            Nodes: 15420,
+            EvaluationsPerSec: 500000,
+            Elapsed: TimeSpan.FromSeconds(0.45),
+            IsSearching: true,
+            CurrentMove: new Move(8, 9, PieceColor.Black));
+
+        vm.Update(searching);
+        vm.Move.Should().Be(new Point(8, 9).ToCoordinateString());
+        vm.BestMove.Should().Be("H8");
+
+        vm.Update(searching with { IsSearching = false, CurrentMove = null });
+        vm.Move.Should().Be("H8");
+    }
+
+    [Fact]
     public void AnalysisViewModel_OpeningBookAndCenterOpening_ShouldFormatDepthAsBookOrOpening()
     {
         AnalysisViewModel vm = new();
