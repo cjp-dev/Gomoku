@@ -1,12 +1,7 @@
-// Browser helpers for Gomoku .NET via JS interop
+// Gomoku's browser helpers (board focus, sounds); the shared ones are in GameShell's gameshell.js.
 window.gomoku = (() => {
-    const maxFileSize = 1_000_000;
     const sounds = new Map();
     let audioCtx = null;
-
-    const shortcutKeys = 'noszyam';
-    let keydown = null;
-    let menuCleanup = null;
 
     function getAudioContext() {
         if (!audioCtx) {
@@ -22,94 +17,11 @@ window.gomoku = (() => {
     }
 
     return {
-        registerShortcuts(dotnet) {
-            keydown = e => {
-                if (e.key === 'F1') {
-                    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
-                        return;
-                    }
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                        dotnet.invokeMethodAsync('OnShortcut', 'shift+f1');
-                    } else if (!e.ctrlKey && !e.altKey && !e.metaKey) {
-                        dotnet.invokeMethodAsync('OnShortcut', 'f1');
-                    }
-                    return;
-                }
-                // F2 opens Settings; Escape closes an open menu or the mobile drawer (dialogs handle their own Escape).
-                if ((e.key === 'F2' || e.key === 'Escape') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-                    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
-                        return;
-                    }
-                    if (e.key === 'F2') {
-                        e.preventDefault();
-                    }
-                    dotnet.invokeMethodAsync('OnShortcut', e.key.toLowerCase());
-                    return;
-                }
-                if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.length !== 1) {
-                    return;
-                }
-                const key = e.key.toLowerCase();
-                if (!shortcutKeys.includes(key) || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
-                    return;
-                }
-                e.preventDefault();
-                dotnet.invokeMethodAsync('OnShortcut', key);
-            };
-            document.addEventListener('keydown', keydown);
-        },
-
-        unregisterShortcuts() {
-            if (keydown) {
-                document.removeEventListener('keydown', keydown);
-                keydown = null;
-            }
-        },
-
-        // Keeps the newest move in view by scrolling only the history list, never the page.
-        scrollHistoryToEnd(list) {
-            if (list) {
-                list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
-            }
-        },
-
         focusCell(x, y) {
             const el = document.querySelector(`.board-intersection[data-x="${x}"][data-y="${y}"]`);
             if (el && typeof el.focus === 'function') {
                 el.focus();
             }
-        },
-
-        openTextFile(accept) {
-            return new Promise((resolve, reject) => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = accept;
-                input.addEventListener('cancel', () => resolve(null));
-                input.addEventListener('change', async () => {
-                    const file = input.files[0];
-                    if (!file) {
-                        resolve(null);
-                    } else if (file.size > maxFileSize) {
-                        reject(new Error('The file is too large.'));
-                    } else {
-                        resolve([file.name, await file.text()]);
-                    }
-                });
-                input.click();
-            });
-        },
-
-        downloadTextFile(name, text) {
-            const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
         },
 
         async registerSound(name, pcmBytes) {
@@ -147,57 +59,6 @@ window.gomoku = (() => {
                 source.connect(ctx.destination);
                 source.start(0);
             } catch (err) {
-            }
-        },
-
-        initMenuAlignment() {
-            this.cleanupMenuAlignment();
-            const menubar = document.querySelector('.menubar');
-            const boardArea = document.querySelector('.board-area');
-            const content = document.querySelector('.content');
-            if (!menubar || !boardArea) {
-                return;
-            }
-
-            const update = () => this.updateMenuAlignment();
-            update();
-
-            const resizeObserver = new ResizeObserver(update);
-            resizeObserver.observe(boardArea);
-            if (content) {
-                resizeObserver.observe(content);
-                content.addEventListener('scroll', update, { passive: true });
-            }
-            window.addEventListener('resize', update, { passive: true });
-
-            menuCleanup = () => {
-                resizeObserver.disconnect();
-                if (content) {
-                    content.removeEventListener('scroll', update);
-                }
-                window.removeEventListener('resize', update);
-                document.documentElement.style.removeProperty('--menu-left');
-            };
-        },
-
-        updateMenuAlignment() {
-            const menubar = document.querySelector('.menubar');
-            const boardArea = document.querySelector('.board-area');
-            if (!menubar || !boardArea) {
-                return;
-            }
-            const boardRect = boardArea.getBoundingClientRect();
-            let itemsWidth = 0;
-            menubar.querySelectorAll('.desktop-menu-bar .menu').forEach(m => itemsWidth += m.offsetWidth);
-            const maxLeft = Math.max(0, window.innerWidth - itemsWidth);
-            const left = Math.min(Math.max(0, Math.round(boardRect.left)), maxLeft);
-            document.documentElement.style.setProperty('--menu-left', `${left}px`);
-        },
-
-        cleanupMenuAlignment() {
-            if (menuCleanup) {
-                menuCleanup();
-                menuCleanup = null;
             }
         },
     };

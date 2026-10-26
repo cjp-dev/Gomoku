@@ -9,7 +9,7 @@ public sealed class BrowserGameFileService(IJSRuntime js) : IGameFileService
     {
         try
         {
-            var res = await js.InvokeAsync<string[]?>("gomoku.openTextFile", ".sgf,.gomoku,.txt");
+            var res = await js.InvokeAsync<string[]?>("gameShell.openTextFile", ".sgf,.gomoku,.txt");
             if (res != null && res.Length == 2)
             {
                 return res[1]; // text content
@@ -26,7 +26,7 @@ public sealed class BrowserGameFileService(IJSRuntime js) : IGameFileService
     {
         try
         {
-            await js.InvokeVoidAsync("gomoku.downloadTextFile", defaultFileName, content);
+            await js.InvokeVoidAsync("gameShell.downloadTextFile", defaultFileName, content);
             return true;
         }
         catch (JSException)

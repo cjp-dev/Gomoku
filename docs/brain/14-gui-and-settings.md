@@ -77,6 +77,7 @@ The application header features a standardized 4-menu hierarchy providing struct
 * **Sound Effects:** Toggles procedural audio feedback (stone placement snap, victory fanfare, loss chime, illegal move buzzer, and undo chimes).
 * *(Separator)*
 * **Show Analysis (`Ctrl+A`):** Toggles the visibility of the real-time AI search analysis side panel.
+* **Board theme (web version):** `Wood Board`, `Dark Board` and `Classic Board` radio items, as the board styles in the other games' Options menus. The desktop version keeps the theme in the Settings dialog.
 
 ### 4. Help Menu
 * **User guide (`F1`):** Opens this chapter directly, providing immediate access to interface instructions, settings explanations, and shortcut tables.
@@ -150,7 +151,7 @@ Accessed via **Game $\rightarrow$ Settings...**, the modal settings dialog lets 
 ![Gomoku .NET Settings Dialog](images/gui-settings.png)
 
 The dialog is arranged into five focused sections:
-1. **Rules Variant & Board Theme (Side-by-Side):** A compact two-column grid grouping Gomoku victory rules (**Freestyle (5+ wins)**, **Standard (Exact 5)**, and **Renju (Forbidden 3x3/4x4)**) on the left with visual themes (**Wood**, **Dark**, and **Classic** stacked vertically) on the right, standardized on official $15 \times 15$ tournament geometry.
+1. **Rules Variant & Board Theme (Side-by-Side):** A compact two-column grid grouping Gomoku victory rules (**Freestyle (5+ wins)**, **Standard (Exact 5)**, and **Renju (Forbidden 3x3/4x4)**) on the left with visual themes (**Wood**, **Dark**, and **Classic** stacked vertically) on the right, standardized on official $15 \times 15$ tournament geometry. In the web version the dialog shows only the rules variant here; the theme is chosen in the Options menu.
 2. **AI Engine:** Opponent engine selection: **Carbon AI (Bitboard)** or **Simple AI**.
 3. **Computer Thinking Limits:** Search depth and clock allocation modes (Fixed depth $1\text{–}14$ plies, Time per move $1\text{–}20\text{ s}$, Time per game $1\text{–}30\text{ min}$). *Visible only when Carbon AI is selected.*
 4. **Multi-Threading & Performance:** Parallel search controls (Lazy SMP toggle and search thread selector with `Auto (4 threads)` and manual options $1$ to $8$ threads). *Visible only when Carbon AI is selected.*
@@ -278,7 +279,7 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 ┌─────────────────────────────────┐
 │ AI ANALYSIS                     │
 ├───────────────────┬─────────────┤
-│ Move:             │ #15         │
+│ Move:             │ K11         │
 │ Depth:            │ 8 plies...  │
 │ Score:            │ +140        │
 │ Best move:        │ J10         │
@@ -293,7 +294,7 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 
 | Field | Description & Formatting |
 |---|---|
-| **Move** | The active game ply number (e.g., `#1`, `#15`). |
+| **Move** | The root move the engine is examining right now (e.g., `K11`); it changes rapidly while searching. Afterwards, and for book moves, it shows the move found. The same in all four games. |
 | **Depth** | The active search depth in plies: <br/>• Displays `"{depth} plies..."` while searching an in-progress iteration.<br/>• Displays `"{depth} plies"` when the depth iteration completes cleanly.<br/>• Displays `"Book"` on opening book hits or `"Opening"` on first-move center hits. |
 | **Score** | Positional evaluation from the moving player's perspective:<br/>• Positive (e.g. `+140`): Advantage for the engine.<br/>• Negative (e.g. `-80`): Advantage for the opponent.<br/>• `"Mate in N"` / `"-Mate in N"`: Forced winning/losing tactical combination found. |
 | **Best move** | Algebraic coordinate of the currently leading candidate (e.g., `H8`, `J10`, `K11`). |
