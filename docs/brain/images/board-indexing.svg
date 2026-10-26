@@ -28,10 +28,11 @@
   <text x="412" y="174" fill="#CFD8DC" font-size="12">• Border cells have Piece = Wrong, pre-populating</text>
   <text x="424" y="192" fill="#CFD8DC" font-size="12">opponent block bits in Pattern00..Pattern31 at Start().</text>
 
-  <text x="412" y="226" fill="#81C784" font-size="15" font-weight="700">2-Ring Proximity Filter (Adj1 &amp; Adj2)</text>
-  <text x="412" y="250" fill="#CFD8DC" font-size="12">• Adj1 tracks 8 Chebyshev distance-1 neighbors.</text>
-  <text x="412" y="272" fill="#CFD8DC" font-size="12">• Adj2 tracks 8 ray-aligned distance-2 neighbors.</text>
-  <text x="412" y="294" fill="#CFD8DC" font-size="12">• Only empty squares with (Adj1 != 0 || Adj2 != 0)</text>
-  <text x="424" y="312" fill="#CFD8DC" font-size="12">inside [UpperLeftCand..LowerRightCand] are searched.</text>
+  <text x="412" y="226" fill="#81C784" font-size="15" font-weight="700">Candidate Filter (Chebyshev Dilation)</text>
+  <text x="412" y="250" fill="#CFD8DC" font-size="12">• Occupied[] row bitboards are dilated by 2 cells</text>
+  <text x="424" y="268" fill="#CFD8DC" font-size="12">(DilateRow, GetCandidateMask): distance ≤ 2.</text>
+  <text x="412" y="292" fill="#CFD8DC" font-size="12">• Only these empty squares inside</text>
+  <text x="424" y="310" fill="#CFD8DC" font-size="12">[UpperLeftCand..LowerRightCand] are searched.</text>
+  <text x="412" y="334" fill="#90A4AE" font-size="11">(Legacy PatternBoard: Adj1/Adj2 ring counters.)</text>
 </svg>
 

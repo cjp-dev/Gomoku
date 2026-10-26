@@ -116,7 +116,7 @@ $$\text{Index} = ((s_0 \times 10 + s_1) \times 10 + s_2) \times 10 + s_3$$
 | **`ThreatD`** | 5 | One ray $s \ge 7$ and another $s \ge 4$ | Four + Two |
 | **`ThreatE`** | 4 | Exactly one ray $s \ge 7$ | Single Four |
 | **`ThreatF`** | 3 | Two rays with $s \ge 6$ | **Double Open Three ($3 \times 3$)** |
-| **`ThreatG`** | 2 | One ray $s \ge 6$ and another $s \ge 3$ | Three + Two |
+| **`ThreatG`** | 2 | One ray $s \ge 6$ and another $s \ge 4$ | Three + Two |
 | **`ThreatH`** | 1 | Exactly one ray $s \ge 6$ | Single Three |
 | **`ThreatNone`**| 0 | All rays $s \le 5$ | Minor positional square |
 | **`ThreatForbid`**| 9 | Overline, $4 \times 4$, or $3 \times 3$ (Renju) | **Illegal Foul for Black** |
@@ -135,10 +135,10 @@ $\text{Prior}(x, y) = \sum_{k=0}^{3} \Big( \text{Prior}[\text{pat}_{k,0}][\text{
 
 ---
 
-### 5. `Rank[106]` and `Config[256][256]` (Material Evaluation Tables)
-To evaluate non-terminal leaf positions in `CarbonAiPlayer.Evaluate()`, the 65,536 possible pattern pairs $(\text{pat}_{\text{me}}, \text{pat}_{\text{opp}})$ are mapped via `Config` into 106 canonical symmetry classes. `Rank[config]` assigns an empirical weight to each configuration:
+### 5. `Rank[107]` and `Config[256][256]` (Material Evaluation Tables)
+To evaluate non-terminal leaf positions in `CarbonAiPlayer.Evaluate()`, the 65,536 possible pattern pairs $(\text{pat}_{\text{me}}, \text{pat}_{\text{opp}})$ are mapped via `Config` into 107 canonical symmetry classes. `Rank[config]` assigns an empirical weight to each configuration:
 $$\text{Score}(\text{stone}) = \sum_{k=0}^{3} \text{Rank}\Big[\text{Config}[\text{pat}_{k, \text{me}}][\text{pat}_{k, \text{opp}}]\Big]$$
-$$\text{Evaluation} = \sum_{\text{Black Stones}} \text{Score}(s) - \sum_{\text{White Stones}} \text{Score}(s)$$
+$$\text{Evaluation} = \sum_{\text{Own Stones}} \text{Score}(s) - \sum_{\text{Opponent Stones}} \text{Score}(s) \quad \text{(from the side to move)}$$
 
 This provides smooth, highly accurate positional evaluation in a fraction of a microsecond.
 

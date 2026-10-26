@@ -35,7 +35,7 @@ SGF represents the game tree as a sequence of nodes enclosed in parentheses. Eac
 
 ### Coordinate Mapping:
 SGF coordinates use lowercase letters where `a` represents index 0:
-$$x_{\text{sgf}} = \text{char}('a' + x), \quad y_{\text{sgf}} = \text{char}('a' + y)$$
+$$x_{\text{sgf}} = \text{char}(\text{'a'} + x), \quad y_{\text{sgf}} = \text{char}(\text{'a'} + y)$$
 
 For a $15 \times 15$ board:
 - Top-left $(0, 0) \implies \text{"aa"}$
@@ -98,7 +98,7 @@ private static partial Regex TagRegex();
 
 1. **Tag Processing:** Lines starting with `[` are parsed via regex into a metadata dictionary (`metadata["Size"]`, `metadata["Variant"]`, etc.).
 2. **Move Stream Parsing:** Move tokens are split on whitespace and punctuation (`.` and `,`). Any token matching column letter ($A\dots T$) followed by row number ($1\dots 20$) is parsed into a `Point`:
-   $$\text{Column } C \implies x = C - 'A'$$
+   $$\text{Column } C \implies x = C - \text{'A'}$$
    $$\text{Row } R \implies y = R - 1$$
 
 ---
@@ -144,13 +144,13 @@ public static bool TryParse(
 
 ```mermaid
 stateDiagram-v2
-    [*] --> EmptyBoard : NewGame(size, variant)
-    EmptyBoard --> MovePlayed : MakeMove(point)
-    MovePlayed --> MovePlayed : MakeMove(point)
-    MovePlayed --> UndoState : Undo() [Pushes to RedoStack]
-    UndoState --> MovePlayed : Redo() [Pops from RedoStack]
-    UndoState --> BranchState : MakeMove(newPoint) [Clears RedoStack]
-    MovePlayed --> Terminal : CheckWinner() != None
+    [*] --> EmptyBoard : Reset(size, variant, firstPlayer)
+    EmptyBoard --> MovePlayed : ApplyMove(move)
+    MovePlayed --> MovePlayed : ApplyMove(move)
+    MovePlayed --> UndoState : Undo() [Pushes to redo stack]
+    UndoState --> MovePlayed : Redo() [Pops from redo stack]
+    UndoState --> BranchState : ApplyMove(newMove) [Clears redo stack]
+    MovePlayed --> Terminal : RuleEngine.CheckWin() is true
 ```
 
 ### Undo/Redo Invariants:

@@ -38,6 +38,6 @@
   <rect x="40" y="210" width="740" height="90" rx="8" fill="#192026" stroke="#37474F"/>
   <text x="60" y="235" fill="#FFD54F" font-size="13" font-weight="700">Algorithmic Consequence in QuickWinSearch():</text>
   <text x="60" y="258" fill="#CFD8DC" font-size="12">Because the defender's branching factor is strictly 1, a 16-ply VCF attack generates only ~2^8 = 256 nodes,</text>
-  <text x="60" y="278" fill="#CFD8DC" font-size="12">compared to standard minimax which would evaluate 20^16 ≈ 65,000,000,000,000,000,000 nodes!</text>
+  <text x="60" y="278" fill="#CFD8DC" font-size="12">compared to standard minimax which would evaluate 20^16 ≈ 655,360,000,000,000,000,000 nodes!</text>
 </svg>
 

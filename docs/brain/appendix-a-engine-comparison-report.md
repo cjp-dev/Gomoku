@@ -373,7 +373,7 @@ public static bool IsDoubleFour(BoardState board, int row, int col)
 
 A Double-Three foul occurs when Black simultaneously creates two open threes (threes that can become open fours).
 In bitboards:
-1. An open three is identified by checking if setting a bit creates an open four (`01110_2`) that can be completed at both ends without forming an overline.
+1. An open three is identified by checking if setting a bit creates an open four (`011110_2`) that can be completed at both ends without forming an overline.
 2. If two independent directions form valid open threes, the square is flagged as a forbidden Renju foul.
 
 ---

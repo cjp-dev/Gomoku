@@ -23,24 +23,24 @@ graph TD
         WEB["Gomoku.Web (Blazor WASM)"]
     end
 
-    subgraph Gomoku.App (Shared Application Layer)
-        MVM["MainViewModel<br/>Game orchestration & AI dispatch"]
-        IVM["IntersectionViewModel<br/>Grid cell binding & hover state"]
-        AVM["AnalysisViewModel<br/>Engine evaluation & win-rate bar"]
+    subgraph APP ["Gomoku.App (Shared Application Layer)"]
+        MVM["MainViewModel<br/>Game orchestration &amp; AI dispatch"]
+        IVM["IntersectionViewModel<br/>Grid cell binding &amp; hover state"]
+        AVM["AnalysisViewModel<br/>Live search telemetry formatting"]
         SVM["SettingsViewModel<br/>Board size, variant, AI difficulty"]
         AUDIO["SoundWaves<br/>Procedural 16-bit PCM synthesis"]
         SVC["Service Abstractions<br/>ISoundService • IGameFileService • IDialogService"]
     end
 
-    subgraph Gomoku.Core (Domain Core)
+    subgraph CORE ["Gomoku.Core (Domain Core)"]
         GAME["GameSession • BoardState • Move"]
-        AI["CarbonAiPlayer • OpeningBook"]
-        TABLES["PatternBoard • CarbonTables"]
+        AI["CarbonBitboardAiPlayer • CarbonAiPlayer • SimpleAiPlayer • OpeningBook"]
+        TABLES["BitboardPatternBoard • PatternBoard • CarbonTables"]
     end
 
-    WPF --> Gomoku.App
-    WEB --> Gomoku.App
-    Gomoku.App --> Gomoku.Core
+    WPF --> APP
+    WEB --> APP
+    APP --> CORE
 ```
 
 ---
@@ -57,7 +57,7 @@ graph TD
 - **Per-Ply Clock Snapshotting & Time Refund:** Maintains an internal dictionary `_timeAtPly` that records remaining chess clock times for both players at each turn. When `Undo()` is invoked, elapsed thinking time is refunded to the exact snapshot recorded at that ply.
 - **Mid-Match Safeguards:** Prompts confirmation dialogs before resetting an in-progress game when initiating New Game, switching Game Modes, or altering settings.
 - **Side Switching (`SwitchSidesCommand`):** Swaps player roles between Black and White mid-game without rotating the board, seamlessly activating the AI if it becomes the computer's turn.
-- **Timeout Continuation Safeguard:** In timed games against the AI, if the human runs out of time, prompts an interactive continuation dialog so casual play can proceed.
+- **Timeout Continuation Safeguard:** In timed games against the AI, if the human runs out of time, prompts an interactive continuation dialog so casual play can proceed. The clocks pause while the dialog is open; after continuing, the computer's clock keeps running, so it can still lose on time.
 
 ### 2. `IntersectionViewModel` (Cell Binding)
 Represents a single coordinate $(x, y)$ on the board:
@@ -96,9 +96,10 @@ $$\text{Sample Rate: } f_s = 22,050\text{ Hz (16-bit mono PCM)}$$
 ### 1. The Stone Snap (`StoneSnap`)
 Simulates the sharp, percussive impact of a clamshell or slate stone striking a solid kaya wooden board. The physical event consists of a high-frequency transient dropping rapidly in pitch under steep exponential decay:
 
-$$f(t) = 700 - 400t\text{ Hz}$$
-$$E(t) = e^{-18t}$$
-$$s(t) = A \cdot E(t) \cdot \sin\left(2\pi \cdot f(t) \cdot t\right)$$
+$$\tau = \frac{i}{N}, \quad t = \frac{i}{f_s}, \quad N = 0.08\,f_s = 1,764\text{ samples (80 ms)}$$
+$$f(\tau) = 700 - 400\tau\text{ Hz}$$
+$$E(\tau) = e^{-18\tau}$$
+$$s_i = A \cdot E(\tau) \cdot \sin\left(2\pi \cdot f(\tau) \cdot t\right), \quad A = 0.85 \cdot 32,767$$
 
 ```csharp
 private static short[] StoneSnap(double seconds)
@@ -120,16 +121,16 @@ private static short[] StoneSnap(double seconds)
 ```mermaid
 xychart-beta
     title "Procedural Stone Snap Acoustic Envelope"
-    x-axis [0ms, 10ms, 20ms, 30ms, 40ms, 50ms, 60ms, 70ms, 80ms]
+    x-axis ["0 ms", "10 ms", "20 ms", "30 ms", "40 ms", "50 ms", "60 ms", "70 ms", "80 ms"]
     y-axis "Amplitude (%)" 0 --> 100
-    line [85, 62, 41, 24, 13, 6, 3, 1, 0]
+    line [85, 9, 1, 0, 0, 0, 0, 0, 0]
 ```
 
 ### 2. Victory Arpeggio (`Notes`)
 Synthesizes a bright, ascending major pentatonic chord sequence:
 $$[C_5 (523.25\text{ Hz}), E_5 (659.25\text{ Hz}), G_5 (783.99\text{ Hz}), C_6 (1046.50\text{ Hz}), E_6 (1318.50\text{ Hz})]$$
-Each note is modulated by an attack-decay envelope with exponential tail:
-$$E_n(t) = (1 - e^{-50t}) \cdot e^{-6t}$$
+Each note lasts $120\text{ ms}$ and is shaped by an exponential decay envelope, where $\tau$ runs from 0 to 1 over the note:
+$$E_n(\tau) = e^{-3.5\tau}$$
 
 ### 3. Defeat Chime (`Loss`)
 Descending minor chord progression:
@@ -209,7 +210,7 @@ public interface IDialogService
 |---|---|:---:|---|
 | `MainViewModel` | `class` | $\approx 2\text{ KiB}$ | Root presentation orchestrator |
 | `IntersectionViewModel` | `class` | 64 bytes | Per-cell UI state (225 to 400 instances per board) |
-| `SoundWaves.Cache` | `Dictionary<SoundType, byte[]>` | $\approx 45\text{ KiB}$ | In-memory cache of pre-synthesized WAV buffers |
+| `SoundWaves.Cache` | `Dictionary<SoundType, byte[]>` | $\approx 86\text{ KiB}$ | In-memory cache of pre-synthesized WAV buffers |
 | `SoundType` | `enum` | 1 byte | Acoustic event type (`StonePlaced`, `Win`, `Loss`, `IllegalMove`, etc.) |
 
 ---

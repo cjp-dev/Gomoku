@@ -4,12 +4,12 @@
 
 ## In short
 
-When no immediate tactical mate can be resolved by `QuickWinSearch`, Carbon Gomoku initiates its midgame search engine. The search is based on **Closed-Interval Negamax Alpha-Beta with Principal Variation Search (PVS)**, executed inside an **Iterative Deepening** loop with dynamic time control.
+When no immediate tactical mate can be resolved by `QuickWinSearch`, Carbon Gomoku initiates its midgame search engine. The search is based on **Closed-Interval Negamax Alpha-Beta**, executed inside an **Iterative Deepening** loop with dynamic time control.
 
 The midgame search combines:
 1. **Closed-Interval $[\alpha, \beta]$ Bounds:** Uses the exact interval semantics from original Carbon C++ where bounds are inclusive and fail-soft returns exceed bounds by $\pm 1$.
-2. **Principal Variation / Null Window Probing:** The first candidate is searched with a full window $[-\beta, -\alpha]$; subsequent candidates are probed with a zero-width window $[-\beta, -(\text{best} + 1)]$ and only re-searched on refutation.
-3. **Single-Ply Iterative Deepening:** Explores depths $d = 2, 3, 4, 5, \dots, 20$ (or $d = 1$ for fixed depth 1). Progressing ply-by-ply ensures fine-grained clock management under tournament time limits while populating transposition table bounds and move ordering seeds for subsequent iterations.
+2. **Narrowing Child Window:** Every candidate is searched with the window $[-\beta, -(\text{best} + 1)]$. Because `best` starts at $\alpha - 1$, the first candidate gets the full window $[-\beta, -\alpha]$, and every improvement of `best` narrows the window for the remaining candidates. There is no separate null-window probe or re-search.
+3. **Single-Ply Iterative Deepening:** Explores depths $d = 2, 3, 4, 5, \dots, 50$ (or $d = 1$ for fixed depth 1). Progressing ply-by-ply ensures fine-grained clock management under tournament time limits while populating transposition table bounds and move ordering seeds for subsequent iterations.
 4. **Mate-Distance Score Decay:** Scales tactical winning scores $(\ge 25,000)$ at each ply so that the search prefers the shortest forced win and longest defensive resistance.
 5. **Periodic Time Polling (`TimeoutPrevent`):** Checks elapsed wall-clock time every $1,000$ nodes to guarantee zero engine forfeits on hard tournament time limits.
 
@@ -68,78 +68,66 @@ private Cand Minimax(int h, bool root, int alpha, int beta, CancellationToken ca
 
 ---
 
-## Principal variation search (Null window probes)
+## Narrowing child window (no re-search)
 
 Move ordering in Carbon places the most promising move (hash move or highest static priority) at index 0. If move ordering is accurate, the first move is very likely the best move, and all subsequent alternative moves will fail to exceed it.
 
-Instead of searching every move with the wide window $[-\beta, -\alpha]$, Carbon tests all moves after the first with a **null window** of width 1:
+Carbon searches every candidate with a child window whose upper end follows the best score found so far, so later moves only have to show that they cannot beat it:
 
 $$v_A = -\beta$$
 $$v_B = -(\text{best} + 1)$$
 
 ```mermaid
 flowchart TD
-    FirstMove["1. Search First Candidate (i = 0)<br/>Full window [-beta, -alpha]"] --> BestScore["best = value"]
-    BestScore --> LoopNext["2. For next candidate i = 1 .. n-1:"]
-    LoopNext --> NullWindow["Probe with Null Window:<br/>[vA, vB] = [-beta, -(best + 1)]"]
-    NullWindow --> DidBeat{"value &gt; best?"}
-    DidBeat -- "No (Fail Low)" --> Pruned["Alternative refuted.<br/>No re-search needed."]
-    DidBeat -- "Yes (Refutation)" --> FullReSearch["Re-search with Full Window:<br/>[-beta, -best]"]
-    FullReSearch --> UpdateBest["Update best = value<br/>bestMove = cand[i]"]
-    Pruned --> HasMore{"More candidates?"}
-    UpdateBest --> CutoffCheck{"best &gt; beta?"}
-    CutoffCheck -- "Yes" --> BetaCutoff["Beta Cutoff!<br/>Return beta + 1 immediately"]
+    Init["best = alpha - 1"] --> LoopNext["For each candidate i = 0 .. n-1"]
+    LoopNext --> Window["Child window:<br/>[vA, vB] = [-beta, -(best + 1)]<br/>(i = 0: full window [-beta, -alpha])"]
+    Window --> Search["value = -Minimax(h, vA, vB)<br/>Mate distance decay"]
+    Search --> DidBeat{"value &gt; best?"}
+    DidBeat -- "No (Fail Low)" --> HasMore{"More candidates?"}
+    DidBeat -- "Yes" --> UpdateBest["Update best = value<br/>bestMove = cand[i]"]
+    UpdateBest --> CutoffCheck{"value &gt; beta?"}
+    CutoffCheck -- "Yes" --> BetaCutoff["Beta Cutoff!<br/>Store LowerBound, return beta + 1"]
     CutoffCheck -- "No" --> HasMore
     HasMore -- "Yes" --> LoopNext
-    HasMore -- "No" --> StoreTT["Store best in Transposition Table<br/>Return best"]
+    HasMore -- "No" --> StoreTT["Store best in Transposition Table<br/>(Exact or UpperBound), return best"]
 ```
 
-### The C# Null-Window Loop:
+### The C# Candidate Loop (`CarbonBitboardAiPlayer.Minimax`):
 ```csharp
 for (int i = 0; i < nCnd; i++)
 {
-    _pb.MakePaddedMove(cnd[i].X, cnd[i].Y);
+    int cx = cnd[i].X;
+    int cy = cnd[i].Y;
+    // (Renju fouls for Black are skipped here)
 
-    int value;
-    if (i == 0)
-    {
-        // First move: full search window
-        value = -Minimax(h, false, -beta, -alpha, cancellationToken).Value;
-    }
-    else
-    {
-        // Alternative moves: null window probe
-        int vA = -beta;
-        int vB = -(best.Value + 1);
-        if (vB >= WinMin) vB++;
-        if (vA <= -WinMin) vA--;
+    pb.MakePaddedMove(cx, cy);
 
-        value = -Minimax(h, false, vA, vB, cancellationToken).Value;
+    // Child window: its upper end follows the best score so far
+    int vA = -beta;
+    int vB = -(best.Value + 1);
+    if (vB >= WinMin) vB++;
+    if (vA <= -WinMin) vA--;
 
-        // If move refutes best, re-search with full window
-        if (value > best.Value && value <= beta)
-        {
-            value = -Minimax(h, false, -beta, -best.Value, cancellationToken).Value;
-        }
-    }
-
-    _pb.UndoMove();
-    if (_terminate) break;
+    int value = -Minimax(workerId, pb, h, vA, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken).Value;
 
     // Decay winning/losing distance
     if (value >= WinMin) value--;
     if (value <= -WinMin) value++;
 
+    pb.UndoMove();
+    if (_terminate) break;
+
     if (value > best.Value)
     {
-        best = new Cand(cnd[i].X, cnd[i].Y, value);
-        if (value > alpha) alpha = value;
+        best = new Cand(cx, cy, value);
+        currentBestMove = new Point(cx - BitboardPatternBoard.Margin, cy - BitboardPatternBoard.Margin);
         if (value > beta)
         {
             // Beta cutoff: refutation proven
-            best = new Cand(cnd[i].X, cnd[i].Y, beta + 1);
-            break;
+            Table.Store(zobristKey, h, value, BoundType.LowerBound, currentBestMove);
+            return new Cand(cx, cy, beta + 1);
         }
+        bound = BoundType.Exact;
     }
 }
 ```
@@ -192,8 +180,8 @@ Tournament Gomoku requires rigid adherence to time limits. Exceeding the clock b
 
 Carbon implements a three-part defensive timing strategy:
 1. **Clock Allocation:**
-   - **`TimePerMove` Mode:** Allocates $T_{\text{move}} = \text{TimeLimit} - 30\text{ ms}$.
-   - **`TimePerGame` Mode:** Allocates $T_{\text{turn}} = \frac{T_{\text{remaining}}}{\text{MatchSpare}} - 30\text{ ms}$ (where $\text{MatchSpare} = 50$).
+   - **`TimePerMove` Mode:** Allocates $T_{\text{move}} = \text{TimeLimit}$.
+   - **`TimePerGame` Mode:** Allocates $T_{\text{turn}} = \max\left(100\text{ ms}, \frac{T_{\text{remaining}}}{\text{MatchSpare}}\right)$ (where $\text{MatchSpare} = 7$).
 2. **`TimeoutPrevent` Buffer:**
    A fixed $30\text{ ms}$ safety buffer is deducted from every turn budget to account for OS thread scheduling, GC pauses, and UI event marshaling:
    $$\text{StopTime} = \text{StartTime} + T_{\text{allocated}} - 30\text{ ms}$$
@@ -219,11 +207,11 @@ To harness the full compute capabilities of modern multi-core CPUs (e.g. 8 to 32
 
 ```mermaid
 flowchart TD
-    Root["Root Position & Limits"] --> Dispatch["Lazy SMP Coordinator<br/>(1 to N Threads)"]
-    Dispatch --> T0["Thread 0 (Main / PV)<br/>Depth 2, 4, 6...<br/>Reports Telemetry"]
-    Dispatch --> T1["Helper Thread 1<br/>Depth 2, 4, 6..."]
-    Dispatch --> T2["Helper Thread 2<br/>Depth 2, 4, 6..."]
-    Dispatch --> TN["Helper Thread N-1<br/>Depth 2, 4, 6..."]
+    Root["Root Position &amp; Limits"] --> Dispatch["Lazy SMP Coordinator<br/>(1 to N Threads)"]
+    Dispatch --> T0["Thread 0 (Main / PV)<br/>Depth 2, 3, 4...<br/>Reports Telemetry"]
+    Dispatch --> T1["Helper Thread 1<br/>Depth 3, 4, 5..."]
+    Dispatch --> T2["Helper Thread 2<br/>Depth 2, 3, 4..."]
+    Dispatch --> TN["Helper Thread N-1<br/>Starts at depth 2 or 3<br/>Skips ahead to the main depth"]
 
     T0 <--> TT[("Shared LockFreeTranspositionTable<br/>16-Byte Aligned • Atomic Interlocked<br/>Depth-Protected Replacement")]
     T1 <--> TT
@@ -297,30 +285,28 @@ sequenceDiagram
 
     VM->>AI: GetMoveAsync(state, limits, moves, progress, token)
     loop Iterative Deepening (Depth d = 2, 3, 4...)
-        loop Root Candidates
+        loop Root Candidates (worker 0)
             AI->>AI: Minimax(depth - 1, vA, vB)
-            opt Elapsed - LastYield >= 150 ms
-                AI->>VM: progress.Report(SearchAnalysis [IsSearching: true])
-                VM->>UI: Analysis.Update() -> Depth "{d} plies..."
-                AI->>AI: await Task.Delay(1, token) [Yields to Browser Event Loop]
+            opt Elapsed - LastReport >= 150 ms
+                AI->>VM: progress.Report(SearchAnalysis [IsSearching: true, CurrentMove])
+                VM->>UI: Analysis.Update() -> Move = CurrentMove, Depth "{d} plies..."
             end
         end
         AI->>VM: progress.Report(SearchAnalysis [IsSearching: false])
-        VM->>UI: Analysis.Update() -> Depth "{d} plies"
-        AI->>AI: await Task.Delay(1, token)
+        VM->>UI: Analysis.Update() -> Move = BestMove, Depth "{d} plies"
     end
     AI-->>VM: Chosen Move (Best Candidate)
 ```
 
 ### 1. Dual Heartbeat Reporting
-- **Root Candidate Heartbeat ($\ge 150\text{ ms}$):** In `MinimaxRootAsync`, when evaluating root candidates, if at least $150\text{ ms}$ has elapsed since the last report, `CarbonAiPlayer` reports an in-progress `SearchAnalysis` (`IsSearching: true`) with the best candidate discovered so far and yields execution via `await Task.Delay(1, cancellationToken)`.
-- **Deep Recursive Heartbeat ($\ge 200\text{ ms}$):** Inside the synchronous `Minimax` child search, the 1000-node check checks `sw.ElapsedMilliseconds - _lastReportMs >= 200`. If triggered, it synchronously calls `_activeProgress.Report(...)` to keep WPF desktop dispatchers continuously updating even during deep tactical branches.
+- **Root Candidate Heartbeat ($\ge 150\text{ ms}$):** In `MinimaxRoot`, after each root candidate, if at least $150\text{ ms}$ has elapsed since the last report, worker 0 of `CarbonBitboardAiPlayer` reports an in-progress `SearchAnalysis` (`IsSearching: true`) with the best move so far and the root move being examined (`CurrentMove`, shown as the analysis panel's Move).
+- **Deep Recursive Heartbeat ($\ge 100\text{ ms}$):** Inside the synchronous `Minimax` child search, the 1000-node check tests `_activeSw.ElapsedMilliseconds - _lastReportMs >= 100`. If triggered on worker 0, it synchronously calls `_activeProgress.Report(...)` (also with `CurrentMove`) to keep the display updating even during deep tactical branches.
 
 ### 2. Browser Multithreaded Engine & Asynchronous Responsiveness
 In the browser client (`Gomoku.Web`), execution leverages .NET 10's multithreaded WebAssembly runtime (`Gomoku.Web.Engine`) hosted via the Deputy-Thread architecture. 100% of C# search computation runs on background Web Worker pthreads with a 16 MB lock-free transposition table, scaling from **$533,000\text{ NPS}$** on 1 thread to **$2,058,000\text{ NPS}$** on 4 threads and **$3,578,000\text{ NPS}$** on 8 threads. The browser sustains a fluid 60 FPS without dropping frames. For environments without cross-origin isolation or `SharedArrayBuffer` support, execution falls back automatically to a dedicated single-threaded Web Worker (`engine-worker.js`).
 
-### 3. Instant Opening Delay ($250\text{ ms}$)
-When playing the opening center move on Move 1 or matching an opening book pattern, search is instantaneous ($< 1\text{ ms}$). To provide visual feedback that the computer has acknowledged the turn, the engine emits `StatusMessage = "Center opening"` or `"Opening book"` and awaits `Task.Delay(250, cancellationToken)`. This brief pause allows users to see the `"Opening"` / `"Book"` badge in the Analysis panel before the stone is placed.
+### 3. Instant Opening Moves
+When playing the opening center move on Move 1 or matching an opening book pattern, search is instantaneous ($< 1\text{ ms}$). The engine reports a single `SearchAnalysis` with `StatusMessage = "Center opening"` or `"Opening book"`, which the Analysis panel shows as Depth `"Opening"` / `"Book"`.
 
 ---
 
@@ -341,13 +327,13 @@ Consider searching move 15 for Black with single-ply iterative deepening ($d = 2
    - At ply 1, White's replies are evaluated. White plays **H8**, Black replies **I10**, White replies **G10**.
    - **H9** returns a score of $+240$.
    - `best = Cand(H9, +240)`. Alpha advances to $+240$.
-3. **Null Window Probing on Candidates 1 through 15:**
+4. **Narrowed Windows on Candidates 1 through 15:**
    - Candidate 1 (**I8**): Searched with window $[v_A, v_B] = [-32000, -241]$.
      - Subtree returns $+80 \le 240$. Pruned!
    - Candidate 2 (**J10**): Searched with window $[-32000, -241]$.
      - Subtree returns $-110 \le 240$. Pruned!
-   - Candidates 3 through 15 are all refuted by the null window without expanding full trees.
-4. **Result:**
+   - Candidates 3 through 15 are all refuted by the narrowed window without expanding full trees.
+5. **Result:**
    - 14 out of 15 candidate branches were pruned after exploring only shallow refutation nodes.
    - Depth 4 completes in $4.2\text{ ms}$ evaluating only $4,120$ nodes instead of $> 50,000$.
 

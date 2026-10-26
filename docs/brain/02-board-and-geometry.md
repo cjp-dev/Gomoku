@@ -64,9 +64,9 @@ Because $128 = 2^7$, cell offset calculation compiles down to a single bit-shift
 ### The `PieceColor.Wrong` Sentinel
 
 The sentinel cells ($x < 4$ or $y < 4$ or $x \ge W+4$ or $y \ge H+4$) are initialized with `PieceColor.Wrong`. In Carbon Gomoku's pattern encoding:
-- `PieceColor.Empty` $(0)$ represents an unoccupied intersection.
+- `PieceColor.Empty` $(2)$ represents an unoccupied intersection.
 - `PieceColor.Black` $(0)$ and `PieceColor.White` $(1)$ represent played stones.
-- `PieceColor.Wrong` $(2)$ represents an impassable border.
+- `PieceColor.Wrong` $(3)$ represents an impassable border.
 
 During `PatternBoard.Start()`, sentinel cells pre-populate the boundary bits of all adjacent playable cells with blocking bits (`0x0F` and `0xF0`). Consequently, stones placed near the edge of the board automatically recognize the board edge as an impenetrable block, exactly identical to an opponent stone.
 

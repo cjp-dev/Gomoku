@@ -27,11 +27,11 @@ flowchart TD
     BookCheck -- "yes" --> BookMove["Play dihedral book move"]
     BookCheck -- "no" --> Init["Initialize BitboardPatternBoard<br/>Replay placed stones into bitboards"]
     Init --> Limits["Configure time limits<br/>(FixedDepth, TimePerMove, TimePerGame)"]
-    Limits --> VCF{"QuickWinSearch()<br/>Forced VCF win or loss?"}
-    VCF -- "win found (q &gt; 0)" --> PlayWin["Play immediate winning move"]
-    VCF -- "no immediate win" --> Iter["Iterative Deepening<br/>Depth d = 1, 2, 3, 4, ..."]
+    Limits --> VCF{"QuickWinSearch()<br/>Immediate win available?"}
+    VCF -- "win found (q == 1)" --> PlayWin["Play immediate winning move"]
+    VCF -- "no immediate win" --> Iter["Iterative Deepening<br/>Depth d = 2, 3, 4, 5, ...<br/>(d = 1 only for fixed depth 1)"]
     Iter --> Search["Closed-Interval Negamax [alpha, beta]<br/>GenerateCand, ONE_CAND pruning,<br/>TT probe/store, mate distance"]
-    Search --> TimeCheck{"Time expired or<br/>proven mate found?"}
+    Search --> TimeCheck{"Time expired, depth limit<br/>or proven mate found?"}
     TimeCheck -- "no" --> Iter
     TimeCheck -- "yes" --> Best["Play best move found"]
     Center --> Done["Move Placed on Board"]
@@ -51,7 +51,12 @@ graph TD
     subgraph Presentation Hosts
         WPF["Gomoku.Wpf<br/>(Desktop Client • net10.0-windows)"]
         WEB["Gomoku.Web<br/>(Blazor WebAssembly AOT • net10.0)"]
+        ENG["Gomoku.Web.Engine<br/>(Threaded WASM engine • net10.0)"]
         CLI["Gomoku.Benchmark<br/>(Performance Profiler • net10.0)"]
+    end
+
+    subgraph Shared GUI Library
+        SHELL["GameShell<br/>(Razor class library • git submodule)"]
     end
 
     subgraph Shared Application Layer
@@ -64,6 +69,8 @@ graph TD
 
     WPF --> APP
     WEB --> APP
+    WEB --> SHELL
+    ENG --> APP
     CLI --> CORE
     APP --> CORE
 ```
@@ -111,4 +118,4 @@ graph TD
 
 - **On GitHub:** LaTeX math, tables, and SVG diagrams render directly in the markdown viewer.
 - **In VS Code:** Open the Markdown Preview (`Ctrl+Shift+V`). Formulas are rendered natively; diagrams use Mermaid preview support.
-- **In the Web App:** Navigate to the `/docs` route in `Gomoku.Web` to browse, search, and read all chapters interactively.
+- **In the Web App:** Navigate to the `/docs` route in `Gomoku.Web` to browse and read all chapters interactively.

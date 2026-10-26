@@ -21,11 +21,13 @@ Every pattern formation detected across the 4 discrete ray axes by `STATUS4` cor
 | Threat Grade | Internal Constant | Geometric Formation | Tactical Impact |
 |---|:---:|---|---|
 | **Five in a row** | `ThreatA` (8) | $\times \times \times \times \times$ | Immediate terminal victory. |
-| **Open Four** | `ThreatB` (7) | $\cdot \times \times \times \times \cdot$ | Both ends open. Opponent cannot block both; win in 1 move. |
+| **Open Four** | `ThreatB` (7) | $\cdot \times \times \times \times \cdot$ | Both ends open (or two fours at once). Opponent cannot block both; win in 1 move. |
 | **Four-Three Fork** | `ThreatC` (6) | $\times \times \times \times \cdot \land \cdot \times \times \times \cdot$ | Simultaneous Four and Open Three threats. Decisive win. |
-| **Blocked Four** | `ThreatD` (5) | $\circ \times \times \times \times \cdot$ | One end blocked. Opponent must block the remaining open end. |
-| **Open Three** | `ThreatE` (4) | $\cdot \times \times \times \cdot$ | Threatens to become Open Four on next move. |
+| **Four + Two** | `ThreatD` (5) | $\circ \times \times \times \times \cdot \land \cdot \times \times \cdot$ | A Four plus a weaker threat (closed three or two) on another line. |
+| **Blocked Four** | `ThreatE` (4) | $\circ \times \times \times \times \cdot$ | One end blocked. Opponent must block the remaining open end. |
 | **Double-Three** | `ThreatF` (3) | $\cdot \times \times \times \cdot \land \cdot \times \times \times \cdot$ | Two simultaneous open three threats. |
+| **Three + Two** | `ThreatG` (2) | $\cdot \times \times \times \cdot \land \cdot \times \times \cdot$ | An Open Three plus a weaker threat on another line. |
+| **Open Three** | `ThreatH` (1) | $\cdot \times \times \times \cdot$ | Threatens to become Open Four on next move. |
 | **Renju Foul** | `ThreatForbid` (9)| Overline, 3x3, 4x4 | Illegal for Black under Renju rules. |
 
 ---
@@ -126,18 +128,22 @@ private int QuickWinSearch(BitboardPatternBoard pb)
 
 `QuickWinSearch()` returns a signed integer $q$:
 
-$$q = \begin{cases}
+$$
+q = \begin{cases}
 +k & \text{Forced win in } k \text{ plies for the side to move} \\
 -k & \text{Forced loss in } k \text{ plies for the side to move} \\
 0  & \text{No forced mate found at this node}
-\end{cases}$$
+\end{cases}
+$$
 
 When $q \neq 0$, the minimax search does not evaluate leaf positions or expand candidate moves. Instead, it converts $q$ into an exact tactical mate score:
 
-$$\text{Minimax Score} = \begin{cases}
+$$
+\text{Minimax Score} = \begin{cases}
 +\text{WinMax} - q = 30000 - q & \text{if } q > 0 \text{ (Attacker)} \\
 -\text{WinMax} - q = -30000 - q & \text{if } q < 0 \text{ (Defender)}
-\end{cases}$$
+\end{cases}
+$$
 
 ```mermaid
 flowchart LR
@@ -155,7 +161,7 @@ Because shorter win sequences yield higher scores ($29999 > 29997 > 29995$), min
 
 In standard midgame search, branching factor $b \approx 10\text{ to }25$. During tactical VCF execution:
 
-1. **Attacker Branching:** Attacker only considers moves creating `ThreatC` (Four-Three) or `ThreatD` (Continuous Four) $\implies b_{\text{attacker}} \approx 1\text{ to }3$.
+1. **Attacker Branching:** Attacker only branches on moves creating `ThreatC` (Four-Three) $\implies b_{\text{attacker}} \approx 1\text{ to }3$.
 2. **Defender Branching:** Defender is forced to block `ThreatA` (Five) $\implies b_{\text{defender}} = 1$.
 3. **Double-Threat Termination:** If the attacker creates two simultaneous Four threats (`NSt[opp, ThreatA] >= 2`), defender branching is $0$ (loss proven immediately).
 
@@ -168,32 +174,33 @@ At $\bar{b} \approx 1.41$, a 14-ply VCF tree comprises only $1.41^{14} \approx 1
 
 ## Worked example: 5-ply VCF combination
 
-Consider Black to move with stones forming a dispersed setup:
-- Black stones at **G8, H8, I8** (open three along row 8)
-- Black stone at **J7** (forming a diagonal knight relationship)
+Consider Black to move with this setup (White's only stone is **F8**, so White has no threats of its own):
+- Black stones at **G8, H8, I8** (a three along row 8, closed by White's **F8**)
+- Black stones at **J9, J10** (a two along column J)
 
 ```
         F   G   H   I   J   K
-    10  .   .   .   .   .   .
-     9  .   .   .   .   .   .
-     8  .   ●   ●   ●   .   .  <-- Open Three (row 8)
-     7  .   .   .   .   ●   .
+    12  .   .   .   .   .   .
+    11  .   .   .   .   .   .
+    10  .   .   .   .   ●   .
+     9  .   .   .   .   ●   .
+     8  ○   ●   ●   ●   .   .  <-- Closed Three (row 8)
+     7  .   .   .   .   .   .
      6  .   .   .   .   .   .
 ```
 
-1. **Ply 1 (Black):** Black plays **F8**.
-   - Row 8 becomes a Blocked Four: $\cdot \times \times \times \times \circ$ (`ThreatD`).
-   - `NSt[Black, ThreatA] = 1` targeting **J8**.
-2. **Ply 2 (White):** White is forced to play **J8** to block Five.
+1. **Ply 1 (Black):** Black plays **J8**, a `ThreatC` cell (**Four-Three Fork**).
+   - Row 8 becomes a Blocked Four: $\circ \times \times \times \times \cdot$ (**F8** to **J8**, open at **K8**).
+   - Column J becomes an Open Three: **J8, J9, J10**.
+   - `NSt[Black, ThreatA] = 1` targeting **K8**.
+2. **Ply 2 (White):** White is forced to play **K8** to block Five.
    - White has no choice: $b_{\text{defender}} = 1$.
-3. **Ply 3 (Black):** Black plays **J9**.
-   - Black creates an intersecting Four along column J with **J7, J8, J9** (`ThreatD`), while simultaneously opening a diagonal threat with **H7, I8, J9** (`ThreatB`).
-   - This constitutes a **Four-Three Fork** (`ThreatC`).
-4. **Ply 4 (White):** White attempts to block column J at **J10**.
-5. **Ply 5 (Black):** Black plays **K10**, completing an open four along the diagonal.
-   - White cannot block both ends; Black wins.
+3. **Ply 3 (Black):** Black plays **J11**.
+   - Column J becomes an Open Four: $\cdot \times \times \times \times \cdot$ (**J8** to **J11**, open at **J7** and **J12**, `ThreatB`).
+4. **Ply 4 (White):** White can block only one end, e.g. **J7**.
+5. **Ply 5 (Black):** Black plays **J12**, completing Five in a row (**J8** to **J12**).
 
-`QuickWinSearch` recognizes this forced sequence at the root node in under $0.5\text{ ms}$, returning $q = 5$ and directing minimax to play **F8** instantly.
+`QuickWinSearch` recognizes this forced sequence at the root node in under $0.5\text{ ms}$: Black has a `ThreatC` cell and White has no `ThreatB` to `ThreatE` counter-threats, so it returns $q = 5$ (score $+29,995$) and the search plays **J8**.
 
 ---
 

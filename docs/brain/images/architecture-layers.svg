@@ -16,17 +16,21 @@
   <rect x="40" y="56" width="740" height="92" rx="8" fill="#1F2933" stroke="#EF5350" stroke-width="1.5" stroke-dasharray="5,3"/>
   <text x="56" y="76" fill="#EF9A9A" font-size="12" font-weight="600">PRESENTATION &amp; TOOLING HOSTS</text>
 
-  <rect x="64" y="88" width="210" height="48" rx="6" fill="#2B3742" stroke="#EF5350" stroke-width="1.5"/>
-  <text x="169" y="110" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.Wpf</text>
-  <text x="169" y="127" text-anchor="middle" fill="#B0BEC5" font-size="11">net10.0-windows • WPF Desktop</text>
+  <rect x="64" y="88" width="158" height="48" rx="6" fill="#2B3742" stroke="#EF5350" stroke-width="1.5"/>
+  <text x="143" y="110" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.Wpf</text>
+  <text x="143" y="127" text-anchor="middle" fill="#B0BEC5" font-size="10">net10.0-windows • WPF</text>
 
-  <rect x="305" y="88" width="210" height="48" rx="6" fill="#2B3742" stroke="#EF5350" stroke-width="1.5"/>
-  <text x="410" y="110" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.Web</text>
-  <text x="410" y="127" text-anchor="middle" fill="#B0BEC5" font-size="11">net10.0 • Blazor WASM AOT + PWA</text>
+  <rect x="242" y="88" width="158" height="48" rx="6" fill="#2B3742" stroke="#EF5350" stroke-width="1.5"/>
+  <text x="321" y="110" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.Web.Engine</text>
+  <text x="321" y="127" text-anchor="middle" fill="#B0BEC5" font-size="10">Threaded WASM engine</text>
 
-  <rect x="546" y="88" width="210" height="48" rx="6" fill="#2B3742" stroke="#FFA726" stroke-width="1.5"/>
-  <text x="651" y="110" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.Benchmark</text>
-  <text x="651" y="127" text-anchor="middle" fill="#B0BEC5" font-size="11">net10.0 • CLI Profiler &amp; Match Runner</text>
+  <rect x="420" y="88" width="158" height="48" rx="6" fill="#2B3742" stroke="#EF5350" stroke-width="1.5"/>
+  <text x="499" y="110" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.Web</text>
+  <text x="499" y="127" text-anchor="middle" fill="#B0BEC5" font-size="10">Blazor WASM AOT</text>
+
+  <rect x="598" y="88" width="158" height="48" rx="6" fill="#2B3742" stroke="#FFA726" stroke-width="1.5"/>
+  <text x="677" y="110" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.Benchmark</text>
+  <text x="677" y="127" text-anchor="middle" fill="#B0BEC5" font-size="10">CLI profiler &amp; match runner</text>
 
   <!-- Application Layer -->
   <rect x="40" y="182" width="495" height="86" rx="8" fill="#1F2933" stroke="#66BB6A" stroke-width="1.5" stroke-dasharray="5,3"/>
@@ -36,18 +40,25 @@
   <text x="287" y="232" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">Gomoku.App</text>
   <text x="287" y="248" text-anchor="middle" fill="#C8E6C9" font-size="11">MainViewModel • SettingsViewModel • AnalysisViewModel • SoundWaves • Service Interfaces</text>
 
+  <!-- Shared GUI library (web only) -->
+  <rect x="560" y="200" width="160" height="56" rx="6" fill="#2B3742" stroke="#AB47BC" stroke-width="1.5"/>
+  <text x="640" y="223" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600">GameShell</text>
+  <text x="640" y="241" text-anchor="middle" fill="#E1BEE7" font-size="10">Shared GUI (submodule)</text>
+
   <!-- Core Domain Layer -->
   <rect x="40" y="302" width="740" height="96" rx="8" fill="#1F2933" stroke="#42A5F5" stroke-width="1.5" stroke-dasharray="5,3"/>
   <text x="56" y="322" fill="#90CAF9" font-size="12" font-weight="600">ZERO-DEPENDENCY CORE DOMAIN &amp; CARBON AI ENGINE</text>
 
   <rect x="64" y="332" width="692" height="52" rx="6" fill="#1E3448" stroke="#42A5F5" stroke-width="1.5"/>
   <text x="410" y="354" text-anchor="middle" fill="#FFFFFF" font-size="15" font-weight="700">Gomoku.Core</text>
-  <text x="410" y="373" text-anchor="middle" fill="#BBDEFB" font-size="11">PatternBoard • CarbonTables (STATUS1 / STATUS4 / Prior / Rank) • CarbonAiPlayer • TranspositionTable • OpeningBook • SGF</text>
+  <text x="410" y="373" text-anchor="middle" fill="#BBDEFB" font-size="11">BitboardPatternBoard • CarbonTables • CarbonBitboardAiPlayer • LockFreeTranspositionTable • OpeningBook • SGF</text>
 
   <!-- Arrows -->
-  <line x1="169" y1="136" x2="210" y2="210" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
-  <line x1="410" y1="136" x2="365" y2="210" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="143" y1="136" x2="200" y2="210" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="321" y1="136" x2="321" y2="210" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="480" y1="136" x2="450" y2="210" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="530" y1="136" x2="590" y2="198" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
   <line x1="287" y1="256" x2="287" y2="330" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
-  <line x1="651" y1="136" x2="651" y2="330" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="740" y1="136" x2="740" y2="330" stroke="#64B5F6" stroke-width="2" marker-end="url(#arrow)"/>
 </svg>
 

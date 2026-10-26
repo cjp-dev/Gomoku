@@ -53,7 +53,7 @@ Empirical make/undo measurements captured via `dotnet run --project tools/Gomoku
 ### 2. Classical `PatternBoard` Make/Undo Details
 Measures raw throughput of stone placement, 4-ray bitmask updates, `STATUS1` and `STATUS4` tensor updates, `NSt` live threat counter adjustments, and incremental Zobrist hashing:
 
-$$\text{Test: } 600,000\text{ consecutive 3-ply make/undo cycles on } 15 \times 15\text{ board}$$
+$$\text{Test: } 100,000\text{ consecutive 3-ply make/undo cycles } (600,000\text{ operations}) \text{ on } 15 \times 15\text{ board}$$
 
 | Metric | Measured Value | Unit |
 |---|:---:|:---:|
@@ -70,7 +70,7 @@ Each full move make-and-undo cycle (modifying 32 ray bitmasks and updating 8 nei
 ### 2. Transposition Table Masking & Cache Speed
 Measures raw storage and probe throughput across power-of-two table sizes ($N = 2^k$):
 
-$$\text{Test: } 2,000,000\text{ store-and-probe cycles per capacity with multiplicative 64-bit Zobrist keys}$$
+$$\text{Test: } 1,000,000\text{ store-and-probe cycles } (2,000,000\text{ operations}) \text{ per capacity with multiplicative 64-bit keys}$$
 
 | Entries ($N$) | RAM Size | Elapsed Time | Throughput | Hash Hits |
 |:---:|:---:|:---:|:---:|:---:|
@@ -102,9 +102,9 @@ Measures iterative deepening search speed on standard opening positions (Black H
 | **$19 \times 19$** | Depth 6 | **L10** | $11,055$ | $29\text{ ms}$ | **$380,690\text{ NPS}$** |
 
 Notice that depth 6 searches expand only $10,000\text{ to }11,000$ nodes in under $35\text{ milliseconds}$. Thanks to `Prior()` move ordering and TT cutoffs, the effective branching factor is:
-$$b_{\text{eff}} = \sqrt[6]{11,055} \approx 4.71$$
+$$b_{\text{eff}} = \sqrt[6]{11,055} \approx 4.72$$
 
-An effective branching factor of $4.71$ (out of 361 legal squares) demonstrates that the engine prunes over $98.7\%$ of the theoretical game tree.
+An effective branching factor of $4.72$ (out of 361 legal squares) demonstrates that the engine prunes over $98.7\%$ of the theoretical game tree.
 
 ---
 
@@ -176,11 +176,11 @@ In the client-side Blazor WebAssembly app (`Gomoku.Web`), the engine utilizes a 
 Combinatorial game-tree search in Gomoku faces an explosive state space ($B_{\text{legal}} = 225 - m \approx 210\text{ to }222$ legal moves on a $15 \times 15$ board). An unpruned brute-force minimax tree of depth 10 would require evaluating approximately $\sim 10^{23}$ nodes, taking over **5 to 8 billion years** of continuous execution on modern hardware.
 
 To quantify how effectively `CarbonBitboardAiPlayer` prunes this space, the benchmark suite evaluates search efficiency across four canonical game phases using:
-$\text{CLI: } \text{dotnet run -c Release --project tools/Gomoku.Benchmark -- --efficiency}$
+CLI: `dotnet run -c Release --project tools/Gomoku.Benchmark -- --efficiency`
 
 #### The Branching Metric Definitions:
 - **Raw Legal Branching ($B_{\text{legal}}$):** All unoccupied squares on board ($225 - m$). Theoretical unpruned nodes: $N_{\text{legal}} = B_{\text{legal}}^d$.
-- **Geometric Candidate Branching ($B_{\text{cand}}$):** Squares within Chebyshev distance $R \le 2$ ($5 \times 5$ square) with pattern priority $\text{Prior} > 1$. Theoretical unpruned nodes: $N_{\text{cand}} = B_{\text{cand}}^d$.
+- **Geometric Candidate Branching ($B_{\text{cand}}$):** Empty squares within Chebyshev distance $R \le 2$ ($5 \times 5$ square) of any placed stone. Theoretical unpruned nodes: $N_{\text{cand}} = B_{\text{cand}}^d$.
 - **Knuth-Moore Alpha-Beta Theoretical Minimum ($b_{\text{optimal}}$):** Lower bound with optimal move ordering: $b_{\text{optimal}} = \sqrt{B_{\text{cand}}}$.
 - **Engine Actual Effective Branching ($b_{\text{eff}}$):** $b_{\text{eff}} = (N_{\text{actual}})^{1/d}$.
 - **Estimated Unpruned Time ($T_{\text{theory}}$):** $T_{\text{theory}} = N_{\text{theory}} / \text{NPS}_{\text{actual}}$.
@@ -275,7 +275,7 @@ The memory layout of `PatternBoard` was explicitly designed to fit inside modern
 ```mermaid
 flowchart LR
     L1["CPU L1 Data Cache (32 KiB to 48 KiB)"]
-    Cells["BitboardPatternBoard Active Grid<br/>23 x 23 cells * 16 bytes = 8.4 KiB"]
+    Cells["BitboardPatternBoard Active Grid<br/>23 x 23 cells * 19 bytes = 9.8 KiB"]
     Bitboards["Occupied Row Bitboards<br/>23 * 4 bytes = 92 bytes"]
     Tensor["Threat Tensors &amp; NSt<br/>~1.2 KiB"]
     
@@ -284,13 +284,13 @@ flowchart LR
     Tensor --> L1
 ```
 
-- **Active Grid Footprint:** The playable $15 \times 15$ grid plus 4-cell margin padding occupies $23 \times 23 = 529$ cells. At 16 bytes per cell, this is **$8,464\text{ bytes} \approx 8.3\text{ KiB}$**.
+- **Active Grid Footprint:** The playable $15 \times 15$ grid plus 4-cell margin padding occupies $23 \times 23 = 529$ cells. At 19 bytes per cell (`BitboardPatternBoard.Cell`), this is **$10,051\text{ bytes} \approx 9.8\text{ KiB}$**.
 - **Row Bitboard Footprint:** 23 32-bit row integers $= 92\text{ bytes}$.
 - **L1 Cache Capacity:** Modern AMD Zen 4/5 and Intel Raptor Lake/Arrow Lake cores feature $32\text{ KiB}$ to $48\text{ KiB}$ of 8-way associative L1 data cache per core.
 - **Result:** The entire active search board and all threat bitboards easily reside within L1 cache, eliminating L1 data cache misses during minimax tree traversal.
 
 > [!NOTE] Architectural Evolution: Memory Optimization
-> The baseline `PatternBoard` required $28 \times 28 \times 36\text{ bytes} = 28.2\text{ KiB}$ for its 2D cell grid with adjacency counters. By stripping `Adj1/Adj2` and standardizing on compact 16-byte unmanaged cells, `BitboardPatternBoard` reduced active memory footprint by **$70\%$**, freeing valuable L1 cache space for lookup tables and the transposition table cache line entries.
+> The baseline `PatternBoard` cell also carries the adjacency counters `Adj1/Adj2` (21 bytes per cell), so its active grid needs $23 \times 23 \times 21\text{ bytes} = 11,109\text{ bytes} \approx 10.8\text{ KiB}$. By stripping `Adj1/Adj2`, `BitboardPatternBoard` shrinks each cell to 19 bytes and the active grid by **$\approx 10\%$**, freeing L1 cache space for lookup tables and the transposition table cache line entries.
 
 ---
 

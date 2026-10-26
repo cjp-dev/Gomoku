@@ -24,8 +24,9 @@ graph TD
         Scoreboard["Dual-Card Scoreboard<br/>4 Layers: Dot/Name/Clock • Role • Stones • 'Stones Placed'"]
         QuickActions["Quick Action Buttons<br/>[Undo] • [Redo] • [Move Now]"]
         Board["Interactive Kaya Board Canvas<br/>Fixed Orientation • Coordinates • Star Points • Ghost Stones"]
-        Analysis["AI Analysis Panel (Toggleable)<br/>Move • Depth • Score • Best Move • Nodes • Speed • Time • Status"]
-        DocViewer["Docs Subsystem (Web Only)<br/>Interactive Markdown Engine • TOC Pager • KaTeX Math"]
+        Analysis["AI Analysis Panel (Toggleable)<br/>Move • Depth • Score • Best Move • Nodes • Speed • Time"]
+        History["Move History Panel<br/>Paired Rows • Latest Move Highlighted"]
+        DocViewer["Docs Subsystem (Web Only, GameShell DocsViewer)<br/>Interactive Markdown Engine • TOC Pager • KaTeX Math • Mermaid Diagrams"]
     end
 
     TopBar --> StatusHeader
@@ -33,6 +34,7 @@ graph TD
     Scoreboard --> QuickActions
     QuickActions --> Board
     Scoreboard --> Analysis
+    Analysis --> History
     TopBar --> DocViewer
 ```
 
@@ -74,7 +76,7 @@ In Gomoku, games always begin at the geometric center point (H8 on $15 \times 15
 
 ### 1. Hover Ghost Stones
 When the player hovers the cursor over an empty intersection:
-- If the intersection is a legal move, a semi-transparent ghost stone ($50\%$ opacity) of the current player's color is displayed, providing visual confirmation of placement alignment.
+- If the intersection is a legal move, a semi-transparent ghost stone ($45\%$ opacity) of the current player's color is displayed, providing visual confirmation of placement alignment.
 - When the mouse leaves the intersection or clicks to place, the ghost stone vanishes.
 
 ### 2. Renju Real-Time Foul Markers
@@ -95,7 +97,7 @@ The web client runs entirely in the browser using WebAssembly Ahead-of-Time (AOT
 - **Multithreaded WebAssembly Engine (`Gomoku.Web.Engine` / `engine-client.js`):** Carbon AI runs in a dedicated Ahead-of-Time (AOT) compiled multithreaded WASM runtime using .NET 10's Deputy-Thread model and 16 pre-warmed pthreads, delivering up to **$2,058,000\text{ NPS}$** on 4 threads ($4.01\times$) and **$3,578,000\text{ NPS}$** on 8 threads ($6.98\times$) with zero UI thread blocking and instant 4 ms cancellation. When cross-origin isolation is unavailable, it automatically falls back to a dedicated single-threaded Web Worker (`engine-worker.js`, $530,000\text{ NPS}$).
 - **High Computational Throughput:** WebAssembly AOT compiles C# IL directly to native WebAssembly bytecode, achieving $> 70\%$ of native C# desktop performance.
 - **Zero Server Latency:** AI calculations, tactical VCF searches, and audio generation execute directly on the user's CPU without making HTTP API roundtrips.
-- **Refined Settings Modal:** The web settings dialog features a streamlined 2-column side-by-side layout pairing **Rules Variant** (Freestyle, Standard Exact 5, Renju) on the left with **Board Theme** (Wood, Dark, Classic with vertically stacked options) on the right, dedicated **Multi-Threading & Performance** controls (`Auto (4 threads)` up to `8 threads`), and opening book and transposition table sizing, standardized on official 15×15 tournament geometry.
+- **Refined Settings Modal:** The web settings dialog groups **Rules Variant** (Freestyle, Standard Exact 5, Renju), **AI Engine**, dedicated **Multi-Threading & Performance** controls (`Auto (4 threads)` up to `8 threads`), and opening book and transposition table sizing, standardized on official 15×15 tournament geometry. The board theme (Wood, Dark, Classic) is chosen in the **Options** menu.
 - **Responsive Layout & Mobile Navigation Drawer:**
   - **Desktop View ($> 768\text{px}$):** Horizontal menu bar (`File`, `Game`, `Options`, `Help`), 4-layer player scorecards, quick action row (`[Undo]`, `[Redo]`, `[Move Now]`), and side-by-side SVG board with real-time AI telemetry.
   - **Mobile View ($\le 768\text{px}$):** Collapses the menu bar into a top brand header with hamburger button (`☰`). Tapping toggles an off-canvas slide-out drawer (`.mobile-drawer`) with a backdrop overlay, presenting all menu actions in touch-friendly tap targets.
@@ -104,7 +106,7 @@ The web client runs entirely in the browser using WebAssembly Ahead-of-Time (AOT
 ### Integrated Brain Documentation Viewer (`Docs.razor`)
 The web application hosts the entire `docs/brain` repository directly at `/docs`, with the documentation viewer shared by the four games ([GameShell](https://github.com/cjp-dev/GameShell)'s `DocsViewer` and `BrainDocs`, registered with `AddBrainDocs` in `Program.cs`):
 - Dynamic Markdown rendering via Markdig.
-- Mathematical equation rendering via KaTeX.
+- Mathematical equation rendering via KaTeX and diagram rendering via Mermaid.
 - Automatic table of contents generation and inter-chapter pager navigation.
 - Offline accessibility via Service Worker and Progressive Web App (PWA) manifest.
 

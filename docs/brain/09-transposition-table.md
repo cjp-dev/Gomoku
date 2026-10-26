@@ -17,6 +17,8 @@ The **Transposition Table (TT)** acts as a high-speed memory cache indexed by a 
 
 ![16-Byte Transposition Entry Layout](images/tt-entry-layout.svg)
 
+*The entry of the reference `TranspositionTable`; the lock-free entry used by the primary engine is described below.*
+
 ---
 
 ## 16-Byte lock-free entry layout (`LockFreeTranspositionTable`)
@@ -83,7 +85,7 @@ No entry ever crosses a cache line boundary. When the CPU fetches a cache line f
 Zobrist hashing maps any board state $S$ to a uniformly distributed 64-bit integer $H(S)$.
 
 ### Hash Components:
-1. **Stone Keys:** A 3D random table $Z[c, x, y]$ where $c \in \{0, 1\}$ (Black, White), $x \in [0, W+8)$, $y \in [0, H+8)$.
+1. **Stone Keys:** A 3D random table $Z[c, x, y]$ where $c \in \{0, 1\}$ (Black, White), $x \in [0, 64)$, $y \in [0, 32)$ (unpadded board coordinates).
 2. **Turn Key:** A 64-bit constant $Z_{\text{who}}$ flipped whenever the side to move changes.
 
 ### Incremental Hashing:
@@ -100,7 +102,7 @@ Because $A \oplus B \oplus B = A$, unmaking a move perfectly restores the previo
 ## Power-of-two capacity & bitwise indexing
 
 The table allocates $N = 2^k$ entries:
-- **Default:** $2^{22} = 4,194,304$ entries ($64\text{ MiB}$).
+- **Default:** $2^{20} = 1,048,576$ entries ($16\text{ MiB}$).
 - **Minimum:** $2^{16} = 65,536$ entries ($1\text{ MiB}$).
 - **Maximum:** $2^{24} = 16,777,216$ entries ($256\text{ MiB}$).
 
@@ -142,7 +144,7 @@ When two different board positions map to the exact same hash slot ($\text{index
 
 ```mermaid
 flowchart TD
-    Store["Store(key, depth, score, bound, bestMove)"] --> SlotCheck{"Is slot empty<br/>OR slot.Key == key?"}
+    Store["TranspositionTable.Store(key, depth, score, bound, bestMove)"] --> SlotCheck{"Is slot empty<br/>OR slot.Key == key?"}
     SlotCheck -- "Yes" --> Overwrite["Overwrite slot with new entry"]
     SlotCheck -- "No (Collision)" --> AgeCheck{"Is stored entry from<br/>an older search generation?<br/>(ageDiff &gt; 0)"}
     AgeCheck -- "Yes" --> Overwrite
@@ -169,11 +171,11 @@ flowchart LR
     subgraph Multi-Threaded Lazy SMP
         T0["Worker 0"]
         T1["Worker 1"]
-        TN["Worker N"]
+        TN["Worker N-1"]
     end
 
     subgraph Lock-Free Shared Table
-        Slot["16-Byte Slot<br/>Data1: Key &amp; XOR Checksum<br/>Data2: Score • Depth • Bounds • BestMove"]
+        Slot["16-Byte Slot<br/>KeyXorData: Key XOR Data<br/>Data: BestMove • Depth • Bound • Eval • Age"]
     end
 
     T0 -- "Lockless Probe / Atomic Store" --> Slot
@@ -221,8 +223,8 @@ Suppose White is searching move 12 at depth $h = 4$ with window $[\alpha, \beta]
 | `TranspositionEntry` | `struct` | 16 bytes | Packed 1-byte aligned cache entry |
 | `TranspositionTable` | `class` | $16\text{ MiB}$ (default) | Power-of-two table managing entries and collision statistics |
 | `BoundType` | `enum : byte` | 1 byte | Classification of stored score (`None`, `Exact`, `LowerBound`, `UpperBound`) |
-| `_zobristTable` | `ulong[2, 28, 28]` | $12.5\text{ KiB}$ | Deterministic 64-bit random values for stone placements |
-| `_zobristWho` | `ulong` | 8 bytes | Deterministic 64-bit random value for player turn |
+| `Zobrist.PieceKeys` | `ulong[2, 64, 32]` | $32\text{ KiB}$ | Deterministic 64-bit random values for stone placements |
+| `Zobrist.SideToMoveKey` | `ulong` | 8 bytes | Deterministic 64-bit random value for player turn |
 
 ---
 

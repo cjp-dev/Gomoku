@@ -6,7 +6,7 @@
 
 In Gomoku, early moves dictate the strategic character and initiative of the entire game. In Freestyle Gomoku, Black possesses a massive first-mover advantage; in Renju, the 26 canonical openings (13 Direct, 13 Indirect) channel the game into balanced territory.
 
-Carbon Gomoku incorporates an opening book ported directly from Carbon's `databaseMove`. Rather than storing hundreds of thousands of absolute board positions, the book stores **67 master opening pattern clusters** encoded with relative offsets. By leveraging the **Dihedral Group $D_4$** (the 8 symmetries of the square board), each stored opening pattern automatically matches 8 distinct orientations on the board, providing comprehensive opening coverage in just $3.8\text{ KiB}$ of static data.
+Carbon Gomoku incorporates an opening book ported directly from Carbon's `databaseMove`. Rather than storing hundreds of thousands of absolute board positions, the book stores **67 master opening pattern clusters** encoded with relative offsets. By leveraging the **Dihedral Group $D_4$** (the 8 symmetries of the square board), each stored opening pattern automatically matches 8 distinct orientations on the board, providing comprehensive opening coverage in just $1.2\text{ KiB}$ of static data.
 
 ![Dihedral Group D4 Symmetries](images/dihedral-symmetries.svg)
 
@@ -181,33 +181,33 @@ Previously, querying the opening book required instantiating a temporary legacy 
 
 ## Worked example: matching the indirect opening
 
-Consider move 2 for White on a $15 \times 15$ board:
-1. Black played **H8** (center, move 0).
-2. White played **I9** (indirect opening, move 1).
-3. Now Black has played **I8** (move 2).
+Consider White's reply on a $15 \times 15$ board after three moves:
+1. Black played **H8** (center, stone 0).
+2. White played **I9** (indirect opening, stone 1).
+3. Black played **I8** (stone 2).
 
 ### 1. Bounding Box & Offsets
 - Placed stones: **H8** $(7, 7)$, **I9** $(8, 8)$, **I8** $(8, 7)$.
 - Bounding box: $\text{left} = 7, \text{top} = 7, \text{right} = 8, \text{bottom} = 8$.
 
 ### 2. Record Inspection
-- The engine scans records with `len1 = 3`.
-- Record 14 defines:
-  - $\text{len1} = 3, \text{len2} = 2$.
-  - Coordinates: $(0, 0), (1, 1), (1, 0)$.
-  - Candidate responses: $(1, -1)$ (**I7**) and $(0, 1)$ (**H9**).
+- The engine skips the records with `len1 > 3` and scans the records with `len1 = 3`.
+- The matching record (the 57th record in `OpeningBookData`) defines:
+  - $\text{len1} = 3, \text{len2} = 1$.
+  - Coordinates: $(1, 0), (0, 0), (1, 1)$.
+  - Candidate response: $(1, 2)$.
 
 ### 3. Symmetry Match
-- Flip 0 tests:
-  - Stone 0: $(7+0, 7+0) = (7, 7)$ $\implies$ **H8** (Match Black).
-  - Stone 1: $(7+1, 7+1) = (8, 8)$ $\implies$ **I9** (Match White).
-  - Stone 2: $(7+1, 7+0) = (8, 7)$ $\implies$ **I8** (Match Black).
+- Flips 0 to 6 fail. Flip 7 (anti-diagonal: $x = \text{right} - y_1, \ y = \text{bottom} - x_1$) tests:
+  - Stone 0: $(8-0, 8-1) = (8, 7)$ $\implies$ **I8** (Match Black).
+  - Stone 1: $(8-0, 8-0) = (8, 8)$ $\implies$ **I9** (Match White).
+  - Stone 2: $(8-1, 8-1) = (7, 7)$ $\implies$ **H8** (Match Black).
 - All 3 stones match perfectly!
 
-### 4. Random Selection
-- `Rng.Next(2)` randomly chooses candidate 1: $(0, 1) \implies (7+0, 7+1) = (7, 8)$ (**H9**).
-- Cell $(7, 8)$ is empty and passes the 4-cell border margin check.
-- The engine plays **H9** in $0.02\text{ milliseconds}$ without entering minimax.
+### 4. Book Response
+- With $\text{len2} = 1$, `Rng.Next(1)` picks the only candidate: $(1, 2) \implies (8-2, 8-1) = (6, 7)$ (**G8**).
+- Cell $(6, 7)$ is empty and passes the 4-cell border margin check.
+- The engine plays **G8** in $0.02\text{ milliseconds}$ without entering minimax.
 
 ---
 
@@ -215,7 +215,7 @@ Consider move 2 for White on a $15 \times 15$ board:
 
 | Member | Type | Memory | Role |
 |---|---|:---:|---|
-| `CarbonTables.OpeningBookData` | `sbyte[1918]` | $1.9\text{ KiB}$ | Compact byte stream of 67 opening pattern clusters |
+| `CarbonTables.OpeningBookData` | `sbyte[1204]` | $1.2\text{ KiB}$ | Compact byte stream of 67 opening pattern clusters |
 | `OpeningBook.Rng` | `Random` | 32 bytes | Pseudo-random number generator for candidate response variation |
 | `borderMargin` | `const int = 4` | Inlined | Safety margin preventing edge openings |
 

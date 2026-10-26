@@ -147,7 +147,7 @@ The traditional small reference dots placed on Go/Gomoku boards to assist player
 In Renju, an opening sequence where White's second stone is placed diagonally adjacent to Black's center stone.
 
 #### Iterative Deepening
-A search strategy that executes consecutive minimax searches at increasing depths ($d = 2, 4, 6, 8, \dots$). Ensures optimal move ordering via the Transposition Table and allows clean interruption when time budgets expire.
+A search strategy that executes consecutive minimax searches at increasing depths ($d = 2, 3, 4, 5, \dots$, one ply at a time). Ensures optimal move ordering via the Transposition Table and allows clean interruption when time budgets expire.
 
 ---
 
@@ -257,7 +257,7 @@ The asymmetrical tournament variant of Gomoku where Black is restricted by foul 
 ### S
 
 #### Search Analysis
-Real-time telemetry emitted by the AI search engine during thinking, carrying active move number, search depth, centipawn score, leading candidate move coordinate, total nodes, evaluations per second, elapsed time, and engine status flags (`IsSearching`).
+Real-time telemetry emitted by the AI search engine during thinking, carrying active move number, search depth, centipawn score, leading candidate move coordinate, total nodes, evaluations per second, elapsed time, engine status flags (`IsSearching`), and the root move being examined (`CurrentMove`, shown as the analysis panel's Move in the web version).
 
 #### Sentinel Margin
 The 4-cell border of dummy cells encircling the playable board area, preventing ray bitboard loops from requiring boundary bounds-checking instructions.

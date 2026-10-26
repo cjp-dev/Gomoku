@@ -47,14 +47,17 @@ private int Evaluate(BitboardPatternBoard pb)
 1. **Iteration over Placed Stones:** The engine iterates only over placed stones using `RemPlacedPoints[0 .. RemCount - 1]`. On a $15 \times 15$ board on move 12, this inspects only 12 cells instead of looping over all 225 intersections.
 2. **4-Ray Evaluation per Stone:** For each placed stone, its 8-bit friendly pattern (`patMe`) and opponent pattern (`patOpp`) are extracted across the 4 axes ($k = 0, 1, 2, 3$).
 3. **Configuration Classification (`Config`):**
-   The $256 \times 256 = 65,536$ pattern pairs are mapped by `CarbonTables.Config[patMe, patOpp]` into $106$ canonical geometric equivalence classes (open four, blocked four, open three, broken three, etc.).
+   The $256 \times 256 = 65,536$ pattern pairs are mapped by `CarbonTables.Config[patMe, patOpp]` into $107$ canonical geometric equivalence classes (open four, blocked four, open three, broken three, etc.).
 4. **Empirical Weight Lookup (`Rank`):**
    `CarbonTables.Rank[config]` returns the precomputed strategic weight of that configuration. Open formations with growth potential receive exponentially higher weights than formations blocked by the board border or opponent stones.
 5. **Negamax Perspective:** The evaluation is returned relative to the player whose turn it is to move (`pb.Who`):
-   $$\text{Eval} = \begin{cases} 
+
+   $$
+   \text{Eval} = \begin{cases}
    P_{\text{Black}} - P_{\text{White}} & \text{if SideToMove} = \text{Black} \\ 
    P_{\text{White}} - P_{\text{Black}} & \text{if SideToMove} = \text{White} 
-   \end{cases}$$
+   \end{cases}
+   $$
 
 ---
 
@@ -65,7 +68,7 @@ In tactical Gomoku, general positional scores are completely subordinate to forc
 | Score Constant | Numeric Value | Description |
 |---|:---:|---|
 | **`Inf`** | $32,000$ | Minimax search infinity bound |
-| **`WinMax`** | $30,000$ | Immediate victory score on the current move ($q = 0$) |
+| **`WinMax`** | $30,000$ | Upper mate bound; a win on the current move scores $\text{WinMax} - 1$ ($q = 1$) |
 | **`WinMin`** | $25,000$ | Lower threshold for proven forced checkmate sequences |
 
 ### The Principle of Shortest Win & Longest Defense
@@ -75,9 +78,10 @@ To achieve this, winning scores are scaled by the distance (plies) to mate:
 
 ```mermaid
 flowchart LR
-    QuickWin["QuickWinSearch()<br/>Returns ply distance q"] --> Attacker["Attacker Score:<br/>Score = +WIN_MAX - q"]
-    QuickWin --> Defender["Defender Score:<br/>Score = -WIN_MAX + q"]
-    Attacker --> PlyDecay["At every search ply:<br/>if (value &gt;= WIN_MIN) value--<br/>if (value &lt;= -WIN_MIN) value++"]
+    QuickWin["QuickWinSearch()<br/>Returns ply distance q<br/>(q &gt; 0 win, q &lt; 0 loss)"] --> Attacker["Attacker Score (q &gt; 0):<br/>Score = WinMax - q"]
+    QuickWin --> Defender["Defender Score (q &lt; 0):<br/>Score = -WinMax - q"]
+    Attacker --> PlyDecay["At every search ply:<br/>if (value &gt;= WinMin) value--<br/>if (value &lt;= -WinMin) value++"]
+    Defender --> PlyDecay
 ```
 
 1. **On Returning from Child Search:**
@@ -118,10 +122,10 @@ If `NSt[who, ThreatB] >= 1` or `NSt[who, ThreatC] >= 1`, `QuickWinSearch` immedi
 
 | Member | Type | Memory Footprint | Role |
 |---|---|---|---|
-| `CarbonTables.Rank` | `byte[106]` | 106 bytes | Empirical stone scoring weights |
+| `CarbonTables.Rank` | `int[107]` | 428 bytes | Empirical stone scoring weights |
 | `CarbonTables.Config` | `byte[256, 256]` | 64 KiB | Equivalence class mapping for 8-cell ray pairs |
 | `BitboardPatternBoard.RemPlacedPoints`| `Point[2048]` | 16 KiB | Stack of placed stone coordinates for $O(\text{plies})$ leaf evaluation |
-| `BitboardPatternBoard.NSt` | `int[32]` | 128 bytes | Live flat board threat counts by `(player << 4) | grade` |
+| `BitboardPatternBoard.NSt` | `int[32]` | 128 bytes | Live flat board threat counts by `(player << 4) \| grade` |
 
 ---
 

@@ -101,7 +101,7 @@ Where:
 Suppose an engine finishes Depth 6 at elapsed time $t_1 = 35\text{ ms}$:
 * **Scenario A (Depth 6 took $td = 25\text{ ms}$):**
   $$35 + (5 \times 25) = 35 + 125 = 160\text{ ms}$$
-  Since $160 < 170\text{ ms}$, the engine **initiates Depth 7**. It spends the remaining $100\text{ ms}$ searching Depth 7, evaluates 70,000 more nodes, and plays the optimal Depth 7 move.
+  Since $160 < 170\text{ ms}$, the engine **initiates Depth 7**. It spends the remaining $135\text{ ms}$ (up to the $170\text{ ms}$ stop time) searching Depth 7, evaluates 70,000 more nodes, and plays the optimal Depth 7 move.
 * **Scenario B (Depth 6 took $td = 28\text{ ms}$):**
   $$35 + (5 \times 28) = 35 + 140 = 175\text{ ms}$$
   Since $175 \ge 170\text{ ms}$, the engine **breaks and stops at Depth 6**. It immediately returns the Depth 6 move after only $35\text{ ms}$!

@@ -5,7 +5,7 @@
   <!-- Threat A: Five -->
   <g transform="translate(40, 55)">
     <rect width="365" height="65" rx="6" fill="#1E2824" stroke="#4CAF50"/>
-    <text x="14" y="24" fill="#A5D6A7" font-size="12" font-weight="700">Threat A: Five in a Row (Status 9)</text>
+    <text x="14" y="24" fill="#A5D6A7" font-size="12" font-weight="700">Five in a Row (STATUS1 = 9 → ThreatA)</text>
     <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">· [●] [●] [●] [●] [●] ·</text>
     <text x="210" y="44" fill="#81C784" font-size="11">Immediate victory!</text>
   </g>
@@ -13,7 +13,7 @@
   <!-- Threat B: Open Four -->
   <g transform="translate(435, 55)">
     <rect width="365" height="65" rx="6" fill="#1E2824" stroke="#4CAF50"/>
-    <text x="14" y="24" fill="#A5D6A7" font-size="12" font-weight="700">Threat B: Open Four (Status 8)</text>
+    <text x="14" y="24" fill="#A5D6A7" font-size="12" font-weight="700">Open Four (STATUS1 = 8 → ThreatB)</text>
     <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">_ [●] [●] [●] [●] _</text>
     <text x="200" y="44" fill="#81C784" font-size="11">Unstoppable win in 1 move!</text>
   </g>
@@ -21,7 +21,7 @@
   <!-- Threat B-: Half-Open Four -->
   <g transform="translate(40, 130)">
     <rect width="365" height="65" rx="6" fill="#2A241C" stroke="#FFA726"/>
-    <text x="14" y="24" fill="#FFCC80" font-size="12" font-weight="700">Threat B- / C: Half-Open Four (Status 7)</text>
+    <text x="14" y="24" fill="#FFCC80" font-size="12" font-weight="700">Half-Open Four (STATUS1 = 7 → ThreatE)</text>
     <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">X [●] [●] [●] [●] _</text>
     <text x="200" y="44" fill="#FFB74D" font-size="11">Forces opponent to block.</text>
   </g>
@@ -29,7 +29,7 @@
   <!-- Threat C: Open Three -->
   <g transform="translate(435, 130)">
     <rect width="365" height="65" rx="6" fill="#2A241C" stroke="#FFA726"/>
-    <text x="14" y="24" fill="#FFCC80" font-size="12" font-weight="700">Threat C: Open Three (Status 6)</text>
+    <text x="14" y="24" fill="#FFCC80" font-size="12" font-weight="700">Open Three (STATUS1 = 6 → ThreatH)</text>
     <text x="14" y="48" fill="#CFD8DC" font-size="12" font-family="Consolas, monospace">_ [●] [●] [●] _ _</text>
     <text x="200" y="44" fill="#FFB74D" font-size="11">Can become an open four.</text>
   </g>

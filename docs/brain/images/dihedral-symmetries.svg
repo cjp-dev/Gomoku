@@ -2,7 +2,7 @@
   <rect width="840" height="380" rx="12" fill="#14191D" stroke="#2B3842" stroke-width="2"/>
   <text x="420" y="32" text-anchor="middle" fill="#ECEFF1" font-size="18" font-weight="700">The Dihedral Group D4: 8 Symmetries of the Square</text>
 
-  <!-- Row 1: Direct Rotations (Flip 0, 3, 6, 5) -->
+  <!-- Row 1: Direct Rotations (Flip 0, 5, 3, 6) -->
   <g transform="translate(30, 55)">
     <!-- Flip 0: Identity -->
     <rect x="0" y="0" width="180" height="135" rx="6" fill="#1C242B" stroke="#42A5F5"/>
@@ -13,57 +13,57 @@
     <circle cx="90" cy="78" r="8" fill="#111"/>
     <text x="90" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(x, y)</text>
 
-    <!-- Flip 3: 90 deg CW -->
+    <!-- Flip 5: 90 deg CW -->
     <rect x="200" y="0" width="180" height="135" rx="6" fill="#1C242B" stroke="#42A5F5"/>
-    <text x="290" y="24" text-anchor="middle" fill="#90CAF9" font-size="12" font-weight="700">Flip 3: Rotate 90° CW</text>
+    <text x="290" y="24" text-anchor="middle" fill="#90CAF9" font-size="12" font-weight="700">Flip 5: Rotate 90° CW</text>
     <rect x="250" y="38" width="80" height="80" rx="4" fill="#D7B377" stroke="#5D4037"/>
     <circle cx="310" cy="58" r="8" fill="#111"/>
     <circle cx="310" cy="78" r="8" fill="#FFF" stroke="#444"/>
     <circle cx="290" cy="78" r="8" fill="#111"/>
-    <text x="290" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(y, -x)</text>
+    <text x="290" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(-y, x)</text>
 
-    <!-- Flip 6: 180 deg -->
+    <!-- Flip 3: 180 deg -->
     <rect x="400" y="0" width="180" height="135" rx="6" fill="#1C242B" stroke="#42A5F5"/>
-    <text x="490" y="24" text-anchor="middle" fill="#90CAF9" font-size="12" font-weight="700">Flip 6: Rotate 180°</text>
+    <text x="490" y="24" text-anchor="middle" fill="#90CAF9" font-size="12" font-weight="700">Flip 3: Rotate 180°</text>
     <rect x="450" y="38" width="80" height="80" rx="4" fill="#D7B377" stroke="#5D4037"/>
     <circle cx="510" cy="98" r="8" fill="#111"/>
     <circle cx="490" cy="98" r="8" fill="#FFF" stroke="#444"/>
     <circle cx="490" cy="78" r="8" fill="#111"/>
     <text x="490" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(-x, -y)</text>
 
-    <!-- Flip 5: 270 deg CW -->
+    <!-- Flip 6: 270 deg CW -->
     <rect x="600" y="0" width="180" height="135" rx="6" fill="#1C242B" stroke="#42A5F5"/>
-    <text x="690" y="24" text-anchor="middle" fill="#90CAF9" font-size="12" font-weight="700">Flip 5: Rotate 270° CW</text>
+    <text x="690" y="24" text-anchor="middle" fill="#90CAF9" font-size="12" font-weight="700">Flip 6: Rotate 270° CW</text>
     <rect x="650" y="38" width="80" height="80" rx="4" fill="#D7B377" stroke="#5D4037"/>
     <circle cx="670" cy="98" r="8" fill="#111"/>
     <circle cx="670" cy="78" r="8" fill="#FFF" stroke="#444"/>
     <circle cx="690" cy="78" r="8" fill="#111"/>
-    <text x="690" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(-y, x)</text>
+    <text x="690" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(y, -x)</text>
   </g>
 
-  <!-- Row 2: Reflections (Flip 4, 2, 1, 7) -->
+  <!-- Row 2: Reflections (Flip 1, 2, 4, 7) -->
   <g transform="translate(30, 210)">
-    <!-- Flip 4: Vertical reflection -->
+    <!-- Flip 1: Horizontal reflection (across the vertical axis) -->
     <rect x="0" y="0" width="180" height="135" rx="6" fill="#1C242B" stroke="#AB47BC"/>
-    <text x="90" y="24" text-anchor="middle" fill="#CE93D8" font-size="12" font-weight="700">Flip 4: Vertical Mirror</text>
+    <text x="90" y="24" text-anchor="middle" fill="#CE93D8" font-size="12" font-weight="700">Flip 1: Horiz Mirror</text>
     <rect x="50" y="38" width="80" height="80" rx="4" fill="#D7B377" stroke="#5D4037"/>
     <circle cx="110" cy="58" r="8" fill="#111"/>
     <circle cx="90" cy="58" r="8" fill="#FFF" stroke="#444"/>
     <circle cx="90" cy="78" r="8" fill="#111"/>
     <text x="90" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(-x, y)</text>
 
-    <!-- Flip 2: Horizontal reflection -->
+    <!-- Flip 2: Vertical reflection (across the horizontal axis) -->
     <rect x="200" y="0" width="180" height="135" rx="6" fill="#1C242B" stroke="#AB47BC"/>
-    <text x="290" y="24" text-anchor="middle" fill="#CE93D8" font-size="12" font-weight="700">Flip 2: Horiz Mirror</text>
+    <text x="290" y="24" text-anchor="middle" fill="#CE93D8" font-size="12" font-weight="700">Flip 2: Vertical Mirror</text>
     <rect x="250" y="38" width="80" height="80" rx="4" fill="#D7B377" stroke="#5D4037"/>
     <circle cx="270" cy="98" r="8" fill="#111"/>
     <circle cx="290" cy="98" r="8" fill="#FFF" stroke="#444"/>
     <circle cx="290" cy="78" r="8" fill="#111"/>
     <text x="290" y="130" text-anchor="middle" fill="#B0BEC5" font-size="10">(x, -y)</text>
 
-    <!-- Flip 1: Main diagonal reflection -->
+    <!-- Flip 4: Main diagonal reflection -->
     <rect x="400" y="0" width="180" height="135" rx="6" fill="#1C242B" stroke="#AB47BC"/>
-    <text x="490" y="24" text-anchor="middle" fill="#CE93D8" font-size="12" font-weight="700">Flip 1: Diagonal (y = x)</text>
+    <text x="490" y="24" text-anchor="middle" fill="#CE93D8" font-size="12" font-weight="700">Flip 4: Diagonal (y = x)</text>
     <rect x="450" y="38" width="80" height="80" rx="4" fill="#D7B377" stroke="#5D4037"/>
     <circle cx="470" cy="58" r="8" fill="#111"/>
     <circle cx="470" cy="78" r="8" fill="#FFF" stroke="#444"/>

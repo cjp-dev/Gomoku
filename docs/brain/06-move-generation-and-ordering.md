@@ -43,7 +43,7 @@ flowchart TD
     ThreatCheck -- "Opp ThreatA (Five)" --> ForceOpp5["ForceOneCand(opp, ThreatA)<br/>nCnd = 1; return"]
     ThreatCheck -- "My ThreatB (Open Four)" --> ForceMy4["ForceOneCand(who, ThreatB)<br/>nCnd = 1; return"]
     ThreatCheck -- "Opp ThreatB (Open Four)" --> Restrict4["Filter to ThreatE+ threats<br/>(Block or Counter-attack)"]
-    ThreatCheck -- "None of above" --> Sort["Quicksort candidates<br/>descending by priority"]
+    ThreatCheck -- "None of above" --> Sort["Caller sorts candidates<br/>descending by priority<br/>(Minimax / MinimaxRoot)"]
     Restrict4 --> Sort
     Sort --> Done["Candidate list ready for Alpha-Beta"]
 ```
@@ -80,7 +80,7 @@ for (int y = 0; y < pb.BoardHeight; y++)
 }
 ```
 Where `DilateRow` expands a 1D row mask by 2 cells in both directions:
-$\text{Dilate}(m) = \big(m \mid (m \ll 1) \mid (m \gg 1)\big)$
+$\text{Dilate}(m) = \big(m \mid (m \ll 1) \mid (m \gg 1)\big) \mathbin{\&} \text{boardMask}$
 $\text{Dilate}_2(m) = \text{Dilate}\big(\text{Dilate}(m)\big)$
 
 ### 3. Bitwise Candidate Extraction

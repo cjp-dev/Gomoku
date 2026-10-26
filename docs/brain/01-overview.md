@@ -17,6 +17,8 @@ flowchart LR
     Wpf["Gomoku.Wpf<br/>WPF Desktop App<br/>net10.0-windows"] --> Shared["Gomoku.App<br/>ViewModels &amp; Services<br/>net10.0"]
     Web["Gomoku.Web<br/>Blazor WebAssembly App<br/>net10.0"] --> Shared
     WebEngine["Gomoku.Web.Engine<br/>AOT WASM Engine Runtime<br/>net10.0"] --> Core["Gomoku.Core<br/>Domain &amp; Carbon Engine<br/>net10.0"]
+    WebEngine --> Shared
+    Web --> Shell["GameShell<br/>Shared web GUI library<br/>external/GameShell submodule"]
     Web -.->|"Launches Worker"| WebEngine
     Shared --> Core
     AppTests["Gomoku.App.Tests<br/>ViewModel &amp; Service Tests"] --> Shared
@@ -96,6 +98,9 @@ classDiagram
         +byte Pattern20, Pattern21
         +byte Pattern30, Pattern31
         +byte Status1_00, Status1_01
+        +byte Status1_10, Status1_11
+        +byte Status1_20, Status1_21
+        +byte Status1_30, Status1_31
         +byte Status4_0, Status4_1
         +Update1(k, exact5)
         +Update4()
@@ -105,8 +110,10 @@ classDiagram
     class CarbonBitboardAiPlayer {
         +LockFreeTranspositionTable Table
         +GetMoveAsync(state, limits, legalMoves, progress, token) ValueTask~Move~
-        -SearchLazySmp(state, limits, token, moveNowToken) Cand
-        -MinimaxWorker(workerId, depth, alpha, beta, token) Cand
+        -SearchSingleThreaded(pb, maxTargetDepth, limits, legalMoves, ...)
+        -SearchLazySmp(pb, maxTargetDepth, limits, legalMoves, ...)
+        -MinimaxRoot(workerId, pb, h, rootCnd, ...) Cand
+        -Minimax(workerId, pb, h, alpha, beta, ...) Cand
         -QuickWinSearch(pb) int
         -GenerateCand(pb, cnd, nCnd, ttBest)
         -Evaluate(pb) int
@@ -211,27 +218,28 @@ sequenceDiagram
     
     alt Is AI Turn
         VM->>Worker: Dispatch GetMoveAsync(state, limits, legalMoves)
-        Worker->>AI: SearchLazySmp(...)
+        Worker->>AI: GetMoveAsync(state, limits, legalMoves, progress, token)
         
         opt MoveCount == 0
             AI-->>VM: Play Geometric Center (H8)
         end
 
-        opt MoveCount in [1..6] & Book Enabled
-            AI->>Book: TryGetMove(state, out bookPoint)
+        AI->>PB: Start() and Replay Placed Stones
+
+        opt Book Enabled and a book pattern matches
+            AI->>Book: TryGetMove(pb, out bookPoint)
             Book-->>AI: Found book move (Dihedral D4 match)
             AI-->>VM: Return Book Move
         end
 
-        AI->>PB: Start() & Replay Placed Stones
         AI->>TT: NewSearch() (increment age)
         
-        loop Iterative Deepening (Depth d = 1, 2, 3, 4, ...)
+        loop Iterative Deepening (Depth d = 2, 3, 4, ..., or d = 1 for fixed depth 1)
             AI->>AI: QuickWinSearch() (VCF tactical mate check)
-            AI->>TT: TryProbe(zobristKey, out ttMove)
+            AI->>TT: TryProbe(ZobristKey, ..., out bestMove)
             AI->>AI: GenerateCand() (Chebyshev dilation + ONE_CAND)
-            AI->>AI: MinimaxWorker(d, alpha, beta) across Lazy SMP threads
-            AI-->>VM: Progress.Report(SearchAnalysis) (Depth, Score, NPS, PV)
+            AI->>AI: MinimaxRoot(d) / Minimax(d - 1, alpha, beta) on 1 or N Lazy SMP workers
+            AI-->>VM: Progress.Report(SearchAnalysis) (Depth, Score, BestMove, Nodes, NPS, CurrentMove)
             Note over VM: Updates live analysis card on UI thread
         end
         
@@ -268,7 +276,7 @@ sequenceDiagram
 | **Cell memory footprint** | 16 bytes unmanaged struct in `BitboardPatternBoard.Cell` (piece, 4 ray bitmasks, directional and 4-way threat grades; zero per-node proximity write overhead) |
 | **Transposition entry** | Exactly 16 bytes packed (`TranspositionEntry`), 4 entries per 64-byte CPU cache line |
 | **Default Transposition Table** | $1,048,576$ entries ($16 \text{ MiB}$ default), user-configurable from $1\text{ MB}$ to $256\text{ MB}$ ($2^{16}$ to $2^{24}$ slots) |
-| **Precomputed table sizes** | `STATUS1` ($256 \times 256$), `STATUS4` ($10,000$ shorts), `Prior` ($256 \times 256$), `Rank` ($106$ bytes) |
+| **Precomputed table sizes** | `STATUS1` ($256 \times 256$), `STATUS4` ($10,000$ bytes), `Prior` ($256 \times 256$), `Rank` ($107$ ints) |
 | **PatternBoard throughput** | $> 1,300,000$ make/undo operations per second (single core) |
 | **Transposition Table probe speed** | $> 170,000,000$ probes per second with power-of-two bitwise mask and lock-free atomic updates |
 | **Carbon AI search speed (1 Thread)** | $\approx 540,000$ nodes per second (.NET 10 desktop & Web Worker) |

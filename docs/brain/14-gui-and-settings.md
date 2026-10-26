@@ -22,7 +22,8 @@ graph TD
         Scoreboard["Dual-Card Player Scoreboard<br/>4 Layers: Dot/Name/Clock • Role • Stones Placed Count • 'Stones Placed'"]
         QuickActions["Quick Action Bar<br/>[Undo] • [Redo] • [Move Now]"]
         Board["Interactive Kaya Board Canvas<br/>Fixed Orientation • Coordinates • Star Points • Slate &amp; Clamshell Stones • Ghost Previews"]
-        Analysis["Real-Time AI Analysis Panel<br/>Move • Depth • Score • Best Move • Nodes • Speed • Time (0:00.0) • Status"]
+        Analysis["Real-Time AI Analysis Panel<br/>Move • Depth • Score • Best Move • Nodes • Speed • Time (0:00.0)"]
+        History["Move History Panel<br/>MOVE HISTORY (N moves) • Paired Rows • Latest Move Highlighted"]
     end
 
     MenuBar --> StatusPanel
@@ -30,6 +31,7 @@ graph TD
     Scoreboard --> QuickActions
     QuickActions --> Board
     Board --> Analysis
+    Analysis --> History
 ```
 
 ### Modern Light Theme & Color Palette
@@ -42,7 +44,7 @@ Both clients share a consistent palette designed for high contrast and visual wa
 | **Card & Panel Background** | `#FFFFFF` / `#F8FAFC` | Elevated card surfaces with soft ambient drop shadows |
 | **Border Stroke** | `#E2E8F0` / `#CBD5E1` | Subtle $1\text{ px}$ borders separating navigation, cards, and boards |
 | **Primary Typography** | `#0F172A` / `#334155` | Deep slate gray text ensuring high readability |
-| **Active Turn Highlight** | `#3B82F6` / `#F0F7FF` | Sky-blue ring, border, and light tint highlighting the active player card |
+| **Active Turn Highlight** | `#3498DB` / `#EFF6FF` | Sky-blue border, soft glow, and light tint highlighting the active player card |
 | **Status Modified Notice** | `#E74C3C` | Crimson red text for `STATUS` indicating unranked/casual state (Undo, side switch, etc.) |
 | **Evaluation Score** | `#B45309` | Warm amber text displaying centipawn advantages and mate notices |
 | **Best Move Coordinate** | `#0284C7` | Blue accent text displaying the engine's current principal candidate |
@@ -68,7 +70,7 @@ The application header features a standardized 4-menu hierarchy providing struct
 * **Computer vs Human (`Ctrl+2`):** Computer plays Black (opening center); User plays White. Prompts confirmation if switching modes during an active match.
 * **Human vs Human (`Ctrl+3`):** Hot-seat multiplayer mode; both sides are controlled locally.
 * *(Separator)*
-* **Settings...:** Opens the modal Game Settings dialog to configure board dimensions, rules, AI engine, and time controls. (Accessed via menu; no shortcut key).
+* **Settings... (`F2`):** Opens the modal Game Settings dialog to configure board dimensions, rules, AI engine, and time controls.
 
 ### 3. Options Menu
 * **Coordinate Labels:** Toggles algebraic coordinate lettering (`A`–`O` or `A`–`T`) and numbering (`1`–`15` or `1`–`20`) around the board perimeter.
@@ -125,8 +127,8 @@ Each player card is structured into 4 clear vertical layers:
    * Color indicator dot (`●` Slate / `○` Clamshell).
    * Player name (`Black` / `White`).
    * Digital countdown chess clock (`05:00` / `04:32`) when time controls are active.
-   * The card of the player currently to move is illuminated with a sky-blue border (`#3B82F6`) and subtle background tint (`#F0F7FF`).
-2. **Layer 2 (Role):** Identifies the controller type (`Human`, `Computer (Carbon AI)`, or `Computer (Simple AI)`).
+   * The card of the player currently to move is illuminated with a sky-blue border (`#3498DB`), a soft $2\text{ px}$ glow, and a subtle background tint (`#EFF6FF`).
+2. **Layer 2 (Role):** Identifies who plays the side: `Human` or `Computer` against the computer, `Player 1` / `Player 2` in two-player mode.
 3. **Layer 3 (Primary Metric):** Displays the total number of stones placed by this player in prominent bold numerals.
 4. **Layer 4 (Secondary Metric Label):** Standardized subtitle label `"Stones Placed"`.
 
@@ -140,7 +142,7 @@ Positioned directly beneath the dual player cards:
 Unlike games where pieces originate from opposite edges, Gomoku's $15 \times 15$ grid is symmetric and starts from the center star point (H8). The board orientation remains **strictly fixed** regardless of whether the human plays Black or White or switches sides mid-game. Standard algebraic coordinates (columns `A`–`O`, rows `1`–`15`) remain invariant at all times.
 
 ### 5. Timeout Continuation Safeguard
-In timed matches (`TimePerGame`), if the human player's clock reaches zero against the computer, an interactive confirmation dialog is presented: *"Your time has expired. Would you like to continue playing?"*. Accepting allows play to proceed casually while marking the match status modified (`#E74C3C`). Declining concludes the game as a loss on time.
+In timed matches (`TimePerGame`), the clocks start with the first move. If the human player's clock reaches zero against the computer, a dialog asks: *"You ran out of time! Do you want to continue playing?"*, and the clocks pause while it is open. Accepting lets play continue while marking the match status modified (`#E74C3C`); the computer's clock keeps running, so the computer can still lose on time. Declining concludes the game as a loss on time.
 
 ---
 
@@ -160,7 +162,7 @@ The dialog is arranged into five focused sections:
 ```mermaid
 graph TD
     Settings["Settings Dialog"]
-    Settings --> Section1["1. Rules Variant &amp; Board Theme<br/>Freestyle • Standard • Renju | Wood • Dark • Classic"]
+    Settings --> Section1["1. Rules Variant (+ Board Theme on desktop)<br/>Freestyle • Standard • Renju | Wood • Dark • Classic (desktop only)"]
     Settings --> Section2["2. AI Engine<br/>Carbon AI (Bitboard) vs. Simple AI"]
     Section2 -- "Simple AI selected" --> Simplified["Compact Dialog<br/>(Advanced sections hidden)"]
     Section2 -- "Carbon AI selected" --> Section3["3. Computer Thinking Limits<br/>Fixed Depth (1–14) • Time per Move (1–20s) • Time per Game (1–30m)"]
@@ -208,7 +210,7 @@ flowchart TD
         C_Book{"Opening Book?"} -- "yes" --> C_PlayBook["Dihedral D4 Move (67 Patterns)"]
         C_Book -- "no" --> C_VCF{"QuickWinSearch()<br/>VCF Solver"}
         C_VCF -- "mate found" --> C_Mate["Immediate forced win"]
-        C_VCF -- "no mate" --> C_ID["Iterative Deepening<br/>Depth 1, 2, 3, 4... single-ply"]
+        C_VCF -- "no mate" --> C_ID["Iterative Deepening<br/>Depth 2, 3, 4... single-ply (1 for fixed depth 1)"]
         C_ID --> C_AB["Closed-Interval Negamax<br/>• Lazy SMP Multi-Threading<br/>• Bitboard threat tensors<br/>• 64-bit Zobrist TT<br/>• ONE_CAND tactical overrides"]
     end
 ```
@@ -241,8 +243,8 @@ flowchart TD
 When playing against **Carbon AI (Bitboard)**, thinking constraints can be configured to match tournament settings:
 
 * **Fixed depth:** Forces the engine to search to an exact ply depth ($1$ to $14$ plies), regardless of time taken. Ideal for tactical benchmarking and reproducible move analysis.
-* **Time per move:** Allocates a dedicated thinking window ($1\text{ s}$ to $20\text{ s}$) for every turn. The engine uses soft limits ($2/3$ time) to conclude iterations safely before hard timeout interrupts.
-* **Time per game (Chess Clock):** Provides a total bank of time per player ($1\text{ min}$ to $30\text{ min}$). The engine dynamically divides remaining time by the estimated remaining moves in the game.
+* **Time per move:** Allocates a dedicated thinking window ($1\text{ s}$ to $20\text{ s}$) for every turn. The engine stops $30\text{ ms}$ before the deadline and does not start a new iteration when $t_{\text{elapsed}} + 5 \cdot t_{\text{last iteration}}$ would pass it (`TimeoutPrevent = 5`).
+* **Time per game (Chess Clock):** Provides a total bank of time per player ($1\text{ min}$ to $30\text{ min}$). The engine gives each move $t_{\text{remaining}} / 7$ (`MatchSpare = 7`, at least $100\text{ ms}$).
 
 ---
 
@@ -265,9 +267,9 @@ Exclusively available when **Carbon AI (Bitboard)** is active, this section fine
 
 ### 6. Dialog Actions
 
-* **Reset Defaults:** Restores default tournament settings ($15 \times 15$ Freestyle, Carbon AI, $5\text{ s}$ Time per Move, Multi-Threading enabled with Auto thread allocation, Opening Book enabled, and $64\text{ MB}$ Transposition Table).
+* **Reset Defaults (desktop version):** Restores default tournament settings ($15 \times 15$ Freestyle, Carbon AI, $5\text{ s}$ Time per Move, Multi-Threading enabled with Auto thread allocation, Opening Book enabled, and $16\text{ MB}$ Transposition Table).
 * **Cancel:** Discards all unapplied changes and closes the modal dialog.
-* **Save:** Applies changes immediately to the active game session, updating engine configurations, restarting clocks if needed, and saving preferences.
+* **Save (`OK` in the web version):** Applies changes immediately to the active game session, updating engine configurations, restarting clocks if needed, and saving preferences.
 
 ---
 
@@ -277,7 +279,7 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 
 ```
 ┌─────────────────────────────────┐
-│ AI ANALYSIS                     │
+│ ANALYSIS                        │
 ├───────────────────┬─────────────┤
 │ Move:             │ K11         │
 │ Depth:            │ 8 plies...  │
@@ -286,7 +288,6 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 │ Nodes:            │ 142,850     │
 │ Speed:            │ 850,000 nps │
 │ Time:             │ 0:01.9      │
-│ Status:           │ Searching...│
 └───────────────────┴─────────────┘
 ```
 
@@ -294,17 +295,16 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 
 | Field | Description & Formatting |
 |---|---|
-| **Move** | The root move the engine is examining right now (e.g., `K11`); it changes rapidly while searching. Afterwards, and for book moves, it shows the move found. The same in all four games. |
+| **Move** | Web version: the root move the engine is examining right now (e.g., `K11`); it changes rapidly while searching. Afterwards, and for book moves, it shows the move found, as in the other three games. The desktop app shows the game's move number (e.g., `#15`). |
 | **Depth** | The active search depth in plies: <br/>• Displays `"{depth} plies..."` while searching an in-progress iteration.<br/>• Displays `"{depth} plies"` when the depth iteration completes cleanly.<br/>• Displays `"Book"` on opening book hits or `"Opening"` on first-move center hits. |
 | **Score** | Positional evaluation from the moving player's perspective:<br/>• Positive (e.g. `+140`): Advantage for the engine.<br/>• Negative (e.g. `-80`): Advantage for the opponent.<br/>• `"Mate in N"` / `"-Mate in N"`: Forced winning/losing tactical combination found. |
 | **Best move** | Algebraic coordinate of the currently leading candidate (e.g., `H8`, `J10`, `K11`). |
 | **Nodes** | Total board states evaluated during the search, formatted with invariant thousands separators (`142,850`). |
 | **Speed** | Search throughput in nodes per second (`nps`), indicating computational efficiency. |
 | **Time** | Elapsed thinking duration in standard stopwatch format (`m\:ss\.f`, e.g. `0:00.0` or `0:01.9`). |
-| **Status** | Engine activity descriptor (`Searching...`, `Ready`, `Opening book`, or `Center opening`). |
 
-### Instant Opening Moves & 250ms Delay
-When the engine plays an instant move—such as placing the initial center stone on Move 1 or matching a recognized opening book line—it emits `StatusMessage = "Center opening"` or `"Opening book"` and pauses for **$250\text{ ms}$**. This deliberate brief delay ensures the user can visually register the engine's opening acknowledgment and analysis badge before the stone is placed.
+### Instant Opening Moves
+When the engine plays an instant move—such as placing the initial center stone on Move 1 or matching a recognized opening book line—it reports `StatusMessage = "Center opening"` or `"Opening book"` and plays the stone at once; the Analysis panel shows `Opening` or `Book` as the depth.
 
 ### WebAssembly Multithreaded Engine & UI Responsiveness
 In the browser client (`Gomoku.Web`), execution utilizes a modern dual-runtime architecture:
@@ -312,12 +312,9 @@ In the browser client (`Gomoku.Web`), execution utilizes a modern dual-runtime a
 - When cross-origin isolation is unavailable, `engine-client.js` automatically falls back to a dedicated single-threaded Web Worker (`engine-worker.js`), running at $\approx 530,000\text{ NPS}$.
 
 In single-threaded fallback execution:
-1. `MinimaxRootAsync` tracks elapsed thinking time and checks a $\ge 150\text{ ms}$ heartbeat between root candidates.
-2. When the heartbeat threshold is reached, it emits a `SearchAnalysis` telemetry snapshot with `IsSearching: true` and executes:
-   ```csharp
-   await Task.Delay(1, cancellationToken);
-   ```
-3. This yields a macrotask slice back to the browser's JavaScript event loop, ensuring the `BrowserSynchronizationContext` executes pending events and refreshes the display.
+1. `MinimaxRoot` (worker 0) checks a $\ge 150\text{ ms}$ heartbeat between root candidates.
+2. When the heartbeat threshold is reached, it reports a `SearchAnalysis` telemetry snapshot with `IsSearching: true` and the root move being examined (`CurrentMove`).
+3. Because the search runs inside its own Web Worker, it never blocks the browser UI thread; `engine-worker.js` posts each snapshot to the page as a `progress` message (`EngineProtocol.ProgressDto`), and the Analysis panel refreshes.
 
 ---
 
@@ -336,8 +333,10 @@ In single-threaded fallback execution:
 | `Ctrl+Y` | Board | Redo previously undone move |
 | `F1` | Global | Open **User guide** (this chapter) |
 | `Shift+F1` | Global | Open **Rules & Documentation** (architectural manual) |
+| `F2` | Global | Open the **Settings** dialog |
+| `Escape` | Global | Close an open menu or the mobile drawer (web version) |
 
-*(Note: Settings dialog is opened via menu **Game $\rightarrow$ Settings...**; Undo/Redo are available via Quick Action buttons and `Ctrl+Z`/`Ctrl+Y`).*
+*(Note: the Settings dialog opens with `F2` or **Game $\rightarrow$ Settings...**; Undo/Redo are available via the Quick Action buttons and `Ctrl+Z`/`Ctrl+Y`.)*
 
 ---
 

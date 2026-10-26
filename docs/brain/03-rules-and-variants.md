@@ -12,7 +12,12 @@ Gomoku is deceptively simple in premise: two players alternately place stones on
 
 ```mermaid
 flowchart TD
-    Start["Stone Placed at (x, y)"] --> CheckLine["Count consecutive stones on 4 axes<br/>count = forward + backward + 1"]
+    Request["Move requested at (x, y)"] --> RenjuBlack{"Renju and Black to move?"}
+    RenjuBlack -- "yes" --> FoulCheck{"Forbidden square? (CheckForbid)<br/>Double-Three 3x3 • Double-Four 4x4 • Overline 6+<br/>An exact 5 is never forbidden"}
+    FoulCheck -- "yes" --> BlackFoul["ILLEGAL FOUL: move rejected<br/>(IsMoveLegal returns false)"]
+    RenjuBlack -- "no" --> Start["Stone Placed at (x, y)"]
+    FoulCheck -- "no" --> Start
+    Start --> CheckLine["Count consecutive stones on 4 axes<br/>count = forward + backward + 1"]
     CheckLine --> HasFive{"Is count &gt;= 5 on any axis?"}
     HasFive -- "no" --> Continue["Game in Progress"]
     HasFive -- "yes" --> VariantCheck{"Active Variant?"}
@@ -24,15 +29,9 @@ flowchart TD
     ExactCheck -- "no (6+ overline)" --> Continue
 
     VariantCheck -- "Renju" --> RenjuPlayer{"Current Player?"}
-    RenjuPlayer -- "White (Unrestricted)" --> WhiteCheck{"Is count &gt;= 5?"}
-    WhiteCheck -- "yes" --> WhiteWin["WHITE WINS<br/>(5 or overline)"]
-    WhiteCheck -- "no" --> Continue
-
-    RenjuPlayer -- "Black (Restricted)" --> FoulCheck{"Any fouls violated?<br/>(CheckForbid)"}
-    FoulCheck -- "Overline (6+ stones)" --> BlackFoul["ILLEGAL FOUL: Loss / Forfeit"]
-    FoulCheck -- "Double-Four (4x4)" --> BlackFoul
-    FoulCheck -- "Double-Three (3x3)" --> BlackFoul
-    FoulCheck -- "Exact 5 (no overline)" --> BlackWin["BLACK WINS<br/>(Exact 5 trumps fouls)"]
+    RenjuPlayer -- "White (Unrestricted)" --> WhiteWin["WHITE WINS<br/>(5 or overline)"]
+    RenjuPlayer -- "Black (Restricted)" --> BlackCheck{"Is count == 5?"}
+    BlackCheck -- "yes" --> BlackWin["BLACK WINS<br/>(Exact 5 trumps fouls)"]
 ```
 
 ![Gomoku and Renju Tactical Threat Classifications](images/threat-shapes.svg)
@@ -77,10 +76,13 @@ $$\text{Count}_k = c_1 + c_2 + 1$$
 The win predicate is evaluated as:
 $$\text{Win}_{\text{Freestyle}} \iff \exists k \in [0, 3]: \text{Count}_k \ge 5$$
 $$\text{Win}_{\text{Exact5}} \iff \exists k \in [0, 3]: \text{Count}_k = 5$$
-$$\text{Win}_{\text{Renju}}(\text{Player}) \iff \begin{cases} 
+
+$$
+\text{Win}_{\text{Renju}}(\text{Player}) \iff \begin{cases}
 \exists k: \text{Count}_k = 5 & \text{if Player} = \text{Black} \\
 \exists k: \text{Count}_k \ge 5 & \text{if Player} = \text{White}
-\end{cases}$$
+\end{cases}
+$$
 
 ---
 
