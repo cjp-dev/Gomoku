@@ -122,7 +122,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool IsGameSettingVisible => IsVsComputer;
     public string SettingsBadgeText => Settings.Summary;
-    public string MoveCountText => $"{Session.MoveHistory.Count} moves";
+    public string MoveCountText => Session.MoveHistory.Count == 1 ? "1 move" : $"{Session.MoveHistory.Count} moves";
 
     public bool CanSwitchSides =>
         IsVsComputer &&
@@ -244,6 +244,17 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     public void MoveNow() => _moveNowCts?.Cancel();
+
+    /// <summary>Switches the board theme ("Wood", "Dark" or "Classic") from the Options menu.</summary>
+    public void SetBoardTheme(string themeName)
+    {
+        if (Settings.ThemeName == themeName) return;
+
+        Settings.ThemeName = themeName;
+        OnPropertyChanged(nameof(Settings));
+        BoardLayoutChanged?.Invoke();
+        SavePreferences();
+    }
 
     private void SavePreferences()
     {

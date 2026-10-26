@@ -519,6 +519,32 @@ public class MainViewModelTests
         vm.WhitePlayerLabel.Should().Be(white);
     }
 
+    [Fact]
+    public void SetBoardTheme_ChangesThemeAndSavesIt()
+    {
+        MockSettingsStore store = new();
+        MainViewModel vm = new(_dialog, _file, _sound, settingsStore: store);
+
+        vm.SetBoardTheme("Dark");
+
+        vm.Settings.ThemeName.Should().Be("Dark");
+        store.Current.ThemeName.Should().Be("Dark");
+    }
+
+    [Fact]
+    public void MoveCountText_CountsIndividualMoves()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsHuman };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+        vm.MoveCountText.Should().Be("0 moves");
+
+        vm.Intersections.First(i => i.X == 7 && i.Y == 7).ClickCommand.Execute(null);
+        vm.MoveCountText.Should().Be("1 move");
+
+        vm.Intersections.First(i => i.X == 7 && i.Y == 8).ClickCommand.Execute(null);
+        vm.MoveCountText.Should().Be("2 moves");
+    }
+
     private static async Task<bool> WaitUntilAsync(Func<bool> condition, int timeoutMs = 5000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);

@@ -40,25 +40,13 @@
 
             @if (dialog.Settings is { } settings)
             {
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
-                    <fieldset class="settings" style="margin: 0;">
-                        <legend>Rules Variant</legend>
-                        <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Freestyle)" @onchange="() => settings.SelectedVariant = GomokuVariant.Freestyle" /> Freestyle (5+ wins)</label>
-                        <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Exact5)" @onchange="() => settings.SelectedVariant = GomokuVariant.Exact5" /> Standard (Exact 5)</label>
-                        <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Renju)" @onchange="() => settings.SelectedVariant = GomokuVariant.Renju" /> Renju (Forbidden 3x3/4x4)</label>
-                    </fieldset>
-
-                    <fieldset class="settings" style="margin: 0;">
-                        <legend>Board Theme</legend>
-                        @foreach (string theme in settings.AvailableThemes)
-                        {
-                            <label>
-                                <input type="radio" name="boardTheme" checked="@(settings.ThemeName == theme)" @onchange="() => settings.ThemeName = theme" />
-                                @theme
-                            </label>
-                        }
-                    </fieldset>
-                </div>
+                @* The board theme is chosen in the Options menu, as in the other games. *@
+                <fieldset class="settings" style="margin-bottom: 1rem;">
+                    <legend>Rules Variant</legend>
+                    <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Freestyle)" @onchange="() => settings.SelectedVariant = GomokuVariant.Freestyle" /> Freestyle (5+ wins)</label>
+                    <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Exact5)" @onchange="() => settings.SelectedVariant = GomokuVariant.Exact5" /> Standard (Exact 5)</label>
+                    <label><input type="radio" name="variant" checked="@(settings.SelectedVariant == GomokuVariant.Renju)" @onchange="() => settings.SelectedVariant = GomokuVariant.Renju" /> Renju (Forbidden 3x3/4x4)</label>
+                </fieldset>
 
                 <fieldset class="settings" style="margin-bottom: 1rem;">
                     <legend>AI Engine</legend>

@@ -184,7 +184,7 @@
             <!-- Move History Panel -->
             <section class="panel history-panel" aria-label="Move History">
                 <h2>MOVE HISTORY (@Vm.MoveCountText)</h2>
-                <div class="history-list">
+                <div class="history-list" @ref="_historyList">
                     @if (Vm.MoveTurns.Count == 0)
                     {
                         <p class="history-empty">No moves played yet.</p>
@@ -192,11 +192,18 @@
                     else
                     {
                         <ol>
-                            @foreach (var turn in Vm.MoveTurns)
+                            @for (int i = 0; i < Vm.MoveTurns.Count; i++)
                             {
+                                var turn = Vm.MoveTurns[i];
+                                bool lastRow = i == Vm.MoveTurns.Count - 1;
+                                bool whitePlayed = !string.IsNullOrEmpty(turn.WhiteMove);
                                 <li>
                                     <span class="move-num">@turn.Turn.</span>
-                                    <span class="move-notation">@turn.Notation</span>
+                                    <span class="move-ply @(lastRow && !whitePlayed ? "latest" : null)">@turn.BlackMove</span>
+                                    @if (whitePlayed)
+                                    {
+                                        <span class="move-ply @(lastRow ? "latest" : null)">@turn.WhiteMove</span>
+                                    }
                                 </li>
                             }
                         </ol>
@@ -214,6 +221,9 @@
     private bool _mobileDrawerOpen;
     private DotNetObjectReference<Home>? _self;
     private bool _renderPending;
+    private ElementReference _historyList;
+    private int _scrolledHistoryRows;
+    private int _scrolledHistoryMoves;
 
     protected override void OnInitialized()
     {
@@ -232,12 +242,15 @@
                 new("vs Computer (White)", new AsyncRelayCommand(() => Vm.SetGameModeAsync(GameMode.AiVsHuman)), IsChecked: () => Vm.IsComputerVsHuman, Radio: true),
                 new("vs Human (Two players)", new AsyncRelayCommand(() => Vm.SetGameModeAsync(GameMode.HumanVsHuman)), IsChecked: () => Vm.IsHumanVsHuman, Radio: true),
                 new("Switch sides", Vm.SwitchSidesCommand, SeparatorBefore: true),
-                new("Settings...", Vm.OpenSettingsCommand, SeparatorBefore: true),
+                new("Settings...", Vm.OpenSettingsCommand, "F2", SeparatorBefore: true),
             ]),
             new("Options",
             [
                 new("Analysis", Vm.ToggleAnalysisCommand, "Ctrl+A", IsChecked: () => Vm.IsAnalysisVisible),
                 new("Sound", Vm.ToggleSoundCommand, IsChecked: () => Vm.IsSoundOn),
+                ThemeEntry("Wood Board", "Wood", separatorBefore: true),
+                ThemeEntry("Dark Board", "Dark"),
+                ThemeEntry("Classic Board", "Classic"),
                 new("Coordinates", Vm.ToggleCoordinatesCommand, IsChecked: () => Vm.IsCoordinatesVisible, SeparatorBefore: true),
                 new("Ghost Stone", Vm.ToggleGhostStoneCommand, IsChecked: () => Vm.IsGhostStoneOn),
                 new("Highlight Last Move", Vm.ToggleLastMoveHighlightCommand, IsChecked: () => Vm.IsLastMoveHighlightOn),
@@ -269,6 +282,16 @@
         {
             _self = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("gomoku.registerShortcuts", _self);
+            await JS.InvokeVoidAsync("gomoku.initMenuAlignment");
+        }
+
+        // Rows only grow every second move, so compare the move count as well.
+        int moves = Vm.Session.MoveHistory.Count;
+        if (Vm.MoveTurns.Count != _scrolledHistoryRows || moves != _scrolledHistoryMoves)
+        {
+            _scrolledHistoryRows = Vm.MoveTurns.Count;
+            _scrolledHistoryMoves = moves;
+            await JS.InvokeVoidAsync("gomoku.scrollHistoryToEnd", _historyList);
         }
     }
 
@@ -288,6 +311,7 @@
             try
             {
                 ((IJSInProcessRuntime)JS).InvokeVoid("gomoku.unregisterShortcuts");
+                ((IJSInProcessRuntime)JS).InvokeVoid("gomoku.cleanupMenuAlignment");
             }
             catch
             {
@@ -308,6 +332,8 @@
         "a" => RunAsync(Vm.ToggleAnalysisCommand),
         "f1" => HandleUserGuideShortcut(),
         "shift+f1" => HandleDocsShortcut(),
+        "f2" => RunAsync(Vm.OpenSettingsCommand),
+        "escape" => CloseMenus(),
         _ => Task.CompletedTask,
     };
 
@@ -345,6 +371,17 @@
     }
 
     private void OnDialogChanged() => InvokeAsync(StateHasChanged);
+
+    private MenuEntry ThemeEntry(string text, string themeName, bool separatorBefore = false) =>
+        new(text, new RelayCommand(() => Vm.SetBoardTheme(themeName)), IsChecked: () => Vm.Settings.ThemeName == themeName, Radio: true, SeparatorBefore: separatorBefore);
+
+    private Task CloseMenus()
+    {
+        _openMenu = null;
+        _mobileDrawerOpen = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
 
     private void ToggleMenu(MenuDefinition menu) => _openMenu = _openMenu == menu ? null : menu;
 
