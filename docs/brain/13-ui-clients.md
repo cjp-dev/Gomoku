@@ -102,7 +102,7 @@ The web client runs entirely in the browser using WebAssembly Ahead-of-Time (AOT
   - **Touch Zones:** Touch-optimized target intersections ($> 32\text{ px}$ hit zones) allow accurate move placement on mobile screens.
 
 ### Integrated Brain Documentation Viewer (`Docs.razor`)
-The web application hosts the entire `docs/brain` repository directly at `/docs`:
+The web application hosts the entire `docs/brain` repository directly at `/docs`, with the documentation viewer shared by the four games ([GameShell](https://github.com/cjp-dev/GameShell)'s `DocsViewer` and `BrainDocs`, registered with `AddBrainDocs` in `Program.cs`):
 - Dynamic Markdown rendering via Markdig.
 - Mathematical equation rendering via KaTeX.
 - Automatic table of contents generation and inter-chapter pager navigation.
@@ -117,8 +117,8 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 | `MainWindow.xaml` | `Gomoku.Wpf` | WPF XAML / DirectX | Hardware-accelerated desktop view |
 | `Board.razor` | `Gomoku.Web` | Blazor WASM / SVG | Interactive web game board component |
 | `DialogHost.razor` | `Gomoku.Web` | Blazor Components | Modal settings, new game, and about dialogs |
-| `Docs.razor` | `Gomoku.Web` | Markdig / KaTeX | Interactive architecture documentation viewer |
-| `BrainDocs.cs` | `Gomoku.Web` | C# Service | Markdown loader, URL rewriter, and chapter parser |
+| `Docs.razor` | `Gomoku.Web` | Blazor route | The `/docs` pages, shown by GameShell's `DocsViewer` |
+| `BrainDocs.cs` | GameShell | C# Service | Markdown loader, URL rewriter, and chapter parser |
 
 ---
 
@@ -132,8 +132,9 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 | [EngineWorker.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web.Engine/EngineWorker.cs) | `EngineWorker` | Dedicated multithreaded WASM engine export host managing Deputy-Thread Lazy SMP and progress streaming |
 | [engine-client.js](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/wwwroot/js/engine-client.js) | `engine-client.js` | Page-side orchestrator managing Window-hosted threaded engine and single-threaded worker fallback |
 | [engine-worker.js](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/wwwroot/js/engine-worker.js) | `engine-worker.js` | Single-threaded Dedicated Web Worker fallback when cross-origin isolation is unavailable |
-| [Docs.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Pages/Docs.razor) | `Docs` | Live browser manual reader with KaTeX math rendering |
-| [BrainDocs.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Services/BrainDocs.cs) | `BrainDocs` | Document discovery service matching chapter regexes |
+| [Docs.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Pages/Docs.razor) | `Docs` | The `/docs` routes for the shared documentation viewer |
+| [DocsViewer.razor](https://github.com/cjp-dev/GameShell/blob/main/src/GameShell/Docs/DocsViewer.razor) | `DocsViewer` | Live browser manual reader with KaTeX math rendering (GameShell) |
+| [BrainDocs.cs](https://github.com/cjp-dev/GameShell/blob/main/src/GameShell/Docs/BrainDocs.cs) | `BrainDocs` | Document discovery service matching chapter regexes (GameShell) |
 
 ---
 

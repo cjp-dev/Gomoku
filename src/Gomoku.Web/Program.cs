@@ -6,6 +6,7 @@ using Gomoku.App.Services;
 using Gomoku.App.ViewModels;
 using Gomoku.Web;
 using Gomoku.Web.Services;
+using GameShell;
 
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
@@ -20,7 +21,7 @@ builder.Services.AddSingleton<BrowserDialogService>();
 builder.Services.AddSingleton<IDialogService>(services => services.GetRequiredService<BrowserDialogService>());
 builder.Services.AddSingleton<IGameFileService, BrowserGameFileService>();
 builder.Services.AddSingleton<ISoundService, BrowserSoundService>();
-builder.Services.AddSingleton<BrainDocs>();
+builder.Services.AddBrainDocs("Gomoku .NET Architecture", "Gomoku", "https://github.com/cjp-dev/Gomoku/blob/main/docs/brain/");
 builder.Services.AddSingleton<ISettingsStore, LocalStorageSettingsStore>();
 builder.Services.AddSingleton<IEngineHost, WebEngineHost>();
 
