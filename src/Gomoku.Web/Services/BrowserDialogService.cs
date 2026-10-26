@@ -1,20 +1,16 @@
 using Gomoku.App.Models;
 using Gomoku.App.Services;
 using Gomoku.App.ViewModels;
+using Gomoku.Web.Components;
+using GameShell;
 
 namespace Gomoku.Web.Services;
 
 /// <summary>
 /// Modal dialogs shown one at a time by the DialogHost component, matching Checkers.Web.
 /// </summary>
-public sealed class BrowserDialogService : IDialogService
+public sealed class BrowserDialogService(ShellDialogs dialogs) : IDialogService
 {
-    private readonly Queue<DialogRequest> _queue = new();
-
-    public event Action? Changed;
-
-    public DialogRequest? Current => _queue.TryPeek(out DialogRequest? request) ? request : null;
-
     public async Task ShowMessageAsync(string title, string message)
     {
         await ShowAsync(new DialogRequest
@@ -43,7 +39,7 @@ public sealed class BrowserDialogService : IDialogService
             int button = await ShowAsync(new DialogRequest
             {
                 Title = "Settings",
-                Settings = settingsVm,
+                Body = SettingsForm.For(settingsVm),
                 Buttons = ["OK", "Cancel"]
             });
 
@@ -76,39 +72,5 @@ public sealed class BrowserDialogService : IDialogService
         return default;
     }
 
-    /// <summary>Closes the dialog if it is still the one shown.</summary>
-    public void Close(DialogRequest request, int button)
-    {
-        if (Current != request) return;
-
-        _queue.Dequeue();
-        request.Complete(button);
-        Changed?.Invoke();
-    }
-
-    private Task<int> ShowAsync(DialogRequest request)
-    {
-        _queue.Enqueue(request);
-        Changed?.Invoke();
-        return request.Result;
-    }
-}
-
-/// <summary>The first button is the default (Enter), the last one cancels (Escape).</summary>
-public sealed class DialogRequest
-{
-    private readonly TaskCompletionSource<int> _result = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    public required string Title { get; init; }
-    public string? Heading { get; init; }
-    public string? Message { get; init; }
-    public IReadOnlyList<string> Paragraphs { get; init; } = [];
-    public string? Picture { get; init; }
-    public string? PictureCaption { get; init; }
-    public SettingsViewModel? Settings { get; init; }
-    public string? Text { get; set; }
-    public required IReadOnlyList<string> Buttons { get; init; }
-
-    internal Task<int> Result => _result.Task;
-    internal void Complete(int button) => _result.TrySetResult(button);
+    private Task<int> ShowAsync(DialogRequest request) => dialogs.ShowAsync(request);
 }

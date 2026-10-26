@@ -1,0 +1,97 @@
+@using Gomoku.App.ViewModels
+@using Gomoku.Core.AI
+@using Gomoku.Core.Models
+
+@* Gomoku's Settings form, shown in GameShell's dialog (DialogRequest.Body). *@
+@* The board theme is chosen in the Options menu, as in the other games. *@
+<fieldset class="settings" style="margin-bottom: 1rem;">
+    <legend>Rules Variant</legend>
+    <label><input type="radio" name="variant" checked="@(Settings.SelectedVariant == GomokuVariant.Freestyle)" @onchange="() => Settings.SelectedVariant = GomokuVariant.Freestyle" /> Freestyle (5+ wins)</label>
+    <label><input type="radio" name="variant" checked="@(Settings.SelectedVariant == GomokuVariant.Exact5)" @onchange="() => Settings.SelectedVariant = GomokuVariant.Exact5" /> Standard (Exact 5)</label>
+    <label><input type="radio" name="variant" checked="@(Settings.SelectedVariant == GomokuVariant.Renju)" @onchange="() => Settings.SelectedVariant = GomokuVariant.Renju" /> Renju (Forbidden 3x3/4x4)</label>
+</fieldset>
+
+<fieldset class="settings" style="margin-bottom: 1rem;">
+    <legend>AI Engine</legend>
+    <div style="display: flex; gap: 1.5rem;">
+        <label><input type="radio" name="engine" checked="@(Settings.SelectedAiEngine == AiEngineType.Carbon)" @onchange="() => Settings.SelectedAiEngine = AiEngineType.Carbon" /> Carbon AI (Bitboard)</label>
+        <label><input type="radio" name="engine" checked="@(Settings.SelectedAiEngine == AiEngineType.Simple)" @onchange="() => Settings.SelectedAiEngine = AiEngineType.Simple" /> Simple AI</label>
+    </div>
+</fieldset>
+
+@if (Settings.IsCarbonEngine)
+{
+    <fieldset class="settings" style="margin-bottom: 1rem;">
+        <legend>Computer Thinking Limits</legend>
+        <label><input type="radio" name="timeMode" checked="@(Settings.SelectedTimeControl == TimeControlMode.FixedDepth)" @onchange="() => Settings.SelectedTimeControl = TimeControlMode.FixedDepth" /> Fixed depth</label>
+        <input type="range" min="1" max="14" aria-label="Depth" disabled="@(Settings.SelectedTimeControl != TimeControlMode.FixedDepth)"
+               @bind="Settings.SearchDepth" @bind:event="oninput" />
+        <span>@Settings.SearchDepth plies</span>
+
+        <label><input type="radio" name="timeMode" checked="@(Settings.SelectedTimeControl == TimeControlMode.TimePerMove)" @onchange="() => Settings.SelectedTimeControl = TimeControlMode.TimePerMove" /> Time per move</label>
+        <input type="range" min="1" max="20" aria-label="Seconds per move" disabled="@(Settings.SelectedTimeControl != TimeControlMode.TimePerMove)"
+               @bind="Settings.MoveTimeSeconds" @bind:event="oninput" />
+        <span>@Settings.MoveTimeSeconds seconds</span>
+
+        <label><input type="radio" name="timeMode" checked="@(Settings.SelectedTimeControl == TimeControlMode.TimePerGame)" @onchange="() => Settings.SelectedTimeControl = TimeControlMode.TimePerGame" /> Time per game</label>
+        <input type="range" min="1" max="30" aria-label="Minutes per game" disabled="@(Settings.SelectedTimeControl != TimeControlMode.TimePerGame)"
+               @bind="Settings.GameTimeMinutes" @bind:event="oninput" />
+        <span>@Settings.GameTimeMinutes minutes</span>
+    </fieldset>
+
+    <fieldset class="settings" style="margin-bottom: 1rem;">
+        <legend>Multi-Threading &amp; Performance</legend>
+        <label style="font-weight: normal;">
+            <input type="checkbox" @bind="Settings.MultiThreadingEnabled" />
+            Enable Multi-Threading (Lazy SMP)
+        </label>
+        <div style="margin-top: 0.5rem;">
+            <label style="margin-top: 0;">Search Threads:</label>
+            <select class="dialog-text" style="margin: 0.25rem 0;" @bind="Settings.ThreadCount" disabled="@(!Settings.MultiThreadingEnabled)">
+                <option value="0">Auto (4 threads)</option>
+                <option value="1">1 thread (Single-threaded)</option>
+                <option value="2">2 threads</option>
+                <option value="3">3 threads</option>
+                <option value="4">4 threads</option>
+                <option value="5">5 threads</option>
+                <option value="6">6 threads</option>
+                <option value="7">7 threads</option>
+                <option value="8">8 threads</option>
+            </select>
+        </div>
+        <div style="font-size: 0.75rem; color: #64748B; margin-top: 4px;">
+            Uses WebAssembly pthreads with a shared lock-free transposition table. Automatically falls back to single-threaded search if threading headers are unavailable.
+        </div>
+    </fieldset>
+
+    <fieldset class="settings">
+        <legend>Carbon Opening Book &amp; Transposition Table</legend>
+        <label style="font-weight: normal;">
+            <input type="checkbox" @bind="Settings.UseOpeningBook" />
+            Carbon Opening Book (67 symmetry patterns)
+        </label>
+        <div style="margin-top: 0.75rem;">
+            <label style="margin-top: 0;">Transposition Table Capacity:</label>
+            <select class="dialog-text" style="margin: 0.25rem 0;" @bind="Settings.TranspositionTableEntries">
+                <option value="65536">65,536 entries (1 MB)</option>
+                <option value="262144">262,144 entries (4 MB)</option>
+                <option value="1048576">1,048,576 entries (16 MB) - Default</option>
+                <option value="4194304">4,194,304 entries (64 MB)</option>
+                <option value="16777216">16,777,216 entries (256 MB)</option>
+            </select>
+        </div>
+    </fieldset>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public SettingsViewModel Settings { get; set; } = default!;
+
+    /// <summary>The form as a dialog body; as a component it re-renders itself while the user edits it.</summary>
+    public static RenderFragment For(SettingsViewModel settings) => builder =>
+    {
+        builder.OpenComponent<SettingsForm>(0);
+        builder.AddComponentParameter(1, nameof(Settings), settings);
+        builder.CloseComponent();
+    };
+}

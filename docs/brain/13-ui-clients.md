@@ -116,7 +116,8 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 |---|---|---|---|
 | `MainWindow.xaml` | `Gomoku.Wpf` | WPF XAML / DirectX | Hardware-accelerated desktop view |
 | `Board.razor` | `Gomoku.Web` | Blazor WASM / SVG | Interactive web game board component |
-| `DialogHost.razor` | `Gomoku.Web` | Blazor Components | Modal settings, new game, and about dialogs |
+| `DialogHost.razor` | GameShell | Blazor Components | Modal new game, timeout and about dialogs, shared by the four games |
+| `SettingsForm.razor` | `Gomoku.Web` | Blazor Components | The Settings form, shown in the dialog host |
 | `Docs.razor` | `Gomoku.Web` | Blazor route | The `/docs` pages, shown by GameShell's `DocsViewer` |
 | `BrainDocs.cs` | GameShell | C# Service | Markdown loader, URL rewriter, and chapter parser |
 
@@ -128,7 +129,8 @@ The web application hosts the entire `docs/brain` repository directly at `/docs`
 |---|---|---|
 | [MainWindow.xaml](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Wpf/MainWindow.xaml) | `MainWindow` | WPF primary desktop user interface and canvas bindings |
 | [Board.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/Board.razor) | `Board` | Scalable SVG board with wood gradients, stones, and star points |
-| [DialogHost.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/DialogHost.razor) | `DialogHost` | Modal dialog manager for game settings, mid-game confirmations, and timeout continuation |
+| [DialogHost.razor](https://github.com/cjp-dev/GameShell/blob/main/src/GameShell/Dialogs/DialogHost.razor) | `DialogHost` | Shared modal dialog manager (GameShell) for mid-game confirmations, timeout continuation and the About box |
+| [SettingsForm.razor](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/Components/SettingsForm.razor) | `SettingsForm` | The game settings form, shown in the dialog host |
 | [EngineWorker.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web.Engine/EngineWorker.cs) | `EngineWorker` | Dedicated multithreaded WASM engine export host managing Deputy-Thread Lazy SMP and progress streaming |
 | [engine-client.js](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/wwwroot/js/engine-client.js) | `engine-client.js` | Page-side orchestrator managing Window-hosted threaded engine and single-threaded worker fallback |
 | [engine-worker.js](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Web/wwwroot/js/engine-worker.js) | `engine-worker.js` | Single-threaded Dedicated Web Worker fallback when cross-origin isolation is unavailable |
