@@ -81,6 +81,7 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _isGameModified;
 
     private bool _hasHumanContinuedOnTime;
+    private volatile bool _isTimeoutPrompting;
     private readonly Dictionary<int, (TimeSpan Black, TimeSpan White)> _timeAtPly = [];
 
     public bool IsStatusModified => IsVsComputer && IsGameModified;
@@ -94,13 +95,15 @@ public sealed partial class MainViewModel : ObservableObject
 
     public string BlackPlayerLabel => Settings.Mode switch
     {
-        GameMode.AiVsHuman => "Computer",
+        GameMode.AiVsHuman or GameMode.AiVsAi => "Computer",
+        GameMode.HumanVsHuman => "Player 1",
         _ => "Human"
     };
 
     public string WhitePlayerLabel => Settings.Mode switch
     {
         GameMode.HumanVsAi or GameMode.AiVsAi => "Computer",
+        GameMode.HumanVsHuman => "Player 2",
         _ => "Human"
     };
 
@@ -423,7 +426,9 @@ public sealed partial class MainViewModel : ObservableObject
                     long now = Environment.TickCount64;
                     long elapsedMs = now - _lastClockTickMs;
                     _lastClockTickMs = now;
-                    if (elapsedMs <= 0) continue;
+
+                    // The clocks start with the first move and pause while the timeout dialog is open.
+                    if (elapsedMs <= 0 || _isTimeoutPrompting || Session.MoveHistory.Count == 0) continue;
 
                     if (SideToMove == PieceColor.Black)
                     {
@@ -437,8 +442,8 @@ public sealed partial class MainViewModel : ObservableObject
                             if (next <= TimeSpan.Zero)
                             {
                                 BlackRemainingTime = TimeSpan.Zero;
+                                // Keep the loop running: if the human continues, the computer's clock must still tick.
                                 _ = HandleTimeoutAsync(PieceColor.Black);
-                                if (!_hasHumanContinuedOnTime) break;
                             }
                             else
                             {
@@ -459,7 +464,6 @@ public sealed partial class MainViewModel : ObservableObject
                             {
                                 WhiteRemainingTime = TimeSpan.Zero;
                                 _ = HandleTimeoutAsync(PieceColor.White);
-                                if (!_hasHumanContinuedOnTime) break;
                             }
                             else
                             {
@@ -497,9 +501,20 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (IsVsComputer && IsHumanPlayer(timedOutPlayer) && !_hasHumanContinuedOnTime)
         {
-            bool continuePlaying = await _dialogService.ShowConfirmationAsync(
-                "Time Expired",
-                "You ran out of time!\n\nDo you want to continue playing?");
+            if (_isTimeoutPrompting) return;
+
+            bool continuePlaying;
+            _isTimeoutPrompting = true;
+            try
+            {
+                continuePlaying = await _dialogService.ShowConfirmationAsync(
+                    "Time Expired",
+                    "You ran out of time!\n\nDo you want to continue playing?");
+            }
+            finally
+            {
+                _isTimeoutPrompting = false;
+            }
 
             if (continuePlaying)
             {

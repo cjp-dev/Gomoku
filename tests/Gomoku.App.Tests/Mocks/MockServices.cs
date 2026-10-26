@@ -7,6 +7,9 @@ public sealed class MockDialogService : IDialogService
 {
     public List<string> MessagesShown { get; } = [];
     public bool ConfirmationResult { get; set; } = true;
+
+    /// <summary>When set, confirmations answer after this delay, like a user clicking in a real dialog.</summary>
+    public TimeSpan ConfirmationDelay { get; set; }
     public object? CustomDialogResult { get; set; }
     public Action<object>? OnShowCustomDialog { get; set; }
 
@@ -16,9 +19,13 @@ public sealed class MockDialogService : IDialogService
         return Task.CompletedTask;
     }
 
-    public Task<bool> ShowConfirmationAsync(string title, string message, string confirmText = "Yes", string cancelText = "No")
+    public async Task<bool> ShowConfirmationAsync(string title, string message, string confirmText = "Yes", string cancelText = "No")
     {
-        return Task.FromResult(ConfirmationResult);
+        if (ConfirmationDelay > TimeSpan.Zero)
+        {
+            await Task.Delay(ConfirmationDelay);
+        }
+        return ConfirmationResult;
     }
 
     public Task<T?> ShowCustomDialogAsync<T>(object viewModel)

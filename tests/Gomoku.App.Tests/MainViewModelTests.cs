@@ -461,6 +461,76 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public async Task TimeoutContinuation_ComputerCanStillLoseOnTime()
+    {
+        GameSettings settings = new()
+        {
+            BoardSize = BoardSize.Size15x15,
+            Mode = GameMode.HumanVsAi,
+            TimeControl = TimeControlMode.TimePerGame,
+            GameTimeMinutes = 5
+        };
+        MainViewModel vm = new(_dialog, _file, _sound, settings, new ScriptedEngineHost(instantReplies: 1));
+        _dialog.ConfirmationResult = true; // Continue after the human's flag falls
+        _dialog.ConfirmationDelay = TimeSpan.FromMilliseconds(300); // Answered later, as in the browser
+
+        vm.Intersections.First(i => i.X == 7 && i.Y == 7).ClickCommand.Execute(null);
+        (await WaitUntilAsync(() => vm.MoveCount == 2 && !vm.IsThinking)).Should().BeTrue("the computer replies instantly");
+
+        // The human's flag falls via the clock loop, and the human chooses to continue.
+        vm.BlackRemainingTime = TimeSpan.FromMilliseconds(100);
+        (await WaitUntilAsync(() => vm.IsGameModified)).Should().BeTrue("the timeout dialog was answered with Yes");
+
+        // Now the computer thinks forever; its clock must still run out.
+        vm.Intersections.First(i => i.Piece == PieceColor.Empty).ClickCommand.Execute(null);
+        (await WaitUntilAsync(() => vm.IsThinking)).Should().BeTrue();
+        vm.WhiteRemainingTime = TimeSpan.FromMilliseconds(100);
+
+        (await WaitUntilAsync(() => vm.GameStatus == GameStatus.BlackWon)).Should().BeTrue("the computer ran out of time");
+    }
+
+    [Fact]
+    public async Task Clocks_DoNotTickBeforeTheFirstMove()
+    {
+        GameSettings settings = new()
+        {
+            BoardSize = BoardSize.Size15x15,
+            Mode = GameMode.HumanVsHuman,
+            TimeControl = TimeControlMode.TimePerGame,
+            GameTimeMinutes = 5
+        };
+        MainViewModel vm = new(_dialog, _file, _sound, settings);
+
+        await Task.Delay(700);
+
+        vm.BlackRemainingTime.Should().Be(TimeSpan.FromMinutes(5));
+    }
+
+    [Theory]
+    [InlineData(GameMode.HumanVsAi, "Human", "Computer")]
+    [InlineData(GameMode.AiVsHuman, "Computer", "Human")]
+    [InlineData(GameMode.HumanVsHuman, "Player 1", "Player 2")]
+    public void PlayerLabels_FollowTheGameMode(GameMode mode, string black, string white)
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = mode };
+        MainViewModel vm = new(_dialog, _file, _sound, settings, new ScriptedEngineHost(instantReplies: 0));
+
+        vm.BlackPlayerLabel.Should().Be(black);
+        vm.WhitePlayerLabel.Should().Be(white);
+    }
+
+    private static async Task<bool> WaitUntilAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition()) return true;
+            await Task.Delay(25);
+        }
+        return condition();
+    }
+
+    [Fact]
     public async Task NewGameSafeguard_WhenGameInProgressAndCancelled_ShouldNotReset()
     {
         GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsHuman };
