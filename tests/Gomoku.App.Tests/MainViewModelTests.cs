@@ -513,6 +513,46 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public async Task AiTurn_InstantMove_WaitsForTheDelay()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsAi };
+        MainViewModel vm = new(_dialog, _file, _sound, settings, new DelayedEngineHost(0)) { AiDelayMs = 400 };
+
+        vm.Intersections.First(i => i.X == 7 && i.Y == 7).ClickCommand.Execute(null);
+        await Task.Delay(150);
+        vm.MoveCount.Should().Be(1);
+
+        (await WaitUntilAsync(() => vm.MoveCount == 2 && !vm.IsThinking)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AiTurn_SlowMove_IsPlayedWithoutTheDelay()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsAi };
+        MainViewModel vm = new(_dialog, _file, _sound, settings, new DelayedEngineHost(1200)) { AiDelayMs = 1000 };
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        vm.Intersections.First(i => i.X == 7 && i.Y == 7).ClickCommand.Execute(null);
+
+        (await WaitUntilAsync(() => vm.MoveCount == 2 && !vm.IsThinking)).Should().BeTrue();
+        clock.ElapsedMilliseconds.Should().BeLessThan(1900, "the search took longer than the delay, so no delay is added");
+    }
+
+    [Fact]
+    public async Task AiTurn_MoveNow_SkipsTheDelay()
+    {
+        GameSettings settings = new() { BoardSize = BoardSize.Size15x15, Mode = GameMode.HumanVsAi };
+        MainViewModel vm = new(_dialog, _file, _sound, settings, new DelayedEngineHost(0)) { AiDelayMs = 10_000 };
+
+        vm.Intersections.First(i => i.X == 7 && i.Y == 7).ClickCommand.Execute(null);
+        await Task.Delay(100);
+        vm.IsThinking.Should().BeTrue();
+
+        vm.MoveNowCommand.Execute(null);
+        (await WaitUntilAsync(() => vm.MoveCount == 2 && !vm.IsThinking, 2000)).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Clocks_DoNotTickBeforeTheFirstMove()
     {
         GameSettings settings = new()

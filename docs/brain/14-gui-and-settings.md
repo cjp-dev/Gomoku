@@ -304,7 +304,10 @@ When enabled via **Options $\rightarrow$ Show Analysis** (`Ctrl+A`), the telemet
 | **Time** | Elapsed thinking duration in standard stopwatch format (`m\:ss\.f`, e.g. `0:00.0` or `0:01.9`). |
 
 ### Instant Opening Moves
-When the engine plays an instant move—such as placing the initial center stone on Move 1 or matching a recognized opening book line—it reports `StatusMessage = "Center opening"` or `"Opening book"` and plays the stone at once; the Analysis panel shows `Opening` or `Book` as the depth.
+When the engine plays an instant move—such as placing the initial center stone on Move 1 or matching a recognized opening book line—it reports `StatusMessage = "Center opening"` or `"Opening book"`; the Analysis panel shows `Opening` or `Book` as the depth.
+
+### Natural Feel Delay ($250\text{ ms}$)
+Instant moves, such as the center stone and opening-book moves, would otherwise appear the moment the human has moved. `MainViewModel` therefore plays a computer move no sooner than $250\text{ ms}$ (`AiDelayMs`) after the search started: a search that took $40\text{ ms}$ waits another $210\text{ ms}$, while a search that took longer than $250\text{ ms}$ is played at once. **Move Now** skips the wait. The Analysis panel shows the time of the search itself.
 
 ### WebAssembly Multithreaded Engine & UI Responsiveness
 In the browser client (`Gomoku.Web`), execution utilizes a modern dual-runtime architecture:

@@ -28,6 +28,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     public IEngineHost EngineHost => _engineHost;
 
+    /// <summary>
+    /// Minimum time in milliseconds before the computer plays, so instant moves (book moves, forced moves) feel natural.
+    /// Searches that take longer are not delayed. Tests can set it to 0.
+    /// </summary>
+    public int AiDelayMs { get; set; } = 250;
+
     public Func<GameSettings, IPlayer>? AiPlayerFactory
     {
         get => _localEngineHost.PlayerFactory;
@@ -624,6 +630,27 @@ public sealed partial class MainViewModel : ObservableObject
 
     private int _searchId;
 
+    // Instant moves (book moves, forced moves) wait until AiDelayMs has passed since the search started.
+    // Moves that took longer are played at once, and Move Now skips the wait.
+    private async Task WaitForNaturalDelayAsync(TimeSpan searchTime, CancellationToken cancel, CancellationToken moveNow)
+    {
+        int remainingMs = AiDelayMs - (int)searchTime.TotalMilliseconds;
+        if (remainingMs <= 0 || moveNow.IsCancellationRequested)
+        {
+            return;
+        }
+
+        using var delay = CancellationTokenSource.CreateLinkedTokenSource(cancel, moveNow);
+        try
+        {
+            await Task.Delay(remainingMs, delay.Token);
+        }
+        catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
+        {
+            // Move Now: play the move at once
+        }
+    }
+
     private async Task RunAiTurnAsync()
     {
         if (IsThinking || GameStatus.IsGameOver()) return;
@@ -656,6 +683,7 @@ public sealed partial class MainViewModel : ObservableObject
                 }
             });
 
+            long searchStart = Stopwatch.GetTimestamp();
             var (bestMove, lastAnalysis) = await _engineHost.ChooseMoveAsync(
                 Session.CurrentState,
                 limits,
@@ -671,6 +699,9 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 Analysis.Update(lastAnalysis);
             }
+
+            await WaitForNaturalDelayAsync(Stopwatch.GetElapsedTime(searchStart), aiCts.Token, moveNowCts.Token);
+            if (searchId != _searchId || aiCts.IsCancellationRequested || GameStatus.IsGameOver()) return;
 
             if (Session.ApplyMove(bestMove))
             {
