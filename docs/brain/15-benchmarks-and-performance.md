@@ -8,12 +8,13 @@ Gomoku engines require extreme computational throughput: evaluating deep tactica
 
 Gomoku .NET achieves performance parity with native C++ engines through careful systems-level engineering:
 - **Zero Heap Allocations on Hot Paths:** Candidate generation uses `stackalloc Cand[MaxCand]` (`MaxCand = 256`), bitboards operate on primitives, and move undo/redo operates via pre-allocated structures.
-- **Incremental Pattern Bitboard Maintenance:** `MakeMove()` and `UndoMove()` update 4-directional ray bitmasks and recalculate threat tensors in strictly $\mathcal{O}(1)$ time.
+- **Incremental Pattern Bitboard Maintenance:** `MakeMove()` updates 4-directional ray bitmasks, threat tensors and the stone score in strictly $\mathcal{O}(1)$ time; `UndoMove()` copies the 33 changed cells back from an undo journal, and `Evaluate()` is a single subtraction.
 - **Empirical Throughput:**
   - `PatternBoard` make/undo throughput: **$1,340,000+\text{ ops/sec}$**.
   - Transposition Table probe/store throughput: **$167,000,000+\text{ ops/sec}$**.
-  - Single-threaded search throughput: **$538,000+\text{ NPS}$** (.NET 10 desktop & Web Worker).
-  - Multi-threaded Lazy SMP throughput: **$4,213,000+\text{ NPS}$** ($11.77\times$ speedup on 8 cores).
+  - Single-threaded search throughput: **$1.1\text{--}1.3\text{M NPS}$** on the benchmark suite (Linux VM, i7-12850HX; $\approx 0.8\text{M}$ before the 2026 optimisations, $538,000+$ in older desktop measurements).
+  - Browser (WASM AOT, 4 threads): **$4.0\text{M NPS}$**; first reply after H8 to depth 12 in $3.2\text{ s}$ (was $29.0\text{ s}$).
+  - Multi-threaded Lazy SMP throughput: **$4,213,000+\text{ NPS}$** ($11.77\times$ the baseline NPS on 8 cores, older measurement); time to depth scales much less (see below).
 
 ---
 
@@ -30,13 +31,95 @@ dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -
 
 # Run search efficiency and branching factor reduction benchmark:
 dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --efficiency [--depth 10]
+
+# Fixed-depth position suite (38 positions, 1 thread, fresh table, median of N runs):
+dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --suite [--runs 5] [--threads 1] [--options "lmr=0"] [--depth-offset 0] [--json run.json] [--stats]
+
+# Compare two suite runs position by position:
+dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --compare a.json b.json
+
+# Paired A/B match between two option sets in the same build:
+dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --ab --a "lmr=1" --b "lmr=0" --games 400 --time 0.2 [--time-b 0.2] --threads 1 [--parallel 8] [--variant Freestyle]
+
+# Check that the 64 recorded forced wins are still found (optionally with other options):
+dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --tactical [--options "pvs=1"]
+
+# Regenerate the suite, the signature and the forced wins / only the signature:
+dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --gen-suite [--target 1.0] [--signature 0.03]
+dotnet run --project tools/Gomoku.Benchmark/Gomoku.Benchmark.csproj -c Release -- --update-signature
 ```
+
+---
+
+## Engine test harness: suite, signature and A/B matches
+
+The 2026 optimisation series was measured with a harness that separates two questions: *is a change only faster* (it must search exactly the same tree), and *does a change that alters the search play better*.
+
+```mermaid
+flowchart LR
+    Gen["--gen-suite<br/>self-play in Freestyle, Exact5, Renju"] --> Suite["suite-positions.txt<br/>38 positions, depth per position"]
+    Gen --> Sig["engine-signature.txt<br/>best move, score, nodes"]
+    Gen --> Tac["tactical-positions.txt<br/>64 forced wins"]
+    Suite --> Run["--suite / --compare<br/>nodes, time, NPS"]
+    Sig --> Tests["EngineSignatureTests<br/>(xUnit)"]
+    Tac --> Tests
+    Tac --> TacCli["--tactical --options X"]
+    Opts["CarbonSearchOptions<br/>name=1,other=0"] --> Run
+    Opts --> AB["--ab --a X --b Y<br/>paired match, 95% CI, Elo"]
+```
+
+- **`CarbonSearchOptions`** ([CarbonSearchOptions.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonSearchOptions.cs)): switches for search features (`Pvs`, `Lmr`, `LmrFromMove`, `LmrMinDepth`, `LmrDeepFromMove`, `CarbonCandidates`), so a feature can be compared on and off in one build. `Parse` reads strings such as `"lmr=0,carbonCandidates=1"` (property names, case-insensitive; unknown names throw); `Default` is what the game plays with.
+- **`CollectStats` / `SearchStats`** ([SearchStats.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchStats.cs)): when `CarbonBitboardAiPlayer.CollectStats` is set, worker 0 counts interior nodes, leaves, quick-win calls and hits, TT probes, hits and cutoffs, beta cutoffs and first-move cutoffs, and the candidate count per node (`--suite --stats` prints them). Off by default.
+- **`--gen-suite`** plays deterministic self-play games (fixed depth 4, no book) from canonical openings in all three variants, samples positions at plies 8, 14, 20 and 26 (skipping positions that are already decided), and gives each the deepest depth that finishes within the target time (default $1.0\text{ s}$). It writes [suite-positions.txt](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/suite-positions.txt) (38 positions), the signature at a shallower depth (target $0.03\text{ s}$) to [engine-signature.txt](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/TestData/engine-signature.txt), and the forced wins (winner to move 2 to 5 own moves before the end, at the smallest depth up to 10 that reports the win) to [tactical-positions.txt](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/TestData/tactical-positions.txt) (64 positions).
+- **`--suite`** first runs a shallow warm-up pass, then searches every position `--runs` times (default 5) on a fresh, pre-cleared table, reports the median time and fails if a 1-thread search is not deterministic. `--depth-offset` shifts all depths, `--only` filters by name, `--json` saves the run for **`--compare`**, which prints the node and time ratios per position and whether the result (nodes, best move, score, depth) is identical.
+- **`--ab`** plays a paired match between two option sets: openings are the 26 canonical three-stone openings, each extended by a fourth stone next to the first three; every opening is played twice with colours swapped, games run in parallel (`--time-b` can give B a different time per move), and the result is reported as a score with a 95% confidence interval and the Elo difference with its interval.
+- **[EngineSignatureTests](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/EngineSignatureTests.cs)** checks, at a fixed depth with 1 thread, a fresh table and no book, that each of the 38 signature positions gives the recorded best move, score and node count, and that each of the 64 forced wins is still found. A pure speed-up keeps all three; a deliberate change in the search updates the signature with `--update-signature`.
+- `GOMOKU_REPO` points a copied build of the benchmark at the repository (to find the suite and test data).
+
+---
+
+## Engine optimisation results (2026)
+
+Measured on a Linux VM (i7-12850HX), suite of 38 positions at fixed depth, 1 thread. "Suite time" is the stored run in [tools/Gomoku.Benchmark/results](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/results); "change" is the commit's interleaved comparison against the previous step. Steps that are marked "same search" kept the signature (38/38) unchanged.
+
+| Step | Change | Suite nodes | Suite time | NPS | Change | Match (paired, $0.2\text{ s}$/move) |
+|---|---|--:|--:|--:|--:|---|
+| Baseline | – | 14,882,266 | 18.7 s | 0.79M | – | – |
+| A5 | `CandSort`: introsort with the comparison inlined | 14,882,266 | 18.6 s | 0.80M | $-3.0\%$ time | same search |
+| A4a | Undo journal (33 cells + `NSt` + `StoneScore`) | 14,882,266 | 14.9 s | 1.00M | $-19.5\%$ time | same search |
+| A2 | Incremental evaluation (`StoneScore`, $\mathcal{O}(1)$ `Evaluate`) | 14,882,266 | 13.5 s | 1.10M | $-7.4\%$ time | same search |
+| A4b | Lean make (unrolled directions, fewer `NSt` writes) | 14,882,266 | 11.4 s | 1.31M | $-15.9\%$ time | same search |
+| A1 | No shared TT hit/store counters | 14,882,266 | 11.3 s | 1.32M | within noise | same search |
+| B6 | Carbon's own candidate set (`CarbonCandidates`) | 12,751,482 | 10.4 s | 1.23M | $-14.3\%$ nodes, $-10.3\%$ time | $+33$ Elo $[+9, +59]$ (1T, 730 games); $+23$ $[-16, +63]$ (8T, 300) |
+| B4 | Late move reductions (`Lmr`) | 6,493,648 | 5.7 s | 1.14M | $-49.1\%$ nodes, $-45.3\%$ time | $+48$ Elo $[+24, +74]$ (1T, 730 games); $+30$ $[-9, +70]$ (8T, 300); $+12$ at $1\text{ s}$/move |
+
+In total the suite went from about $18.9\text{ s}$ (stored baseline runs: $18.7$ and $19.4\text{ s}$) to $5.7\text{ s}$ and from $14.9\text{M}$ to $6.5\text{M}$ nodes, while single-thread NPS rose from about $0.8\text{M}$ to $1.1\text{--}1.3\text{M}$ (it drops a little with B6 and B4, which change the tree).
+
+**Browser** (Blazor WebAssembly AOT, threaded engine, first reply after H8, fixed depth 12):
+
+| Threads | Before | After |
+|---|--:|--:|
+| 1 | $55.1\text{ s}$ ($536,000\text{ NPS}$) | $4.3\text{ s}$ ($1,150,000\text{ NPS}$) |
+| 4 | $29.0\text{ s}$ ($1,890,000\text{ NPS}$) | $3.2\text{ s}$ ($4,000,000\text{ NPS}$) |
+
+**Lazy SMP scales poorly in time to depth.** NPS grows with the threads, but on the suite 4 and 8 threads reach the same depths only $\approx 1.6\times$ faster than 1 thread (and $4.3\text{ s} \to 3.2\text{ s}$ in the browser). The extra nodes mostly duplicate work.
+
+**Tried and rejected:**
+
+| Experiment | Result |
+|---|---|
+| Principal Variation Search (`Pvs`) | $-3.4\%$ nodes, match $50.0\%$, $0$ Elo $[-25, +25]$; with LMR only $-17\%$ nodes against $-49\%$ for LMR alone. Kept as an option, off. |
+| History heuristic as a tie-break | $-13.9\%$ nodes but only $-6.4\%$ time; matches $+16$ $[-9, +41]$ (1T) and $+7$ $[-32, +46]$ (8T). |
+| Shared depth for the Lazy SMP helpers | No gain in time to depth; 8-thread match $46.7\%$, $-23$ Elo $[-63, +16]$. |
+| `LmrMinDepth = 2` | $-14.8\%$ nodes; match $50.8\% \pm 3.6\%$, $+5$ Elo $[-20, +30]$. |
+| `LmrFromMove = 2`, `LmrDeepFromMove = 8` | Under $3\%$ fewer nodes. |
+| 4-way bucket transposition table | Neutral in matches; the table stays direct-mapped. |
 
 ---
 
 ## Empirical benchmark results
 
-The following measurements were captured on a modern 64-bit multi-core machine running .NET 10 (Release configuration):
+The following older measurements were captured on a modern 64-bit multi-core machine running .NET 10 (Release configuration), before the 2026 optimisation series above:
 
 ### 1. Board Representation Throughput (Make/Undo Speed)
 
@@ -45,7 +128,7 @@ Empirical make/undo measurements captured via `dotnet run --project tools/Gomoku
 | Board Implementation | Total Ops Tested | Elapsed Time | Throughput (ops/sec) | Speedup vs Baseline |
 |---|:---:|:---:|:---:|:---:|
 | **Classical `PatternBoard` (2D array + 24 neighbor writes)** | $600,000$ | $2,056\text{ ms}$ | $291,796\text{ ops/sec}$ | $1.00\times$ |
-| **`BitboardPatternBoard` (1D Stride-128 + Chebyshev Dilation)** | $600,000$ | $823\text{ ms}$ | **$728,166\text{ ops/sec}$** | **$2.50\times$ faster** |
+| **`BitboardPatternBoard` (1D Stride-128 + bitboard candidates, before the journal undo)** | $600,000$ | $823\text{ ms}$ | **$728,166\text{ ops/sec}$** | **$2.50\times$ faster** |
 | **`Bitboard15` (16-bit SIMD registers)** | $600,000$ | $33\text{ ms}$ | **$17,927,626\text{ ops/sec}$** | **$61.4\times$ faster** |
 
 *Note: All implementations maintain 100% board consistency across arbitrary make/undo sequences.*
@@ -87,7 +170,7 @@ xychart-beta
     bar [169, 341, 168, 63]
 ```
 
-At $4\text{ MiB}$ ($262,144$ entries), the entire table fits inside the CPU L3 cache, delivering peak throughput of **$341\text{ million}$ operations per second** ($2.9\text{ ns}$ per probe). At $64\text{ MiB}$, main RAM memory bus access limits throughput to $62.6\text{ M ops/sec}$.
+*These figures are for the reference `TranspositionTable` (which counts hits and stores); the lock-free table has no counters.* At $4\text{ MiB}$ ($262,144$ entries), the entire table fits inside the CPU L3 cache, delivering peak throughput of **$341\text{ million}$ operations per second** ($2.9\text{ ns}$ per probe). At $64\text{ MiB}$, main RAM memory bus access limits throughput to $62.6\text{ M ops/sec}$.
 
 ---
 
@@ -156,7 +239,7 @@ xychart-beta
 
 ### 6. Browser WebAssembly Performance
 
-In the client-side Blazor WebAssembly app (`Gomoku.Web`), the engine utilizes a dual-runtime architecture: a single-threaded Blazor UI runtime coexists with a dedicated Ahead-of-Time (AOT) compiled multithreaded engine runtime (`Gomoku.Web.Engine`) powered by 16 pre-warmed WebAssembly pthreads:
+In the client-side Blazor WebAssembly app (`Gomoku.Web`), the engine utilizes a dual-runtime architecture: a single-threaded Blazor UI runtime coexists with a dedicated Ahead-of-Time (AOT) compiled multithreaded engine runtime (`Gomoku.Web.Engine`) powered by 16 pre-warmed WebAssembly pthreads (older measurements; for the current numbers see *Engine optimisation results (2026)* above):
 
 | Engine Build & Configuration | Search Throughput (NPS) | Scaling vs 1T | UI Blocked? | Cancellation Latency |
 |---|---|---|---|---|
@@ -171,16 +254,16 @@ In the client-side Blazor WebAssembly app (`Gomoku.Web`), the engine utilizes a 
 
 ---
 
-### 6. Search Efficiency & Theoretical Branching Factor Reduction
+### 7. Search Efficiency & Theoretical Branching Factor Reduction
 
 Combinatorial game-tree search in Gomoku faces an explosive state space ($B_{\text{legal}} = 225 - m \approx 210\text{ to }222$ legal moves on a $15 \times 15$ board). An unpruned brute-force minimax tree of depth 10 would require evaluating approximately $\sim 10^{23}$ nodes, taking over **5 to 8 billion years** of continuous execution on modern hardware.
 
-To quantify how effectively `CarbonBitboardAiPlayer` prunes this space, the benchmark suite evaluates search efficiency across four canonical game phases using:
+To quantify how effectively `CarbonBitboardAiPlayer` prunes this space, the benchmark suite evaluates search efficiency across four canonical game phases (older measurement, taken before Carbon's candidate set and late move reductions, which both cut the node counts further) using:
 CLI: `dotnet run -c Release --project tools/Gomoku.Benchmark -- --efficiency`
 
 #### The Branching Metric Definitions:
 - **Raw Legal Branching ($B_{\text{legal}}$):** All unoccupied squares on board ($225 - m$). Theoretical unpruned nodes: $N_{\text{legal}} = B_{\text{legal}}^d$.
-- **Geometric Candidate Branching ($B_{\text{cand}}$):** Empty squares within Chebyshev distance $R \le 2$ ($5 \times 5$ square) of any placed stone. Theoretical unpruned nodes: $N_{\text{cand}} = B_{\text{cand}}^d$.
+- **Geometric Candidate Branching ($B_{\text{cand}}$):** Empty squares within Chebyshev distance $R \le 2$ ($5 \times 5$ square) of any placed stone (the benchmark's metric; the engine's own candidate set is smaller). Theoretical unpruned nodes: $N_{\text{cand}} = B_{\text{cand}}^d$.
 - **Knuth-Moore Alpha-Beta Theoretical Minimum ($b_{\text{optimal}}$):** Lower bound with optimal move ordering: $b_{\text{optimal}} = \sqrt{B_{\text{cand}}}$.
 - **Engine Actual Effective Branching ($b_{\text{eff}}$):** $b_{\text{eff}} = (N_{\text{actual}})^{1/d}$.
 - **Estimated Unpruned Time ($T_{\text{theory}}$):** $T_{\text{theory}} = N_{\text{theory}} / \text{NPS}_{\text{actual}}$.
@@ -242,7 +325,7 @@ CLI: `dotnet run -c Release --project tools/Gomoku.Benchmark -- --efficiency`
 | **10** | 29,466 | 29 ms | 1,014,257 | **2.80** | $1.67 \times 10^{23}$ | **5.2 Billion yrs** | $9.85 \times 10^{17}$ | **30,800 yrs** |
 
 #### Key Takeaway:
-At depth 10, the engine's effective branching factor contracts to **$2.80\text{ to }4.44$**, beating even the theoretical optimal Knuth-Moore $\alpha$-$\beta$ bound ($\sqrt{B_{\text{cand}}} \approx 6.0\text{ to }7.9$). Transposition table hits, killer/history ordering, and threat cuts reduce what would be **billions of years** of computation into less than **$2.8\text{ seconds}$**.
+At depth 10, the engine's effective branching factor contracts to **$2.80\text{ to }4.44$**, beating even the theoretical optimal Knuth-Moore $\alpha$-$\beta$ bound ($\sqrt{B_{\text{cand}}} \approx 6.0\text{ to }7.9$). Transposition table hits, static `Prior` move ordering with the hash move first (there are no killer moves or history heuristic), and threat cuts reduce what would be **billions of years** of computation into less than **$2.8\text{ seconds}$**.
 
 ---
 
@@ -263,7 +346,7 @@ Total Heap Bytes Allocated: 0 bytes
 
 ### How Zero Heap Allocation is Achieved:
 1. **`Span<Cand> cnd = stackalloc Cand[MaxCand]`:** The candidate move array is allocated on the execution stack. Stack frames are reclaimed instantly upon function return.
-2. **Pre-allocated Structures in `BitboardPatternBoard`:** `RemPlacedPoints[2048]`, `_remMove[2048]`, `Occupied[31]`, and `Cells[Stride * (MaxHeight + 8)]` are allocated once when the board is initialized and reused for the lifetime of the match.
+2. **Pre-allocated Structures in `BitboardPatternBoard`:** `RemPlacedPoints`, `_remMove` (each $2,048 + 64$ entries), `Occupied[40]`, `Cells[Stride * (MaxHeight + 8)]`, and the undo journal (64 slots of 33 cells, doubled only when more moves than that are on the journal) are allocated once and reused for the lifetime of the board.
 3. **Value-Type Structs:** `Point`, `Cand`, `TranspositionEntry`, and `BoardSize` are immutable or sequential `struct` value types passed by value or `ref`.
 
 ---
@@ -300,16 +383,23 @@ flowchart LR
 |---|---|---|
 | [Program.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/Program.cs) | `Gomoku.Benchmark` | CLI performance benchmark runner and tournament reporter |
 | [SearchEfficiencyBenchmark.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/SearchEfficiencyBenchmark.cs) | `SearchEfficiencyBenchmark` | Measures branching factor reduction ($b_{\text{eff}}$) against theoretical bounds |
-| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-throughput flat 1D pattern board with Chebyshev bitboard masks |
+| [SuiteBenchmark.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/SuiteBenchmark.cs) | `SuiteBenchmark` | `--gen-suite`, `--suite`, `--compare`, `--update-signature`, `--tactical` |
+| [AbMatch.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/AbMatch.cs) | `AbMatch` | `--ab`: paired, parallel match between two `CarbonSearchOptions` sets with 95% CI and Elo |
+| [CarbonSearchOptions.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonSearchOptions.cs) | `CarbonSearchOptions` | Search feature switches and their string parser |
+| [SearchStats.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchStats.cs) | `SearchStats` | Per-search counters of worker 0 (`CollectStats`) |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-throughput flat 1D pattern board with undo journal and incremental stone score |
 | [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `CarbonBitboardAiPlayer` | Primary Lazy SMP multi-threaded tournament engine |
-| [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | `LockFreeTranspositionTable` | 16-byte lockless TT with depth-protected replacement |
+| [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | `LockFreeTranspositionTable` | Direct-mapped 16-byte lockless TT with depth-protected replacement |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `MakePaddedMove()` | High-throughput $\mathcal{O}(1)$ ray bitmask mutator |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Reference recursive PVS search loop |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Reference recursive closed-interval alpha-beta search loop |
 
 ---
 
 ## Tests
 
+- [EngineSignatureTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/EngineSignatureTests.cs):
+  - `FixedDepthSearch_GivesTheRecordedMoveScoreAndNodes`: 38 positions, best move, score and node count must match the signature.
+  - `ForcedWin_IsFoundAtTheRecordedDepth`: 64 forced wins must score at least `WinMin`.
 - [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
   - Benchmarks regression checks.
   - Consistency of `PatternBoard` bitboards after 100,000 random make/undo sequences.

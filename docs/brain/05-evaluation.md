@@ -6,45 +6,65 @@
 
 Unlike games such as Chess or Othello where material can be captured or discs flipped, Gomoku is a game of pure placement: placed stones remain permanently on the board until the game concludes. Consequently, evaluation in Gomoku is strictly **structural and geometric**: it measures line continuity, open ends, threat intersections (forks), and tactical tempo. Carbon Gomoku divides evaluation into two complementary tiers:
 1. **Tactical Threat Evaluation (`QuickWinSearch`):** Detects forced victories and defeats, assigning mate scores in the range $[\text{WinMin}, \text{WinMax}] = [25000, 30000]$.
-2. **Static Positional Leaf Evaluation (`Evaluate`):** At search depth $h=0$, sums the empirical weights of all placed stones across all 4 rays using the precomputed `Config` and `Rank` tables in strictly sub-microsecond time.
+2. **Static Positional Leaf Evaluation (`Evaluate`):** At search depth $h=0$, returns the empirical weights of all placed stones across all 4 rays (precomputed `Config` and `Rank` tables), summed incrementally during make so the evaluation itself is $\mathcal{O}(1)$.
 
 ---
 
 ## Static leaf evaluation (`Evaluate()`)
 
-When minimax search reaches a leaf node ($h = 0$) where no forced mate has been found by `QuickWinSearch`, the static evaluation function computes the positional advantage for the side to move:
+When minimax search reaches a leaf node ($h = 0$) where no forced mate has been found by `QuickWinSearch`, the static evaluation function computes the positional advantage for the side to move. It is Carbon's stone score: for every placed stone, the `Rank` of its pattern in each of the 4 directions, summed per colour. In `CarbonBitboardAiPlayer` the sums are maintained incrementally by the board, so the leaf evaluation is $\mathcal{O}(1)$:
 
 ```csharp
-private int Evaluate(BitboardPatternBoard pb)
+// CarbonBitboardAiPlayer
+private static int Evaluate(BitboardPatternBoard pb) => pb.Evaluate();
+
+// BitboardPatternBoard
+public int Evaluate() => Who == PieceColor.Black ? StoneScore[0] - StoneScore[1] : StoneScore[1] - StoneScore[0];
+```
+
+`StoneScore[2]` is kept up to date in `MakePaddedMove`: the new stone's four directions are added, and whenever a pattern byte of a cell holding a stone changes, the old `Rank` of that direction is subtracted and the new one added:
+
+```csharp
+private static int DirScore(ref Cell c, int k, int a) =>
+    CarbonTables.Rank[CarbonTables.GetConfig(c.GetPattern(k, a), c.GetPattern(k, 1 - a))];
+
+private void ChangePattern(ref Cell c, int k, int player, byte p, bool set)
 {
-    int pBlack = 0, pWhite = 0;
-    int remCount = pb.RemCount;
-
-    for (int i = 0; i < remCount; i++)
+    int a = (int)c.Piece;
+    if (a <= 1) // the cell holds a stone
     {
-        Point pt = pb.RemPlacedPoints[i];
-        ref BitboardPatternBoard.Cell c = ref pb.GetCell(pt.X, pt.Y);
-        int a = (int)c.Piece;
-        if (a is not (0 or 1)) continue;
-
-        int stoneScore = 0;
-        for (int k = 0; k < 4; k++)
-        {
-            byte patMe = c.GetPattern(k, a);
-            byte patOpp = c.GetPattern(k, 1 - a);
-            stoneScore += CarbonTables.Rank[CarbonTables.GetConfig(patMe, patOpp)];
-        }
-
-        if (a == 0) pBlack += stoneScore;
-        else pWhite += stoneScore;
+        StoneScore[a] -= DirScore(ref c, k, a);
+        if (set) c.SetPatternOr(k, player, p); else c.SetPatternXor(k, player, p);
+        StoneScore[a] += DirScore(ref c, k, a);
     }
-
-    return pb.Who == PieceColor.Black ? pBlack - pWhite : pWhite - pBlack;
+    else if (set) c.SetPatternOr(k, player, p);
+    else c.SetPatternXor(k, player, p);
 }
 ```
 
+`UndoMove` restores both sums from the undo journal (see [04](04-pattern-bitboards-and-lookup-tables.md)), and `CheckConsistency()` recounts them from scratch. The value is exactly what the reference loop over the placed stones computes (as in `CarbonAiPlayer.Evaluate()`):
+
+```csharp
+int pBlack = 0, pWhite = 0;
+for (int i = 0; i < pb.RemCount; i++)
+{
+    Point pt = pb.RemPlacedPoints[i];
+    ref BitboardPatternBoard.Cell c = ref pb.GetCell(pt.X, pt.Y);
+    int a = (int)c.Piece;
+    int stoneScore = 0;
+    for (int k = 0; k < 4; k++)
+    {
+        stoneScore += CarbonTables.Rank[CarbonTables.GetConfig(c.GetPattern(k, a), c.GetPattern(k, 1 - a))];
+    }
+    if (a == 0) pBlack += stoneScore; else pWhite += stoneScore;
+}
+return pb.Who == PieceColor.Black ? pBlack - pWhite : pWhite - pBlack;
+```
+
+The incremental evaluation cut the benchmark suite time by $7.4\%$ on top of the journal undo. Without the journal it was $3.4\%$ slower, because the recomputing undo had to update the sums as well.
+
 ### Algorithmic Breakdown:
-1. **Iteration over Placed Stones:** The engine iterates only over placed stones using `RemPlacedPoints[0 .. RemCount - 1]`. On a $15 \times 15$ board on move 12, this inspects only 12 cells instead of looping over all 225 intersections.
+1. **Placed Stones Only:** Only placed stones contribute (`RemPlacedPoints[0 .. RemCount - 1]` in the reference loop). The incremental version touches only the stones whose patterns a move changes, at most the 32 ray neighbours of the played cell.
 2. **4-Ray Evaluation per Stone:** For each placed stone, its 8-bit friendly pattern (`patMe`) and opponent pattern (`patOpp`) are extracted across the 4 axes ($k = 0, 1, 2, 3$).
 3. **Configuration Classification (`Config`):**
    The $256 \times 256 = 65,536$ pattern pairs are mapped by `CarbonTables.Config[patMe, patOpp]` into $107$ canonical geometric equivalence classes (open four, blocked four, open three, broken three, etc.).
@@ -92,7 +112,7 @@ flowchart LR
    if (value <= -WinMin) value++;
    ```
 2. **On Setting Search Window:**
-   To prevent mate scores from falling outside the narrowed null window $[v_A, v_B]$:
+   To prevent mate scores from falling outside the narrowed child window $[v_A, v_B]$:
    ```csharp
    int vA = -beta;
    int vB = -(best.Value + 1);
@@ -124,7 +144,8 @@ If `NSt[who, ThreatB] >= 1` or `NSt[who, ThreatC] >= 1`, `QuickWinSearch` immedi
 |---|---|---|---|
 | `CarbonTables.Rank` | `int[107]` | 428 bytes | Empirical stone scoring weights |
 | `CarbonTables.Config` | `byte[256, 256]` | 64 KiB | Equivalence class mapping for 8-cell ray pairs |
-| `BitboardPatternBoard.RemPlacedPoints`| `Point[2048]` | 16 KiB | Stack of placed stone coordinates for $O(\text{plies})$ leaf evaluation |
+| `BitboardPatternBoard.StoneScore` | `int[2]` | 8 bytes | Running stone score per colour; `Evaluate()` returns their difference |
+| `BitboardPatternBoard.RemPlacedPoints`| `Point[2048+64]` | 16.5 KiB | Stack of placed stone coordinates (used by `CheckConsistency` to recount the score) |
 | `BitboardPatternBoard.NSt` | `int[32]` | 128 bytes | Live flat board threat counts by `(player << 4) \| grade` |
 
 ---
@@ -133,7 +154,8 @@ If `NSt[who, ThreatB] >= 1` or `NSt[who, ThreatC] >= 1`, `QuickWinSearch` immedi
 
 | File | Member / Method | Description |
 |---|---|---|
-| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `Evaluate()` | High-throughput 1D bitboard leaf evaluation using placed stones and `Rank` |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `Evaluate()` | Leaf evaluation; calls `pb.Evaluate()` |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `Evaluate()`, `StoneScore`, `ChangePattern()` | $\mathcal{O}(1)$ evaluation from the incrementally maintained stone score |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Evaluate()` | Static leaf evaluation function using placed stones and `Rank` |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `QuickWinSearch()` | VCF tactical mate solver returning ply-adjusted win scores |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `Rank`, `Config` | Precomputed stone and configuration weight tables |

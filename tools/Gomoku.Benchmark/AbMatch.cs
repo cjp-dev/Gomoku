@@ -19,12 +19,14 @@ public static class AbMatch
         CarbonSearchOptions b = CarbonSearchOptions.Parse(SuiteBenchmark.Arg(args, "--b"));
         int games = int.Parse(SuiteBenchmark.Arg(args, "--games") ?? "400", CultureInfo.InvariantCulture);
         double time = double.Parse(SuiteBenchmark.Arg(args, "--time") ?? "0.2", CultureInfo.InvariantCulture);
+        // --time-b gives B a different time per move, e.g. to stand in for a slower build.
+        double timeB = double.Parse(SuiteBenchmark.Arg(args, "--time-b") ?? time.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
         int threads = int.Parse(SuiteBenchmark.Arg(args, "--threads") ?? "1", CultureInfo.InvariantCulture);
         int parallel = int.Parse(SuiteBenchmark.Arg(args, "--parallel") ?? Math.Max(1, 8 / threads).ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
         GomokuVariant variant = Enum.Parse<GomokuVariant>(SuiteBenchmark.Arg(args, "--variant") ?? "Freestyle");
 
         List<List<Point>> openings = Openings(games / 2);
-        Console.WriteLine($"A: {a}\nB: {b}\n{openings.Count * 2} games, {time:F2} s/move, {threads} thread(s), {parallel} in parallel, {variant}");
+        Console.WriteLine($"A: {a}\nB: {b}\n{openings.Count * 2} games, A {time:F3} s/move, B {timeB:F3} s/move, {threads} thread(s), {parallel} in parallel, {variant}");
 
         int aWins = 0, bWins = 0, draws = 0, done = 0;
         double depthA = 0, depthB = 0;
@@ -35,7 +37,7 @@ public static class AbMatch
         var jobs = openings.SelectMany((o, i) => new[] { (Opening: o, Index: i, AIsBlack: true), (Opening: o, Index: i, AIsBlack: false) });
         await Parallel.ForEachAsync(jobs, new ParallelOptions { MaxDegreeOfParallelism = parallel }, async (job, _) =>
         {
-            var g = await PlayAsync(variant, job.Opening, a, b, job.AIsBlack, time, threads);
+            var g = await PlayAsync(variant, job.Opening, a, b, job.AIsBlack, time, timeB, threads);
             lock (gate)
             {
                 done++;
@@ -75,12 +77,13 @@ public static class AbMatch
 
     private sealed record Game(bool? Winner, double DepthA, double DepthB, long NpsA, long NpsB, int MovesA, int MovesB);
 
-    private static async Task<Game> PlayAsync(GomokuVariant variant, List<Point> opening, CarbonSearchOptions a, CarbonSearchOptions b, bool aIsBlack, double time, int threads)
+    private static async Task<Game> PlayAsync(GomokuVariant variant, List<Point> opening, CarbonSearchOptions a, CarbonSearchOptions b, bool aIsBlack, double time, double timeB, int threads)
     {
         BoardState state = SuiteBenchmark.ToState(variant, opening);
         CarbonBitboardAiPlayer engineA = new(threads) { Options = a };
         CarbonBitboardAiPlayer engineB = new(threads) { Options = b };
-        SearchLimits limits = SearchLimits.TimePerMove(TimeSpan.FromSeconds(time), useOpeningBook: false);
+        SearchLimits limitsA = SearchLimits.TimePerMove(TimeSpan.FromSeconds(time), useOpeningBook: false);
+        SearchLimits limitsB = SearchLimits.TimePerMove(TimeSpan.FromSeconds(timeB), useOpeningBook: false);
 
         double depthA = 0, depthB = 0;
         long npsA = 0, npsB = 0;
@@ -93,7 +96,7 @@ public static class AbMatch
 
             bool aToMove = (state.SideToMove == PieceColor.Black) == aIsBlack;
             CarbonBitboardAiPlayer engine = aToMove ? engineA : engineB;
-            Move m = await engine.GetMoveAsync(state, limits, legal);
+            Move m = await engine.GetMoveAsync(state, aToMove ? limitsA : limitsB, legal);
             SearchAnalysis? an = engine.LastAnalysis;
             if (aToMove) { movesA++; depthA += an?.Depth ?? 0; npsA += an?.EvaluationsPerSec ?? 0; }
             else { movesB++; depthB += an?.Depth ?? 0; npsB += an?.EvaluationsPerSec ?? 0; }

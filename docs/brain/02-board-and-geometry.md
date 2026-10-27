@@ -92,11 +92,11 @@ public sealed class BoardState
 ```
 
 ### `BitboardPatternBoard.Cell` (Production Engine Search Node)
-In the active production engine (`BitboardPatternBoard`), each intersection is stored as an unmanaged 16-byte struct:
+In the active production engine (`BitboardPatternBoard`), each intersection is stored as an unmanaged 19-byte struct (1 piece byte, 8 pattern bytes, 8 `Status1` bytes, 2 `Status4` bytes):
 ```csharp
 public struct Cell
 {
-    public PieceColor Piece;          // Empty (0), Black (0), White (1), or Wrong (2)
+    public PieceColor Piece;          // Black (0), White (1), Empty (2), or Wrong (3); 1 byte
     public byte Pattern00, Pattern01; // Ray 0 (horizontal) bitmasks for Black/White
     public byte Pattern10, Pattern11; // Ray 1 (vertical) bitmasks for Black/White
     public byte Pattern20, Pattern21; // Ray 2 (main diagonal) bitmasks for Black/White
@@ -116,11 +116,11 @@ public struct Cell
 > ```csharp
 > public sbyte Adj1, Adj2; // 2-ring candidate proximity counters
 > ```
-> In `BitboardPatternBoard`, these fields were removed entirely. Move candidate detection is instead evaluated dynamically using whole-board bitwise Chebyshev dilation on the `Occupied` bitboards, eliminating 24 memory writes per move and achieving a +70% search speedup.
+> In `BitboardPatternBoard`, these fields were removed entirely. Move candidates are instead computed when they are generated, with bitwise shifts on the `Occupied` row bitboards, eliminating 24 memory writes per move (measured at the time as a +70% search speedup). Since the `CarbonCandidates` option (default on), the shifts produce exactly Carbon's `Adj1`/`Adj2` sets (see below).
 
 ---
 
-## Candidate bounding box & bitboard Chebyshev dilation
+## Candidate bounding box & bitboard candidate masks
 
 In tournament Gomoku, scanning all 225 intersections at every search node is computationally prohibitive. On move 2, evaluating empty squares across the opposite corner of the board produces an intolerable branching factor without offering any tactical value.
 
@@ -135,8 +135,11 @@ $\text{LowerRightCand} = \big(\min(W + 3, \max_i(x_i + 2)), \ \min(H + 3, \max_i
 - As stones are played, the box expands dynamically.
 - Empty cells outside this bounding box are pruned before tactical evaluation begins.
 
-### 2. Bitboard Chebyshev Dilation (`DilateRow` & `GetCandidateMask`)
-Within the bounding box, an empty square is only tactically relevant if it lies within Chebyshev distance $R \le 2$ of an existing stone:
+### 2. Bitboard Candidate Masks (`GenerateCarbonCand`, `DilateRow` & `GetCandidateMask`)
+Within the bounding box, an empty square is only tactically relevant if a stone is near it. With `CarbonSearchOptions.CarbonCandidates` (the default), the engine uses Carbon's own neighbourhood: a stone in the $3 \times 3$ ring around the cell (Carbon's `adj1`), or a stone two steps away along one of the four lines (`adj2`):
+$$\text{adj1}: \max(|dx|, |dy|) = 1, \qquad \text{adj2}: (dx, dy) \in \{-2, 0, 2\}^2 \setminus \{(0, 0)\}$$
+
+With `CarbonCandidates` off, the older full $5 \times 5$ square is used instead, i.e. every empty cell within Chebyshev distance $R \le 2$ of a stone:
 $D_{\text{Chebyshev}}\big((x_1, y_1), (x_2, y_2)\big) = \max(|x_1 - x_2|, |y_1 - y_2|) \le 2$
 
 Rather than maintaining per-cell neighbor counters in memory, `BitboardPatternBoard` maintains an array of 32-bit row bitboards (`uint[] Occupied`). Stone placement and retraction update the occupied bitboard in a single CPU cycle:
@@ -148,7 +151,16 @@ Occupied[by] |= (1u << bx);
 Occupied[by] ^= (1u << bx);
 ```
 
-During candidate generation in `CarbonBitboardAiPlayer`, row candidate bitmasks are dynamically generated using two successive bitwise shifts:
+During candidate generation in `CarbonBitboardAiPlayer`, Carbon's set is built per row `by` from the occupied rows $by-2 \dots by+2$:
+```csharp
+uint near = up | row | down;                                   // rows by-1, by, by+1
+uint ring = (near | (near << 1) | (near >> 1)) & boardMask;     // adj1: the 3x3 ring
+uint far2 = up2 | down2;                                       // rows by-2, by+2
+uint two = ((row << 2) | (row >> 2) | far2 | (far2 << 2) | (far2 >> 2)) & boardMask; // adj2
+uint mask = (ring | two) & ~row & boardMask;                   // empty candidate cells
+```
+
+The older $5 \times 5$ path (`CarbonCandidates = 0`) dilates every row twice and ORs five rows:
 ```csharp
 [MethodImpl(MethodImplOptions.AggressiveInlining)]
 public static uint DilateRow(uint m, uint boardMask)
@@ -192,7 +204,7 @@ Candidate extraction loops over the non-zero bits using hardware-accelerated tra
 > Cells[xp - 2, yp    ].Adj2++;                           Cells[xp + 2, yp    ].Adj2++;
 > Cells[xp - 2, yp + 2].Adj2++; Cells[xp, yp + 2].Adj2++; Cells[xp + 2, yp + 2].Adj2++;
 > ```
-> During candidate generation, cells were filtered with `c.Adj1 > 0 || c.Adj2 > 0`. Replacing these 24 array element writes per node with whole-board bitwise Chebyshev dilation increased search throughput by **+70%** and make/undo speed by **$2.5\times$**.
+> During candidate generation, cells were filtered with `c.Adj1 > 0 || c.Adj2 > 0`. Replacing these 24 array element writes per node with whole-board bitwise dilation increased search throughput by **+70%** and make/undo speed by **$2.5\times$** (historical measurement). The first bitboard version widened the set to the full $5 \times 5$ square; `CarbonCandidates` (default on) restores Carbon's exact `Adj1`/`Adj2` set computed from `Occupied`, which searched $14\%$ fewer nodes and won a 730-game match (1 thread, $0.2\text{ s}$ per move) by $+33$ Elo.
 
 ---
 
@@ -202,6 +214,7 @@ Candidate extraction loops over the non-zero bits using hardware-accelerated tra
 - **Fast Coordinate Conversion:** To convert between padded engine coordinates $(x_p, y_p) \in [4 \dots W+3, \ 4 \dots H+3]$ and 0-indexed board coordinates $(x, y) \in [0 \dots W-1, \ 0 \dots H-1]$:
   $$x = x_p - 4, \qquad y = y_p - 4$$
 - **Stack-Allocated History:** History undo stacks (`_remMove`, `_remULCand`, `_remLRCand`, `RemPlacedPoints`) are pre-allocated flat arrays capable of storing full games up to $64 \times 32 = 2,048$ plies.
+- **Undo Journal:** Before each move, `MakePaddedMove` copies the 33 cells the move can change (the played cell and $4 \times 8$ ray neighbours) plus `NSt` and `StoneScore` into a journal slot; `UndoMove` copies them back. The journal starts with 64 slots and doubles when more moves than that have been made since the journal base (see [04](04-pattern-bitboards-and-lookup-tables.md)).
 
 ---
 
@@ -211,9 +224,10 @@ Candidate extraction loops over the non-zero bits using hardware-accelerated tra
 |---|---|---|
 | [BoardSize.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardSize.cs) | `BoardSize` | Board dimensions, validation, and star point calculations |
 | [Point.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/Point.cs) | `Point` | 2D coordinate struct and algebraic formatting (`A1` .. `T20`) |
-| [PieceColor.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/PieceColor.cs) | `PieceColor` | Cell states (`Empty = 0`, `Black = 0`, `White = 1`, `Wrong = 2`) |
+| [PieceColor.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/PieceColor.cs) | `PieceColor` | Cell states (`Black = 0`, `White = 1`, `Empty = 2`, `Wrong = 3`) |
 | [BoardState.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Models/BoardState.cs) | `BoardState` | Immutable game state snapshot and 1D cell indexing |
-| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-performance 1D pattern board with Chebyshev bitboard candidate masks |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-performance 1D pattern board with occupied row bitboards and undo journal |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `GenerateCarbonCand` | Carbon's `adj1`/`adj2` candidate set from row bitmask shifts |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard`, `Cell` | Sentinel-padded 2D bitboard array, bounding box, and rings |
 
 ---

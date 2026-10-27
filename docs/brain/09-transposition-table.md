@@ -72,11 +72,13 @@ If a writer thread partially overwrites the slot while another thread is reading
 > [!NOTE] Architectural Evolution: From Single-Threaded Table to Lock-Free TT
 > The baseline engine (`TranspositionTable.cs`) and original `Carbon-Gomoku-master` used a single-threaded struct with padding: `[Key (8B), Score (2B), Depth (1B), BoundAndAge (1B), BestX (1B), BestY (1B), Padding (2B)]`. While optimal for single-threaded play, concurrent multi-threading on this layout caused torn reads. Modernizing to `LockFreeTranspositionTable` enabled scalable 8-core desktop Lazy SMP ($4.2\text{M NPS}$) and browser WebAssembly multithreading ($3.58\text{M NPS}$).
 
-### CPU Cache Line Alignment:
-A standard modern x86/ARM64 CPU cache line is exactly $64\text{ bytes}$. Because each entry is exactly $16\text{ bytes}$:
-$$\frac{64\text{ bytes per cache line}}{16\text{ bytes per entry}} = 4\text{ entries per cache line}$$
+### Direct-Mapped Slots & Cache Lines:
+The table is **direct-mapped**: each slot holds exactly **one** 16-byte entry, and a key maps to exactly one slot (`key & mask`). There are no buckets and no second probe. A standard modern x86/ARM64 CPU cache line is $64\text{ bytes}$, so a probe reads one 16-byte entry, normally within a single cache line; neighbouring slots on the same line belong to unrelated keys.
 
-No entry ever crosses a cache line boundary. When the CPU fetches a cache line from RAM, it brings 4 adjacent hash slots into the L1 data cache simultaneously, avoiding split-line latency.
+A 4-way bucket version (4 entries sharing one 64-byte line) was tried in 2026 and rejected: it was neutral in engine matches.
+
+### No Shared Counters:
+The table keeps no hit or store statistics. Earlier versions did an `Interlocked.Increment` on two counter fields at every probe and store, so all Lazy SMP threads wrote the same cache line; the counters were removed (no measurable change, $-0.1\%$ at 1 thread, $-1.0\%$ at 8 threads, within the noise). Probe, hit and cutoff counts are available per search from `CarbonBitboardAiPlayer.CollectStats` and [`SearchStats`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchStats.cs), collected by worker 0 only.
 
 ---
 
@@ -160,6 +162,8 @@ flowchart TD
    - If a collision occurs, replace if the existing entry belongs to a previous turn (`ageDiff > 0`).
    - If both belong to the current turn, replace only if the new search explored deeper or equal depth (`depth >= slot.Depth`).
 
+The lock-free table used by the primary engine follows the same idea with a 7-bit age (`(_currentAge + 1) & 0x7F`). Within the current search it never lets a shallower non-`Exact` result overwrite a deeper entry, and it keeps a different position's entry unless the new depth is greater; entries from older searches are always replaced. When the new result has no best move but the slot holds one for the same key, the old best move is kept.
+
 ---
 
 ## Lock-free parallel concurrency (`LockFreeTranspositionTable`)
@@ -178,19 +182,19 @@ flowchart LR
         Slot["16-Byte Slot<br/>KeyXorData: Key XOR Data<br/>Data: BestMove • Depth • Bound • Eval • Age"]
     end
 
-    T0 -- "Lockless Probe / Atomic Store" --> Slot
-    T1 -- "Lockless Probe / Atomic Store" --> Slot
-    TN -- "Lockless Probe / Atomic Store" --> Slot
+    T0 -- "Lockless Probe / Volatile Store" --> Slot
+    T1 -- "Lockless Probe / Volatile Store" --> Slot
+    TN -- "Lockless Probe / Volatile Store" --> Slot
 ```
 
 ### Key Concurrency Mechanisms:
-1. **Zero Mutex / Lock Overhead:** Rather than protecting table slots with locks or spinlocks (which would crush scaling as thread counts rise), slots are read and written using atomic memory accesses.
+1. **Zero Mutex / Lock Overhead:** Rather than protecting table slots with locks or spinlocks (which would crush scaling as thread counts rise), the two 64-bit words of a slot are read and written with `Volatile.Read` / `Volatile.Write` (no `Interlocked` operations at all).
 2. **Tear-Free Atomic Validation:** Entries are validated on read. If a worker thread probes a slot while another thread is performing an update, checksum verification fails cleanly, and the read is treated as a harmless cache miss.
 3. **Depth-Protection Against Shallow Overwrites:** In Lazy SMP, faster helper threads may reach a position at depth $d=2$ while another thread has already stored a deep evaluation at depth $d=6$. `LockFreeTranspositionTable` enforces strict depth precedence:
    ```csharp
    if (newDepth < slot.Depth && ageDiff == 0) return; // Prevent shallow search overwrite!
    ```
-   This critical protection was proven in Milestone 1 head-to-head testing (100 paired games) to eliminate multi-threaded search degradation, enabling pure scaling gains of **$7.58\times$ to $11.77\times$**.
+   This critical protection was proven in Milestone 1 head-to-head testing (100 paired games) to eliminate multi-threaded search degradation, enabling NPS scaling of **$7.58\times$ to $11.77\times$** (older measurements; time to depth scales far less, see [08](08-midgame-search.md)).
 
 ---
 
@@ -232,7 +236,8 @@ Suppose White is searching move 12 at depth $h = 4$ with window $[\alpha, \beta]
 
 | File | Member / Method | Description |
 |---|---|---|
-| [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | `LockFreeTranspositionTable` | 16-byte aligned lock-free cache manager supporting parallel Lazy SMP |
+| [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | `LockFreeTranspositionTable` | Direct-mapped lock-free table (one 16-byte entry per slot, XOR check, no shared counters) supporting parallel Lazy SMP |
+| [SearchStats.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchStats.cs) | `TtProbes`, `TtHits`, `TtCutoffs` | Per-search TT counters of worker 0 when `CollectStats` is set |
 | [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | `TranspositionTable` | Reference 16-byte power-of-two single-threaded cache manager |
 | [TranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/TranspositionTable.cs) | `TranspositionEntry` | 16-byte packed struct with bitfield age and bound layout |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `ZobristKey` | Incrementally maintained 64-bit position hash |
@@ -243,7 +248,7 @@ Suppose White is searching move 12 at depth $h = 4$ with window $[\alpha, \beta]
 ## Tests
 
 - [AiTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/AiTests.cs):
-  - Transposition table hit rate verification on symmetric openings.
+  - `CarbonAiPlayer_TranspositionTable_ShouldAccumulateEntries`: after a fixed-depth search, the root position is found in the table.
   - Zobrist incremental hash consistency: verifies $H_{\text{incremental}} == H_{\text{recalculated}}$.
   - Depth parity enforcement: verifies odd-ply entries are never mistakenly applied to even-ply search nodes.
 

@@ -4,7 +4,7 @@
 
 ## In short
 
-The hallmark of Michał Czardybon's Carbon Gomoku engine is its radical elimination of runtime loops during evaluation and move ordering. Rather than scanning lines with loops or iterating over geometric paths, the engine represents the state of every intersection's neighborhood using **4-axis 8-cell bitboards**. When a stone is placed or unmade, the local bitboards of the 32 influenced cells are updated using single-cycle bitwise operations. These bitboards then index directly into five precomputed static lookup tables—`LShape`, `STATUS1`, `STATUS4`, `Prior`, and `Rank`—computing local threat grades, tactical move priorities, and static positional scores in strictly $O(1)$ time.
+The hallmark of Michał Czardybon's Carbon Gomoku engine is its radical elimination of runtime loops during evaluation and move ordering. Rather than scanning lines with loops or iterating over geometric paths, the engine represents the state of every intersection's neighborhood using **4-axis 8-cell bitboards**. When a stone is placed, the local bitboards of the 32 influenced cells are updated using single-cycle bitwise operations; when it is unmade, the 33 changed cells are copied back from an undo journal. These bitboards then index directly into five precomputed static lookup tables—`LShape`, `STATUS1`, `STATUS4`, `Prior`, and `Rank`—computing local threat grades, tactical move priorities, and static positional scores in strictly $O(1)$ time.
 
 ---
 
@@ -31,7 +31,7 @@ Value:     1     2     4     8        Target      16    32    64   128
 - **Bits 4..7 (Positive Ray):** Represent distances $+1, +2, +3, +4$ along $(+DX_k, +DY_k)$.
 
 ### Fast Incremental Updates
-When a stone is placed at $(xp, yp)$ by player `who`, only the 8 cells along each of the 4 rays (32 cells total) are affected:
+When a stone is placed at $(xp, yp)$ by player `who`, only the 8 cells along each of the 4 rays (32 cells total) are affected. Conceptually, for each direction $k$:
 
 ```csharp
 // 1. Step in the negative direction, updating positive bitmasks of visited cells:
@@ -61,14 +61,30 @@ for (byte p = 8; p != 0; p >>= 1) // p = 8, 4, 2, 1 (-1, -2, -3, -4)
 }
 ```
 
-On `UndoMove()`, the exact same loop executes with `SetPatternXor`, cleanly toggling the bits back to zero in $O(1)$ time without requiring board recalculation!
+In `BitboardPatternBoard.MakePaddedMove` the loop is unrolled (`MakeLine` and `TouchCell`): the four directions use constant index steps in the stride-128 array,
+$$\Delta_k \in \{+1,\ +128,\ +129,\ -127\}$$
+(horizontal, vertical, main diagonal, anti-diagonal), the `Status1` table (standard or Exact5) is chosen once per move, the pattern tables are read through refs without bounds checks, and the `NSt` counters are only touched when a cell's `Status4` actually changes. The net counts are the same as decrementing and re-incrementing every cell; this "lean make" cut the suite time by $15.9\%$.
+
+### The Undo Journal
+`UndoMove()` does not run the ray loops again. Before each move, `MakePaddedMove` saves into a journal slot (indexed by the move number) the 33 cells the move can change, namely the played cell and the $4 \times 8$ ray neighbours, together with the 32 `NSt` counters and the two `StoneScore` sums. `UndoMove()` copies them back, so no `Status1`/`Status4` is recomputed and no table is read:
+
+```mermaid
+flowchart LR
+    Make["MakePaddedMove(xp, yp)"] --> Save["SaveJournal: copy 33 cells<br/>+ NSt[32] + StoneScore[2]"]
+    Save --> Update["Set piece, update 32 ray cells,<br/>NSt, StoneScore, Zobrist"]
+    Undo["UndoMove()"] --> HasSlot{"Move made after<br/>the journal base?"}
+    HasSlot -- "yes" --> Restore["RestoreJournal: copy the 33 cells,<br/>NSt and StoneScore back"]
+    HasSlot -- "no (made before Clone)" --> Recompute["Recompute: clear pattern bits with XOR,<br/>Update1 / Update4, adjust NSt and StoneScore"]
+```
+
+A board created by `Clone()` (the Lazy SMP worker boards) starts its journal at the current move count, so moves made before the clone have no journal entry; undoing such a move falls back to the old recomputing path (`SetPatternXor`, `Update1`, `Update4`). The journal undo cut the suite time by $19.5\%$ with the same search.
 
 ### High-Performance 1D Layout (`BitboardPatternBoard`)
 While the classical `PatternBoard` stores cells in a 2D managed array `Cell[,]`, the modernized primary engine introduces [`BitboardPatternBoard.cs`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs), which flattens the board into a 1D unmanaged buffer:
 $$\text{Index} = (y \ll 7) \mid x$$
 1. **Stride-128 Indexing:** Shifting $y$ left by 7 bits ($y \times 128$) computes row offsets in a single CPU cycle ($0.3\text{ ns}$), completely eliminating the array-of-arrays pointer indirection and bounds checking overhead.
-2. **Chebyshev Row Bitmasks:** In addition to ray bitboards, each row maintains a 32-bit `uint` candidate bitmask. When a stone is placed, 1-ring and 2-ring Chebyshev neighbors are bitwise OR-ed using shifts across rows $y-2 \dots y+2$, replacing 24 array element writes with 5 bitwise operations.
-3. **Cache Locality:** Contiguous memory layout ensures that consecutive ray queries stream through CPU L1 data cache without eviction, boosting single-threaded throughput by **+41.6%** ($538,000\text{ NPS}$).
+2. **Occupied Row Bitmasks:** In addition to ray bitboards, each row keeps a 32-bit `uint` occupancy mask (`Occupied`), updated with one bit operation per make/undo. Candidate generation derives Carbon's 1-ring and ray-aligned 2-ring neighbours from rows $y-2 \dots y+2$ with shifts (see [06](06-move-generation-and-ordering.md)), replacing the 24 adjacency counter writes per move.
+3. **Cache Locality:** Contiguous memory layout ensures that consecutive ray queries stream through CPU L1 data cache without eviction, boosting single-threaded throughput by **+41.6%** ($538,000\text{ NPS}$ at the time; the journal undo, lean make and incremental evaluation later raised it to $1.1\text{--}1.3\text{M NPS}$ on the benchmark suite).
 
 ---
 
@@ -128,7 +144,9 @@ To order moves intelligently without searching them first, `Cell.Prior()` sums t
 $\text{Prior}(x, y) = \sum_{k=0}^{3} \Big( \text{Prior}[\text{pat}_{k,0}][\text{pat}_{k,1}] + \text{Prior}[\text{pat}_{k,1}][\text{pat}_{k,0}] \Big) + 1$
 
 > [!NOTE] Architectural Evolution: Priority Offset
-> In baseline `PatternBoard.cs`, the formula added $+1$ dynamically if $\text{Adj1} \neq 0$. In `BitboardPatternBoard`, candidate generation already guarantees that any evaluated cell is within Chebyshev distance $\le 2$ of existing stones via bitboard dilation, so the $+1$ bias is added unconditionally.
+> In baseline `PatternBoard.cs` (as in Carbon), the formula adds $+1$ only if $\text{Adj1} \neq 0$. `BitboardPatternBoard.Cell.Prior()` always adds the $+1$; with `CarbonCandidates` (default on), `CarbonBitboardAiPlayer` subtracts it again and adds $+1$ only when a stone is in the $3 \times 3$ ring, so the priority is Carbon's again:
+> $$\text{pr} = \text{Prior}(x, y) - 1 + [\text{adj1} \neq 0]$$
+> With `CarbonCandidates = 0` the older behaviour applies: the $+1$ is added to every cell of the $5 \times 5$ neighbourhood.
 
 - Squares that advance friendly threats while simultaneously blocking opponent threats receive composite priorities of 50 to 500+.
 - Candidates with $\text{Prior} \le 1$ are immediately discarded from search consideration.
@@ -136,11 +154,11 @@ $\text{Prior}(x, y) = \sum_{k=0}^{3} \Big( \text{Prior}[\text{pat}_{k,0}][\text{
 ---
 
 ### 5. `Rank[107]` and `Config[256][256]` (Material Evaluation Tables)
-To evaluate non-terminal leaf positions in `CarbonAiPlayer.Evaluate()`, the 65,536 possible pattern pairs $(\text{pat}_{\text{me}}, \text{pat}_{\text{opp}})$ are mapped via `Config` into 107 canonical symmetry classes. `Rank[config]` assigns an empirical weight to each configuration:
+To evaluate non-terminal leaf positions, the 65,536 possible pattern pairs $(\text{pat}_{\text{me}}, \text{pat}_{\text{opp}})$ are mapped via `Config` into 107 canonical symmetry classes. `Rank[config]` assigns an empirical weight to each configuration:
 $$\text{Score}(\text{stone}) = \sum_{k=0}^{3} \text{Rank}\Big[\text{Config}[\text{pat}_{k, \text{me}}][\text{pat}_{k, \text{opp}}]\Big]$$
 $$\text{Evaluation} = \sum_{\text{Own Stones}} \text{Score}(s) - \sum_{\text{Opponent Stones}} \text{Score}(s) \quad \text{(from the side to move)}$$
 
-This provides smooth, highly accurate positional evaluation in a fraction of a microsecond.
+The reference `CarbonAiPlayer.Evaluate()` loops over the placed stones. `BitboardPatternBoard` instead keeps the two sums $\sum \text{Score}(s)$ per colour in `StoneScore[2]`: the played stone's four directions are added when it is placed, and whenever a pattern byte of a cell holding a stone changes, the old `Rank` of that direction is subtracted and the new one added, and the undo journal restores the sums. `Evaluate()` is therefore a single subtraction, $\mathcal{O}(1)$ (see [05](05-evaluation.md)).
 
 ---
 
@@ -155,10 +173,12 @@ public ref int GetNSt(int player, int grade) => ref NSt[(player << 4) | grade];
 *(In historical `PatternBoard.cs`, this was stored as a 2D managed matrix `int[2, 10]`)*.
 
 When a stone is placed at $(xp, yp)$:
-1. The old `Status4` grades of the 32 affected ray cells are decremented from `NSt`.
-2. The bitmasks and directional `Status1` values are updated.
+1. The played cell's `Status4` grades are removed from `NSt` (it is no longer empty).
+2. For each of the 32 affected ray cells, the bitmasks and directional `Status1` values are updated.
 3. The new `Status4` grades are computed (and checked for Renju fouls).
-4. The new `Status4` grades are incremented in `NSt`.
+4. Only if a cell's `Status4` changed, its old grade is decremented and its new grade incremented in `NSt`.
+
+On undo, the journal restores the whole `NSt` array saved before the move.
 
 ### Tactical Power of `NSt`:
 Because `NSt` is updated incrementally in $O(1)$ time, `CarbonAiPlayer` can instantly inspect the global game situation without scanning the board:
@@ -174,9 +194,11 @@ Because `NSt` is updated incrementally in $O(1)$ time, `CarbonAiPlayer` can inst
 | File | Type / Table | Description |
 |---|---|---|
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `CarbonTables` | Precomputed static tables: `STATUS1`, `STATUS4`, `Prior`, `Rank`, `Config` |
-| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-throughput flat 1D pattern board with Chebyshev dilation candidate masks |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard` | High-throughput flat 1D pattern board with occupied row bitmasks |
 | [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `BitboardPatternBoard.Cell` | 8-cell bitmasks (`Pattern00..Pattern31`), `Update1`, `Update4`, `Prior()` |
-| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `MakePaddedMove` | Incremental ray updates and `NSt` threat tracking |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `MakePaddedMove`, `MakeLine`, `TouchCell` | Unrolled incremental ray updates, `NSt` threat tracking, and `StoneScore` |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `SaveJournal`, `RestoreJournal`, `UndoMove` | Undo journal (33 cells + `NSt` + `StoneScore` per move) and the recomputing fallback |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `CheckConsistency` | Recomputes `Status4` and recounts `StoneScore` to verify the incremental state |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `PatternBoard` | Baseline reference 2D pattern board with `CheckConsistency` and `Adj1/Adj2` |
 
 ---
@@ -190,6 +212,8 @@ Because `NSt` is updated incrementally in $O(1)$ time, `CarbonAiPlayer` can inst
   - `PatternBoard_IncrementalZobristKey_ShouldMatchBoardStateHashAcrossMakeAndUndo`: Tests exact parity between incremental bitboard hashing and global Zobrist computation.
 - [Benchmark/Program.cs](https://github.com/cjp-dev/Gomoku/blob/main/tools/Gomoku.Benchmark/Program.cs):
   - Executes 600,000 make/undo operations, verifying `CheckConsistency()` passes across all threat grades.
+- [EngineSignatureTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/EngineSignatureTests.cs):
+  - Fixed-depth best move, score and node count for 38 positions (all three variants): a change in make/undo that alters the search fails the test.
 
 ---
 

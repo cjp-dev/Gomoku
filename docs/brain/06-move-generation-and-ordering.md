@@ -8,11 +8,11 @@ On an empty tournament $15 \times 15$ board, there are $225$ legal moves. Explor
 
 Carbon Gomoku achieves an effective branching factor $b_{\text{eff}} \le 4\text{ to }8$ through a modern, multi-tiered move generation pipeline in `CarbonBitboardAiPlayer`:
 1. **Transposition Table Seeding:** Probes the 64-bit Zobrist hash table; if a previously searched best move exists, it is inserted at index 0 with artificial score $10,000$.
-2. **Bitboard Chebyshev Dilation Candidate Filtering:** Dynamically dilates the whole-board row bitboards (`Occupied`) using bitwise shifts to gather all empty intersections within Chebyshev distance 2 ($L_\infty \le 2$), completely eliminating individual cell adjacency counter checks.
+2. **Bitboard Candidate Filtering:** Shifts the whole-board row bitboards (`Occupied`) to gather Carbon's candidate set: every empty intersection with a stone in its $3 \times 3$ ring (`adj1`) or two steps away along one of the four lines (`adj2`), completely eliminating individual cell adjacency counters. (With `CarbonSearchOptions.CarbonCandidates = 0`, the older full $5 \times 5$ square, Chebyshev distance $L_\infty \le 2$, is used instead.)
 3. **Hardware Trailing Zero Count (`tzcnt`):** Rapidly unpacks candidate x-coordinates from row bitmasks in single CPU cycles using `BitOperations.TrailingZeroCount`.
-4. **Static Prioritization (`Prior`):** Evaluates candidate quality across all 4 axes using the precomputed `CarbonTables.Prior` lookup table, discarding non-tactical moves with score $\le 1$.
+4. **Static Prioritization (`Prior`):** Evaluates candidate quality across all 4 axes using the precomputed `CarbonTables.Prior` lookup table, plus $1$ next to a stone (`adj1`), discarding non-tactical moves with score $\le 1$.
 5. **Forced Tactical Overrides (`ONE_CAND`):** When immediate win or forced defense conditions occur (Five or Open Four), move generation collapses to a single forced move ($n_{\text{cand}} = 1$), eliminating all alternative subtrees.
-6. **Zero-Allocation Stack Buffer:** Candidates are gathered into a `stackalloc Cand[MaxCand]` buffer (where `MaxCand = 256`) and sorted in-place via Quicksort.
+6. **Zero-Allocation Stack Buffer:** Candidates are gathered into a `stackalloc Cand[MaxCand]` buffer (where `MaxCand = 256`) and sorted in-place by `CandSort` (introsort).
 
 ---
 
@@ -22,14 +22,13 @@ Carbon Gomoku achieves an effective branching factor $b_{\text{eff}} \le 4\text{
 flowchart TD
     Start["GenerateCand(pb, cnd, out nCnd, ttBest)"] --> TT{"Is ttBest valid<br/>and empty?"}
     TT -- "Yes" --> InsertTT["cnd[0] = ttBest (score 10000)<br/>nCnd = 1"]
-    TT -- "No" --> Dilate["Dilate Occupied Rows<br/>DilateRow(Occupied[y], boardMask)"]
-    InsertTT --> Dilate
+    TT -- "No" --> RowLoop["Iterate Rows by in [minY .. maxY]"]
+    InsertTT --> RowLoop
 
-    Dilate --> RowLoop["Iterate Rows by in [minY .. maxY]"]
-    RowLoop --> Mask["uint mask = pb.GetCandidateMask(by, dilated, boardMask)"]
+    RowLoop --> Mask["mask = (ring OR two) AND NOT row<br/>ring = adj1 (3x3), two = adj2 (2 steps on a line)"]
     Mask --> MaskCheck{"mask != 0?"}
     MaskCheck -- "Yes" --> ExtractX["bx = TrailingZeroCount(mask)<br/>mask &amp;= (mask - 1)"]
-    ExtractX --> CalcPrior["pr = c.Prior()"]
+    ExtractX --> CalcPrior["pr = c.Prior() - 1 + (adj1 ? 1 : 0)"]
     CalcPrior --> PrFilter{"pr &gt; 1?"}
     PrFilter -- "Yes" --> AddCand["cnd[nCnd++] = Cand(xp, yp, pr)"]
     PrFilter -- "No" --> MaskCheck
@@ -50,18 +49,19 @@ flowchart TD
 
 ---
 
-## Bitboard Chebyshev dilation candidate generation
+## Bitboard candidate generation
 
-Gomoku stones exert tactical influence up to 4 cells along ray directions. However, moves that do not touch or leapfrog existing stones cannot create or block an immediate threat. In the primary engine (`CarbonBitboardAiPlayer`), candidate filtering operates using **Bitboard Chebyshev Dilation**:
+Gomoku stones exert tactical influence up to 4 cells along ray directions. However, moves that do not touch or leapfrog existing stones cannot create or block an immediate threat. In the primary engine (`CarbonBitboardAiPlayer`), candidate filtering operates on **row bitboards**:
 
 ![Board Geometry and Adjacency](images/board-indexing.svg)
 
 ### 1. Mathematical Formulation
-Chebyshev distance (or $L_\infty$ metric) between two intersections $p_1 = (x_1, y_1)$ and $p_2 = (x_2, y_2)$ is defined as:
-$D_{\text{Chebyshev}}(p_1, p_2) = \max(|x_1 - x_2|, \ |y_1 - y_2|)$
+With `CarbonSearchOptions.CarbonCandidates` (default on), the engine uses Carbon's own neighbourhood (`adj1`/`adj2` in Carbon's `AICarbonMove.cpp`). An empty cell $p$ is a candidate if a played stone $s$ lies at offset $(dx, dy) = s - p$ with
+$$\text{adj1}: \max(|dx|, |dy|) = 1 \qquad \text{or} \qquad \text{adj2}: (dx, dy) \in \{-2, 0, 2\}^2 \setminus \{(0, 0)\}$$
+that is, a stone in the $3 \times 3$ ring around $p$, or a stone two steps away along one of the four lines (16 neighbour cells in total).
 
-A candidate move $p$ is strategically viable if and only if there exists at least one played stone $s$ such that:
-$D_{\text{Chebyshev}}(p, s) \le 2$
+The older path (`CarbonCandidates = 0`) takes the full $5 \times 5$ square: a stone anywhere within Chebyshev distance 2 (24 neighbour cells):
+$$D_{\text{Chebyshev}}(p, s) = \max(|x_p - x_s|, \ |y_p - y_s|) \le 2$$
 
 ### 2. High-Performance Bitboard Implementation
 Rather than writing to 24 separate memory locations per stone placement, `BitboardPatternBoard` stores stone presence in an array of 32-bit row bitmasks (`Occupied[by]`). On move make/undo, updating stone occupancy requires strictly **one CPU instruction**:
@@ -70,53 +70,58 @@ Occupied[by] |= (1u << bx); // MakeMove: 1 instruction
 Occupied[by] ^= (1u << bx); // UndoMove: 1 instruction
 ```
 
-At the start of `GenerateCand`, row bitboards are dilated across distance 2 using bitwise shifts:
+### 3. Bitwise Candidate Extraction (`GenerateCarbonCand`)
+For each row $by$ within the vertical bounding box $[y_{\min} \dots y_{\max}]$, the candidate mask is built from the five occupied rows $by-2 \dots by+2$ with shifts, and the cells are extracted with `TrailingZeroCount`:
 ```csharp
-Span<uint> dilated = stackalloc uint[pb.BoardHeight];
-uint boardMask = (1u << pb.BoardWidth) - 1;
-for (int y = 0; y < pb.BoardHeight; y++)
-{
-    dilated[y] = BitboardPatternBoard.DilateRow(pb.Occupied[y], boardMask);
-}
-```
-Where `DilateRow` expands a 1D row mask by 2 cells in both directions:
-$\text{Dilate}(m) = \big(m \mid (m \ll 1) \mid (m \gg 1)\big) \mathbin{\&} \text{boardMask}$
-$\text{Dilate}_2(m) = \text{Dilate}\big(\text{Dilate}(m)\big)$
-
-### 3. Bitwise Candidate Extraction
-For each row $y$ within the vertical bounding box $[y_{\min} \dots y_{\max}]$, the candidate mask is obtained in 3 bitwise operations by OR-ing rows $y-2 \dots y+2$ and masking out occupied cells:
-```csharp
-int minY = Math.Max(0, pb.UpperLeftCand.Y - BitboardPatternBoard.Margin);
-int maxY = Math.Min(pb.BoardHeight - 1, pb.LowerRightCand.Y - BitboardPatternBoard.Margin);
-
 for (int by = minY; by <= maxY; by++)
 {
-    uint mask = pb.GetCandidateMask(by, dilated, boardMask);
+    uint up = by > 0 ? occ[by - 1] : 0, row = occ[by], down = by < last ? occ[by + 1] : 0;
+    uint up2 = by > 1 ? occ[by - 2] : 0, down2 = by < last - 1 ? occ[by + 2] : 0;
+    uint near = up | row | down;
+    uint ring = (near | (near << 1) | (near >> 1)) & boardMask;                     // adj1
+    uint far2 = up2 | down2;
+    uint two = ((row << 2) | (row >> 2) | far2 | (far2 << 2) | (far2 >> 2)) & boardMask; // adj2
+    uint mask = (ring | two) & ~row & boardMask;
     int yp = by + BitboardPatternBoard.Margin;
 
     while (mask != 0)
     {
         int bx = BitOperations.TrailingZeroCount(mask);
-        mask &= (mask - 1); // Clear least significant set bit
+        mask &= mask - 1; // Clear least significant set bit
         int xp = bx + BitboardPatternBoard.Margin;
+        if (xp == ttFirstX && yp == ttFirstY) continue; // the hash move is already cnd[0]
 
-        ref BitboardPatternBoard.Cell c = ref pb.GetCell(xp, yp);
-        short pr = c.Prior();
+        // Prior() includes a +1; Carbon adds it only next to a stone (adj1)
+        short pr = (short)(pb.GetCell(xp, yp).Prior() - 1 + (int)((ring >> bx) & 1));
         if (pr > 1)
         {
             cnd[nCnd++] = new Cand(xp, yp, pr);
+            if (nCnd >= MaxCand - 1) return;
         }
     }
 }
 ```
-This achieves zero branch mispredictions on non-candidate cells and processes candidate extraction at **over 700,000 operations per second**.
+This achieves zero branch mispredictions on non-candidate cells.
 
-> [!NOTE] Architectural Evolution: From Adjacency Counters to Bitboard Dilation
+Compared with the $5 \times 5$ square, Carbon's set searched $14.3\%$ fewer nodes on the benchmark suite ($-10.3\%$ time, all 64 forced wins still found) and won a 730-game match (1 thread, $0.2\text{ s}$ per move) with $54.8\% \pm 3.6\%$, $+33$ Elo $[+9, +59]$; at 8 threads (300 games) the result was $+23$ Elo $[-16, +63]$.
+
+### 4. The Older $5 \times 5$ Path (`DilateRow` & `GetCandidateMask`)
+With `CarbonCandidates = 0`, every row is dilated twice and five rows are OR-ed, and `Prior()` (with its unconditional $+1$) is used as is:
+```csharp
+for (int y = 0; y < pb.BoardHeight; y++)
+{
+    dilated[y] = BitboardPatternBoard.DilateRow(pb.Occupied[y], boardMask);
+}
+// per row: uint mask = pb.GetCandidateMask(by, dilated, boardMask); short pr = c.Prior();
+```
+$\text{Dilate}(m) = \big(m \mid (m \ll 1) \mid (m \gg 1)\big) \mathbin{\&} \text{boardMask}, \qquad \text{Dilate}_2(m) = \text{Dilate}\big(\text{Dilate}(m)\big)$
+
+> [!NOTE] Architectural Evolution: From Adjacency Counters to Bitboard Masks
 > In the original `Carbon-Gomoku-master` (Michał Czardybon, 2001) and the baseline `PatternBoard.cs`, candidate filtering was tracked using two concentric counters per cell:
 > - `Adj1`: Immediate 8-neighbor stone count (Moore neighborhood).
-> - `Adj2`: Secondary 16-neighbor stone count at Chebyshev distance 2.
+> - `Adj2`: Count of stones at the 8 ray-aligned cells two steps away.
 >
-> On every make and undo operation, Carbon had to iterate and increment/decrement 24 individual cell counters (`Cells[x, y].Adj1++`, `Adj2++`). In `CarbonBitboardAiPlayer`, replacing these 24 memory writes per node with whole-board bitwise Chebyshev dilation increased single-threaded throughput by **+41.6% to +70%** with zero algorithmic divergence.
+> On every make and undo operation, Carbon had to iterate and increment/decrement 24 individual cell counters (`Cells[x, y].Adj1++`, `Adj2++`). The first `CarbonBitboardAiPlayer` replaced these 24 memory writes per node with whole-board bitwise dilation of the full $5 \times 5$ square and an unconditional $+1$ priority, which increased single-threaded throughput by **+41.6% to +70%** but searched a larger set than Carbon. `GenerateCarbonCand` keeps the bitboard speed and restores Carbon's exact set and priorities.
 
 ---
 
@@ -144,6 +149,7 @@ The 8-bit friendly pattern $\text{patMe}$ and opponent pattern $\text{patOpp}$ a
 - Cells that extend friendly lines receive high positive weights ($+10$ to $+500$).
 - Cells that block developing opponent lines receive high defensive weights.
 - Cells that produce tactical intersections (such as crossing two open rays) receive additive combinations of both rays.
+- With `CarbonCandidates` (default on), the candidate's priority is $\text{pr} = \text{Prior}() - 1 + [\text{adj1} \neq 0]$, i.e. the $+1$ is only given next to a stone, as in Carbon. Cells reached only through `adj2` therefore need a pattern prior of at least 2.
 - Moves with $pr \le 1$ are pruned immediately, unless fallback expansion is required.
 
 ---
@@ -189,24 +195,27 @@ This collapses the candidate list from $40+$ moves down to $2\text{ to }5$ moves
 | Type | Member | Memory | Role |
 |---|---|:---:|---|
 | `Cand` | `struct (int X, int Y, int Value)` | 12 bytes | Candidate move with padded board coordinates and priority score |
-| `BitboardPatternBoard.Occupied` | `uint[]` | 76 bytes | Whole-board 32-bit row bitboards for instant Chebyshev dilation |
+| `BitboardPatternBoard.Occupied` | `uint[40]` | 160 bytes | Whole-board 32-bit row bitboards for the candidate masks |
 | `BitboardPatternBoard.UpperLeftCand` | `Point` | 8 bytes | Bounding box minimum coordinate $(x_{\min}-2, y_{\min}-2)$ |
 | `BitboardPatternBoard.LowerRightCand`| `Point` | 8 bytes | Bounding box maximum coordinate $(x_{\max}+2, y_{\max}+2)$ |
-| `CarbonTables.Prior` | `short[256, 256]` | 128 KiB | Static heuristic priority table mapping ray pairs to priority scores |
+| `CarbonTables.PriorFlat` | `byte[256 * 256]` | 64 KiB | Static heuristic priority table mapping ray pairs to priority scores |
 
 ---
 
-## Move ordering & Quicksort
+## Move ordering & sorting
 
 Move ordering determines the efficiency of Alpha-Beta pruning. If the best move is examined first, Alpha-Beta achieves its theoretical optimum complexity $\mathcal{O}(b^{d/2})$.
 
 Carbon uses a three-tier ordering strategy:
 1. **Hash Move (Tier 0):** The best move retrieved from the Transposition Table (`ttBest`) is placed at index 0 with priority $10,000$. It is guaranteed to be searched first.
-2. **Quicksort on Priority (Tier 1):** The remaining candidates $1 \dots n-1$ are sorted descending:
+2. **Sort on Priority (Tier 1):** All candidates are sorted descending by `Value` (the hash move's $10,000$ keeps it first):
    ```csharp
-   cnd[..nCnd].Sort((a, b) => b.Value.CompareTo(a.Value));
+   CandSort.SortDescending(cnd[..nCnd]);
    ```
+   [`CandSort`](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CandSort.cs) is the same introsort as `Span<T>.Sort(Comparison<T>)` (insertion sort for partitions of up to 16 elements, heapsort when the recursion gets too deep) with the comparison inlined instead of called through a delegate. Equal priorities therefore end up in exactly the same order as with `Span.Sort`, so the search is unchanged; the suite time dropped by $3.0\%$.
 3. **Fallback Expansion (Tier 2):** If all candidates have priority $\le 1$ or if all candidate moves are illegal Renju fouls, the generator falls back to scanning all empty cells within the bounding box with score 0 (up to `MaxCand = 256`).
+
+There are no killer moves and no history heuristic: the order is the hash move followed by Carbon's static `Prior` scores. (A history tie-break was tried in 2026; it saved $13.9\%$ nodes but only $6.4\%$ time, and its match gain, $+16$ Elo $[-9, +41]$ at 1 thread, was within the noise, so it was rejected.) At the root, Lazy SMP helper workers permute the sorted list (worker 1 reverses candidates $1 \dots n-1$, workers $\ge 2$ swap candidate 1 with another) to diversify their search.
 
 ---
 
@@ -226,17 +235,16 @@ Consider a game on a $15 \times 15$ board after 6 moves:
 - Total intersections scanned: $8 \times 7 = 56$ cells (out of 225 cells on the board—a $75\%$ reduction).
 
 ### 2. Adjacency & Prior Filtering
-- Out of 56 scanned cells inside the bounding box, bitboard Chebyshev dilation (`DilateRow`) identifies 32 candidate cells within Chebyshev distance $\le 2$ via bitwise operations in sub-microsecond time.
-- The remaining 32 empty cells are evaluated via `c.Prior()`:
-  - **I10:** Extends Black's diagonal line $\implies \text{Prior} = 142$
-  - **E9:** Blocks White's row extension $\implies \text{Prior} = 98$
-  - **H10:** Threatens vertical open three $\implies \text{Prior} = 84$
-  - 14 cells have $\text{Prior} \le 1$ and are dropped.
+- Out of the 56 cells inside the bounding box, 6 hold stones. Carbon's candidate set (`adj1` ring or `adj2` cell two steps along a line) contains 38 of the 50 empty cells; the older $5 \times 5$ square would contain 44.
+- The 38 cells are scored with $\text{Prior}() - 1 + [\text{adj1} \neq 0]$. The highest priorities, with Black to move, are:
+  - **G8:** $\text{pr} = 28$
+  - **I7** and **F10:** $\text{pr} = 20$
+  - **I8:** $\text{pr} = 17$
+  - 20 cells have $\text{pr} \le 1$ and are dropped.
 
 ### 3. Resulting Candidate Array
-- `nCnd = 18` candidates survive the threshold.
-- `cnd[..18].Sort()` arranges them in descending order.
-- The alpha-beta search explores **I10** first, triggering a beta-cutoff after only 3 child evaluations.
+- `nCnd = 18` candidates survive the threshold (assuming no hash move from the table; there is no `ONE_CAND` threat on the board).
+- `CandSort.SortDescending(cnd[..18])` arranges them in descending order, so the search explores **G8** first.
 
 ---
 
@@ -255,9 +263,12 @@ When Black is side to move under Renju rules, any candidate whose placement resu
 | File | Member / Method | Description |
 |---|---|---|
 | [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `GenerateCand()` | Primary AI candidate generation, bitboard mask scanning, and threat overrides |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `GenerateCarbonCand()` | Carbon's `adj1`/`adj2` candidate set and priority from row bitmask shifts |
+| [CarbonSearchOptions.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonSearchOptions.cs) | `CarbonCandidates` | Switch between Carbon's set (default) and the older $5 \times 5$ square |
+| [CandSort.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CandSort.cs) | `SortDescending()` | Introsort of `Span.Sort(Comparison)` with the comparison inlined |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `GenerateCand()` | Reference candidate move generator and threat override pipeline |
 | [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `ForceOneCand()` | Prunes candidate list to a single forced tactical move |
-| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `GetCandidateMask()` | 32-bit row bitmask extraction for zero-allocation candidate gathering |
+| [BitboardPatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/BitboardPatternBoard.cs) | `DilateRow()`, `GetCandidateMask()` | $5 \times 5$ row bitmask extraction (used with `CarbonCandidates = 0`) |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `Prior()` | Fast 4-ray priority evaluation using `CarbonTables.Prior` |
 | [PatternBoard.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/Engine/PatternBoard.cs) | `Adj1`, `Adj2` | Concentric 1-ring and 2-ring stone neighborhood counters |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `Prior` | Precomputed $256 \times 256$ directional priority matrix |

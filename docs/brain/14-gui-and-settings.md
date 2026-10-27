@@ -157,7 +157,7 @@ The dialog is arranged into five focused sections:
 2. **AI Engine:** Opponent engine selection: **Carbon AI (Bitboard)** or **Simple AI**.
 3. **Computer Thinking Limits:** Search depth and clock allocation modes (Fixed depth $1\text{–}14$ plies, Time per move $1\text{–}20\text{ s}$, Time per game $1\text{–}30\text{ min}$). *Visible only when Carbon AI is selected.*
 4. **Multi-Threading & Performance:** Parallel search controls (Lazy SMP toggle and search thread selector with `Auto (4 threads)` and manual options $1$ to $8$ threads). *Visible only when Carbon AI is selected.*
-5. **Carbon Opening Book & Transposition Table:** Opening book toggle ($67$ symmetry patterns across $22$ canonical opening systems) and transposition table capacity selection ($1\text{ MB}$ to $256\text{ MB}$, default $16\text{ MB}$). *Visible only when Carbon AI is selected.*
+5. **Carbon Opening Book & Transposition Table:** Opening book toggle ($80$ opening records, each matched in all $8$ dihedral orientations) and transposition table capacity selection ($1\text{ MB}$ to $256\text{ MB}$, default $16\text{ MB}$). *Visible only when Carbon AI is selected.*
 
 ```mermaid
 graph TD
@@ -167,7 +167,7 @@ graph TD
     Section2 -- "Simple AI selected" --> Simplified["Compact Dialog<br/>(Advanced sections hidden)"]
     Section2 -- "Carbon AI selected" --> Section3["3. Computer Thinking Limits<br/>Fixed Depth (1–14) • Time per Move (1–20s) • Time per Game (1–30m)"]
     Section2 -- "Carbon AI selected" --> Section4["4. Multi-Threading &amp; Performance<br/>Lazy SMP • Search Threads: Auto (4T) to 8T"]
-    Section2 -- "Carbon AI selected" --> Section5["5. Opening Book &amp; Transposition Table<br/>Opening Book (67 Patterns) • TT Capacity (1–256 MB)"]
+    Section2 -- "Carbon AI selected" --> Section5["5. Opening Book &amp; Transposition Table<br/>Opening Book (80 Records) • TT Capacity (1–256 MB)"]
 ```
 
 > [!NOTE] Dynamic AI Settings Visibility
@@ -207,7 +207,7 @@ flowchart TD
     end
 
     subgraph CarbonAI ["Carbon AI (Tournament Engine)"]
-        C_Book{"Opening Book?"} -- "yes" --> C_PlayBook["Dihedral D4 Move (67 Patterns)"]
+        C_Book{"Opening Book?"} -- "yes" --> C_PlayBook["Dihedral D4 Move (80 Records)"]
         C_Book -- "no" --> C_VCF{"QuickWinSearch()<br/>VCF Solver"}
         C_VCF -- "mate found" --> C_Mate["Immediate forced win"]
         C_VCF -- "no mate" --> C_ID["Iterative Deepening<br/>Depth 2, 3, 4... single-ply (1 for fixed depth 1)"]
@@ -226,8 +226,8 @@ flowchart TD
 | **Pattern Bitboards** | Basic looping counter in 4 directions | **Directional Ray Bitboards** with $10,000$-cell threat tensors |
 | **Multi-Threading** | Single-threaded | **Scalable Lazy SMP** (shared lockless TT across 1 to machine max CPU cores) |
 | **Transposition Table** | None | **64-bit Zobrist Transposition Table** ($1\text{ MB}$ to $256\text{ MB}$) with depth/bound caching |
-| **Opening Book** | None (plays center on move 1) | **Embedded Opening Book** with 67 symmetry patterns (22 canonical opening systems) |
-| **Candidate Pruning** | Proximity filter ($3 \times 3$ around stones) | Bounding box scanning, `Prior()` sorting, and `ONE_CAND` overrides |
+| **Opening Book** | None (plays center on move 1) | **Embedded Opening Book** with 80 opening records (matched in all 8 board symmetries) |
+| **Candidate Pruning** | Proximity filter ($3 \times 3$ around stones) | Carbon's candidate set ($3 \times 3$ ring plus cells two steps along a line), `Prior()` sorting, `ONE_CAND` overrides, and late move reductions |
 | **Renju Awareness** | Checks immediate legal move list | Foresees and avoids playing into multi-move foul traps |
 | **Playing Strength** | Beginner to Casual | Expert / Tournament Champion |
 | **Response Time** | Instant ($< 1\text{ ms}$) | Controlled by time limit ($1\text{–}20\text{ s}$), clock bank ($1\text{–}30\text{ min}$), or fixed depth ($1\text{–}14\text{ plies}$) |
@@ -260,7 +260,7 @@ Exclusively available when **Carbon AI (Bitboard)** is active, this section fine
 
 ### 5. Carbon Opening Book & Transposition Table
 
-* **Enable Carbon Opening Book (67 symmetry patterns):** Toggles whether the engine queries its 67-symmetry-pattern database before launching tree search. The opening book encapsulates 22 canonical opening systems with dihedral $D_4$ invariance (8 rotations and reflections), playing book moves instantaneously.
+* **Enable Carbon Opening Book (80 opening records):** Toggles whether the engine queries its opening book before launching tree search (the web version labels the checkbox *Carbon Opening Book (80 opening records)*). The book holds 80 opening records from Carbon's `databaseMove`, each matched with dihedral $D_4$ invariance (8 rotations and reflections), and plays book moves instantaneously.
 * **Table Capacity:** Configures the transposition table memory footprint from $1\text{ MB}$ ($65,536$ entries) to $256\text{ MB}$ ($16,777,216$ entries), with $16\text{ MB}$ ($1,048,576$ entries) as default. Sizing the table appropriately prevents hash overwrites during deep searches.
 
 ---
@@ -311,8 +311,8 @@ Instant moves, such as the center stone and opening-book moves, would otherwise 
 
 ### WebAssembly Multithreaded Engine & UI Responsiveness
 In the browser client (`Gomoku.Web`), execution utilizes a modern dual-runtime architecture:
-- When cross-origin isolation (`COOP` / `COEP`) and `SharedArrayBuffer` are available, `engine-client.js` boots the dedicated multithreaded engine runtime (`Gomoku.Web.Engine`) directly on the Window context. Under .NET 10's Deputy-Thread model, 100% of managed C# AI code runs completely off the browser UI thread on a background Deputy Thread and a pool of 16 pre-warmed Web Worker pthreads (`dotnet.native.worker.*.mjs`). This scales search throughput to **$2,058,000\text{ NPS}$** on 4 threads and **$3,578,000\text{ NPS}$** on 8 threads with sub-millisecond (4 ms) cancellation latency, keeping UI rendering fluid at 60 FPS.
-- When cross-origin isolation is unavailable, `engine-client.js` automatically falls back to a dedicated single-threaded Web Worker (`engine-worker.js`), running at $\approx 530,000\text{ NPS}$.
+- When cross-origin isolation (`COOP` / `COEP`) and `SharedArrayBuffer` are available, `engine-client.js` boots the dedicated multithreaded engine runtime (`Gomoku.Web.Engine`) directly on the Window context. Under .NET 10's Deputy-Thread model, 100% of managed C# AI code runs completely off the browser UI thread on a background Deputy Thread and a pool of 16 pre-warmed Web Worker pthreads (`dotnet.native.worker.*.mjs`). This scales search throughput to about **$4,000,000\text{ NPS}$** on 4 threads (first reply after H8 to depth 12; older measurements: $2,058,000\text{ NPS}$ on 4 threads and $3,578,000\text{ NPS}$ on 8 threads) with sub-millisecond (4 ms) cancellation latency, keeping UI rendering fluid at 60 FPS.
+- When cross-origin isolation is unavailable, `engine-client.js` automatically falls back to a dedicated single-threaded Web Worker (`engine-worker.js`), running at $\approx 530,000\text{ NPS}$ (measured before the 2026 engine optimisations).
 
 In single-threaded fallback execution:
 1. `MinimaxRoot` (worker 0) checks a $\ge 150\text{ ms}$ heartbeat between root candidates.

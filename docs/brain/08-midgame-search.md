@@ -8,10 +8,11 @@ When no immediate tactical mate can be resolved by `QuickWinSearch`, Carbon Gomo
 
 The midgame search combines:
 1. **Closed-Interval $[\alpha, \beta]$ Bounds:** Uses the exact interval semantics from original Carbon C++ where bounds are inclusive and fail-soft returns exceed bounds by $\pm 1$.
-2. **Narrowing Child Window:** Every candidate is searched with the window $[-\beta, -(\text{best} + 1)]$. Because `best` starts at $\alpha - 1$, the first candidate gets the full window $[-\beta, -\alpha]$, and every improvement of `best` narrows the window for the remaining candidates. There is no separate null-window probe or re-search.
-3. **Single-Ply Iterative Deepening:** Explores depths $d = 2, 3, 4, 5, \dots, 50$ (or $d = 1$ for fixed depth 1). Progressing ply-by-ply ensures fine-grained clock management under tournament time limits while populating transposition table bounds and move ordering seeds for subsequent iterations.
-4. **Mate-Distance Score Decay:** Scales tactical winning scores $(\ge 25,000)$ at each ply so that the search prefers the shortest forced win and longest defensive resistance.
-5. **Periodic Time Polling (`TimeoutPrevent`):** Checks elapsed wall-clock time every $1,000$ nodes to guarantee zero engine forfeits on hard tournament time limits.
+2. **Narrowing Child Window:** Every candidate is searched with the window $[-\beta, -(\text{best} + 1)]$. Because `best` starts at $\alpha - 1$, the first candidate gets the full window $[-\beta, -\alpha]$, and every improvement of `best` narrows the window for the remaining candidates. Apart from late move reductions, there is no separate zero-width probe or re-search (Principal Variation Search exists only as an option and is off).
+3. **Late Move Reductions (LMR):** From the 4th searched move on, a quiet move deep in the tree is first probed 2 plies shallower with a zero-width window, and searched normally only if the probe says it beats the best move so far.
+4. **Single-Ply Iterative Deepening:** Explores depths $d = 2, 3, 4, 5, \dots, 50$ (or $d = 1$ for fixed depth 1). Progressing ply-by-ply ensures fine-grained clock management under tournament time limits while populating transposition table bounds and move ordering seeds for subsequent iterations.
+5. **Mate-Distance Score Decay:** Scales tactical winning scores $(\ge 25,000)$ at each ply so that the search prefers the shortest forced win and longest defensive resistance.
+6. **Periodic Time Polling (`TimeoutPrevent`):** Checks elapsed wall-clock time every $1,000$ nodes to guarantee zero engine forfeits on hard tournament time limits.
 
 ![PV Search Tree and Null Window Cutoffs](images/pv-search-tree.svg)
 
@@ -132,6 +133,67 @@ for (int i = 0; i < nCnd; i++)
 }
 ```
 
+There are no killer moves and no history heuristic; the order of the loop is the hash move followed by Carbon's static `Prior` scores (see [06](06-move-generation-and-ordering.md)).
+
+---
+
+## Late move reductions (LMR)
+
+With a good move order, a move far down the sorted list rarely becomes the new best move, yet the plain loop above searches it to the full depth. `CarbonSearchOptions.Lmr` (default on) reduces such moves in `Minimax` (never at the root): a move is first searched 2 plies shallower with a zero-width window, and only if that probe says it beats the best move so far is it searched again normally.
+
+A move is reduced when all of the following hold:
+
+| Condition | Code | Default |
+|---|---|---|
+| LMR is on and the opponent has no open three (no cell where it would make `ThreatB`) | `Options.Lmr && pb.GetNSt(opp, ThreatB) == 0` | on |
+| At least `LmrFromMove` moves have already been searched at this node (the 4th searched move and later) | `searched >= Options.LmrFromMove` | 3 |
+| The remaining depth of the child is at least `LmrMinDepth` (`h` after the `h--` of the node) | `h >= Options.LmrMinDepth` | 3 |
+| The move is quiet: neither side gets a three or a four on that cell | `Status4_0 < ThreatH && Status4_1 < ThreatH` | – |
+| The child window is not already zero-width | `vA < vB` | – |
+
+The reduced probe uses the window $[v_B, v_B]$ with $v_B = -(\text{best} + 1)$. In Carbon's closed-interval convention the child then returns at least $v_B + 1$ (the move scores at most `best`), exactly $v_B$ (the move scores `best + 1`), or at most $v_B - 1$ (the move scores at least `best + 2`):
+
+```csharp
+bool reduce = lmr && searched >= Options.LmrFromMove && h >= Options.LmrMinDepth && IsQuiet(pb, cx, cy);
+int reduction = Options.LmrDeepFromMove > 0 && searched >= Options.LmrDeepFromMove && h >= 5 ? 4 : 2;
+pb.MakePaddedMove(cx, cy);
+// vA, vB as above
+Cand m = default;
+bool searchFully = true;
+if (reduce && vA < vB)
+{
+    m = Minimax(workerId, pb, h - reduction, vB, vB, ...);   // zero-width probe, 2 plies shallower
+    int reducedValue = -m.Value;                             // (with mate-distance decay)
+    searchFully = reducedValue > best.Value && !_terminate;  // only a move that beats best is searched again
+}
+if (searchFully)
+{
+    m = SearchChild(workerId, pb, h, vA, vB, best.Value, beta, searched, ...); // normal search
+}
+```
+
+```mermaid
+flowchart TD
+    Move["Candidate i (after MakePaddedMove)"] --> Q{"searched &gt;= 3, child depth &gt;= 3,<br/>quiet cell, no opponent open three?"}
+    Q -- "No" --> Full["Normal search with [vA, vB]"]
+    Q -- "Yes" --> Probe["Reduced probe: depth h - 2,<br/>zero-width window [vB, vB]"]
+    Probe --> Beats{"Probe value &gt; best?"}
+    Beats -- "No" --> Keep["Keep the probe result<br/>(the move does not beat best)"]
+    Beats -- "Yes" --> Full
+```
+
+The reduction is 2 plies, not 1, because Carbon's transposition table only takes a cutoff from an entry whose depth has the same parity as the node (`((ttDepth ^ h) & 1) == 0`); a 2-ply reduction keeps the parity. `LmrDeepFromMove` (default 0 = never) can reduce later moves by 4 plies at child depth 5 or more.
+
+Measured on the benchmark suite and in paired engine matches (see [15](15-benchmarks-and-performance.md)):
+- Suite: $-49.1\%$ nodes, $-45.3\%$ time; all 64 forced wins are still found.
+- Match, 1 thread, $0.2\text{ s}$ per move, 730 games: $56.9\% \pm 3.5\%$, $+48$ Elo $[+24, +74]$, $0.3$ plies deeper on average.
+- Match, 8 threads, 300 games: $54.3\% \pm 5.6\%$, $+30$ Elo $[-9, +70]$.
+- Match at $1\text{ s}$ per move: $+12$ Elo.
+- Tuning: `LmrMinDepth = 2` saved another $14.8\%$ nodes but its match was even ($+5$ Elo $[-20, +30]$); `LmrFromMove = 2` with `LmrDeepFromMove = 8` saved under $3\%$. The defaults stay.
+
+### Principal Variation Search (option, off)
+`CarbonSearchOptions.Pvs` (default off) switches `SearchChild` to PVS: every move after the first is searched with the zero-width window $[v_B, v_B]$, and re-searched with the full window $[v_A, v_B]$ only if it scores at least $\text{best} + 2$ and not above $\beta$. On its own it saved only $3.4\%$ nodes and the match was even ($50.0\%$, $0$ Elo $[-25, +25]$); combined with LMR, the two together saved only $17\%$ nodes against $49\%$ for LMR alone. The default search is therefore still Carbon's closed-interval narrowing alpha-beta with LMR.
+
 ---
 
 ## Iterative deepening progression (single-ply step)
@@ -213,7 +275,7 @@ flowchart TD
     Dispatch --> T2["Helper Thread 2<br/>Depth 2, 3, 4..."]
     Dispatch --> TN["Helper Thread N-1<br/>Starts at depth 2 or 3<br/>Skips ahead to the main depth"]
 
-    T0 <--> TT[("Shared LockFreeTranspositionTable<br/>16-Byte Aligned • Atomic Interlocked<br/>Depth-Protected Replacement")]
+    T0 <--> TT[("Shared LockFreeTranspositionTable<br/>16-Byte Entries • Lock-Free XOR Check<br/>Depth-Protected Replacement")]
     T1 <--> TT
     T2 <--> TT
     TN <--> TT
@@ -232,11 +294,12 @@ In **Lazy SMP**:
    ```
 5. **Cache-Line Spaced Lock-Free Node Tracking:**
    To provide live, combined multi-thread telemetry without lock contention or CPU cache-line bouncing (false sharing), worker node counts are tracked in a 64-byte padded array (`WorkerCounterStride = 8` longs per thread). Each worker updates its live count every 1,000 nodes without `Interlocked` overhead, while Thread 0 aggregates true combined nodes across all threads on 100 ms heartbeats and iteration boundaries.
-6. **Empirical Throughput:**
+6. **Empirical Throughput (older measurements, before the 2026 optimisations):**
    - Desktop Single-threaded baseline: $358,048\text{ NPS}$.
-   - Desktop 8-thread Lazy SMP: **$4,213,348\text{ NPS}$ ($11.77\times$ speedup)**.
+   - Desktop 8-thread Lazy SMP: **$4,213,348\text{ NPS}$ ($11.77\times$ the baseline NPS)**.
    - WebAssembly 4-thread Lazy SMP: **$2,058,000\text{--}2,225,000\text{ NPS}$ ($4.01\times\text{--}4.18\times$)**.
    - WebAssembly 8-thread Lazy SMP: **$3,578,000\text{ NPS}$ ($6.98\times$)**.
+7. **Current measurements and scaling:** Single-threaded search now runs at $1.1\text{--}1.3\text{M NPS}$ on the benchmark suite; in the browser (first reply after H8, depth 12) 1 thread reaches $1.15\text{M NPS}$ and 4 threads $4.0\text{M NPS}$. NPS grows with the thread count, but time to depth hardly does: on the suite, 4 and 8 threads reach the same depths only $\approx 1.6\times$ faster than 1 thread, and in the browser 4 threads take $3.2\text{ s}$ against $4.3\text{ s}$ for 1 thread. Lazy SMP therefore scales poorly here; a shared-depth scheme for the helpers was tried and gave no gain in time to depth.
 
 ---
 
@@ -247,7 +310,7 @@ In combinatorial games like Gomoku on a $15 \times 15$ board, the search space g
 ### 1. The Branching Factor Hierarchy
 1. **Raw Board Legal Moves ($B_{\text{legal}}$):** On a $15 \times 15$ board with $m$ moves placed, there are $B_{\text{legal}} = 225 - m$ empty intersections ($210\text{ to }222$ moves). An unpruned minimax tree down to depth $d$ would evaluate:
    $N_{\text{legal}} = \prod_{i=0}^{d-1} (225 - m - i) \approx B_{\text{legal}}^d$
-2. **Geometric Candidate Space ($B_{\text{cand}}$):** `CarbonBitboardAiPlayer` restricts move consideration to empty intersections within Chebyshev distance $R \le 2$ ($5 \times 5$ square) of existing stones with pattern priority $\text{Prior} > 1$. This contracts the root branching space to $B_{\text{cand}} \approx 36\text{ to }63$ moves. An unpruned minimax tree restricted to candidates would evaluate:
+2. **Geometric Candidate Space ($B_{\text{cand}}$):** The benchmark counts the empty intersections within Chebyshev distance $R \le 2$ ($5 \times 5$ square) of existing stones. (The engine itself now uses Carbon's smaller set, the $3 \times 3$ ring plus the cells two steps along a line, and keeps only cells with priority $> 1$.) This contracts the root branching space to $B_{\text{cand}} \approx 36\text{ to }63$ moves. An unpruned minimax tree restricted to candidates would evaluate:
    $N_{\text{cand}} \approx B_{\text{cand}}^d$
 3. **Knuth-Moore Theoretical Optimal $\alpha$-$\beta$ Bound ($b_{\text{optimal}}$):** By the classic analysis of Donald Knuth and Ronald W. Moore (1975), the theoretical minimum tree size for minimax with $\alpha$-$\beta$ pruning under *optimal move ordering* satisfies:
    $b_{\text{optimal}} \approx \sqrt{B} \implies b_{\text{opt\_cand}} = \sqrt{B_{\text{cand}}} \approx 6.0\text{ to }7.9$
@@ -255,7 +318,7 @@ In combinatorial games like Gomoku on a $15 \times 15$ board, the search space g
    $b_{\text{eff}} = (N_{\text{actual}})^{1/d}$
 
 ### 2. Empirical Branching Scaling Across Canonical Positions
-Empirical measurements captured via `dotnet run -c Release --project tools/Gomoku.Benchmark -- --efficiency` demonstrate how `CarbonBitboardAiPlayer` scales:
+Empirical measurements captured via `dotnet run -c Release --project tools/Gomoku.Benchmark -- --efficiency` demonstrate how `CarbonBitboardAiPlayer` scales (older measurement, taken before Carbon's candidate set and LMR; both reduce the node counts further):
 
 | Position Phase | Plies ($m$) | $B_{\text{legal}}$ | $B_{\text{cand}}$ | Knuth-Moore $\sqrt{B_{\text{cand}}}$ | Engine $b_{\text{eff}}$ (Depth 4) | Engine $b_{\text{eff}}$ (Depth 8) | Engine $b_{\text{eff}}$ (Depth 10) | Depth 10 Nodes | Depth 10 Time |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -267,7 +330,7 @@ Empirical measurements captured via `dotnet run -c Release --project tools/Gomok
 ### 3. Why the Engine Beats the Knuth-Moore Bound ($b_{\text{eff}} < \sqrt{B_{\text{cand}}}$)
 At depth 10, the engine's effective branching factor of **$2.80\text{ to }4.44$** is substantially below the theoretical optimal $\alpha$-$\beta$ lower bound ($\sqrt{B_{\text{cand}}} \approx 6.0\text{ to }7.9$). This occurs because Carbon is not an unadorned minimax tree:
 - **Transposition Table Pruning:** Permutations of identical stone placements hit TT cache entries, yielding immediate evaluations without re-evaluating the subtrees.
-- **Killer & History Heuristics:** Highly active refutations and quiet counter-moves are dynamically sorted to the front of candidate arrays, producing first-move cutoffs ($c_0$ cutoffs) in over $90\%$ of non-PV nodes.
+- **Static Move Ordering:** The hash move and Carbon's `Prior` scores put strong moves first, so most cutoffs come from the first candidates. (There are no killer moves and no history heuristic; `SearchStats.FirstMoveCutoffRate` measures the share of cutoffs by the first move.)
 - **Threat-Space Early Termination:** Four-threats, double-threats, and tactical pins force single-move replies or immediate terminal evaluations, collapsing tactical subtrees to $b_{\text{eff}} \approx 1.0\text{ to }2.8$.
 
 ---
@@ -303,7 +366,7 @@ sequenceDiagram
 - **Deep Recursive Heartbeat ($\ge 100\text{ ms}$):** Inside the synchronous `Minimax` child search, the 1000-node check tests `_activeSw.ElapsedMilliseconds - _lastReportMs >= 100`. If triggered on worker 0, it synchronously calls `_activeProgress.Report(...)` (also with `CurrentMove`) to keep the display updating even during deep tactical branches.
 
 ### 2. Browser Multithreaded Engine & Asynchronous Responsiveness
-In the browser client (`Gomoku.Web`), execution leverages .NET 10's multithreaded WebAssembly runtime (`Gomoku.Web.Engine`) hosted via the Deputy-Thread architecture. 100% of C# search computation runs on background Web Worker pthreads with a 16 MB lock-free transposition table, scaling from **$533,000\text{ NPS}$** on 1 thread to **$2,058,000\text{ NPS}$** on 4 threads and **$3,578,000\text{ NPS}$** on 8 threads. The browser sustains a fluid 60 FPS without dropping frames. For environments without cross-origin isolation or `SharedArrayBuffer` support, execution falls back automatically to a dedicated single-threaded Web Worker (`engine-worker.js`).
+In the browser client (`Gomoku.Web`), execution leverages .NET 10's multithreaded WebAssembly runtime (`Gomoku.Web.Engine`) hosted via the Deputy-Thread architecture. 100% of C# search computation runs on background Web Worker pthreads with a 16 MB lock-free transposition table, scaling from **$1,150,000\text{ NPS}$** on 1 thread to **$4,000,000\text{ NPS}$** on 4 threads (first reply after H8 to depth 12; before the 2026 optimisations: $536,000$ and $1,890,000\text{ NPS}$, and $3,578,000\text{ NPS}$ on 8 threads). The browser sustains a fluid 60 FPS without dropping frames. For environments without cross-origin isolation or `SharedArrayBuffer` support, execution falls back automatically to a dedicated single-threaded Web Worker (`engine-worker.js`).
 
 ### 3. Instant Opening Moves
 When playing the opening center move on Move 1 or matching an opening book pattern, search is instantaneous ($< 1\text{ ms}$). The engine reports a single `SearchAnalysis` with `StatusMessage = "Center opening"` or `"Opening book"`, which the Analysis panel shows as Depth `"Opening"` / `"Book"`.
@@ -355,12 +418,15 @@ Consider searching move 15 for Black with single-ply iterative deepening ($d = 2
 
 | File | Member / Method | Description |
 |---|---|---|
-| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `FindBestMove()` | Primary Lazy SMP root driver coordinating parallel threads and telemetry |
-| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `Minimax()` | High-throughput 1D bitboard recursive Negamax Alpha-Beta with PVS |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Reference root driver executing iterative deepening and clock management |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Core recursive closed-interval Negamax Alpha-Beta with PVS |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `SearchSingleThreaded()`, `SearchLazySmp()`, `RunHelperWorker()` | Iterative deepening drivers: single thread, Lazy SMP master and helpers, telemetry |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `MinimaxRoot()`, `Minimax()` | High-throughput 1D bitboard closed-interval Negamax Alpha-Beta with late move reductions |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `SearchChild()`, `IsQuiet()` | Child search (optional PVS) and the quiet-move test for LMR |
+| [CarbonSearchOptions.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonSearchOptions.cs) | `Lmr`, `LmrFromMove`, `LmrMinDepth`, `LmrDeepFromMove`, `Pvs` | Search feature switches, parsed from `"name=1,other=0"` strings |
+| [SearchStats.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchStats.cs) | `SearchStats` | Per-search counters of worker 0 (TT hits and cutoffs, beta and first-move cutoffs, leaves, candidates) when `CollectStats` is set |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `GetMoveAsync()` | Reference root driver executing iterative deepening and clock management |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `Minimax()` | Reference recursive closed-interval Negamax Alpha-Beta |
 | [LockFreeTranspositionTable.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/LockFreeTranspositionTable.cs) | `TryProbe()`, `Store()` | Lock-free shared transposition table shared across Lazy SMP threads |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `SetupTimeControl()` | Configures time limits and calculates `_stopTime` |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `ConfigureTimeLimits()` | Configures time limits and calculates `_stopTime` |
 | [SearchLimits.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/SearchLimits.cs) | `SearchLimits` | Time control domain models (`FixedDepth`, `TimePerMove`, `TimePerGame`) |
 
 ---
@@ -371,6 +437,9 @@ Consider searching move 15 for Black with single-ply iterative deepening ($d = 2
   - Iterative deepening depth progression: verifies search reaches targeted depth.
   - Cancellation token responsiveness: tests that search halts cleanly within $50\text{ ms}$ of cancellation.
   - Mate distance preference: verifies AI chooses mate-in-1 over mate-in-3.
+- [EngineSignatureTests.cs](https://github.com/cjp-dev/Gomoku/blob/main/tests/Gomoku.Core.Tests/EngineSignatureTests.cs):
+  - Fixed-depth signature (best move, score, nodes) for 38 positions: any change to the search, such as LMR, shows up here and requires `--update-signature`.
+  - 64 forced wins must still be found at their recorded depth.
 
 ---
 

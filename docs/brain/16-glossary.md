@@ -19,8 +19,8 @@ This glossary defines standard terminology used across Gomoku and Renju rules, c
 #### Adjacency (`Adj1`, `Adj2`) *(Historical Baseline)*
 The geometric stone proximity counters tracked for each board intersection in original Carbon Gomoku and baseline `PatternBoard.cs`.
 - **`Adj1` (1-Ring):** Count of stones in the 8 immediate Moore neighbor cells ($\max(|dx|, |dy|) = 1$).
-- **`Adj2` (2-Ring):** Count of stones in the 16 secondary neighbor cells at Chebyshev distance 2 ($\max(|dx|, |dy|) = 2$).
-In the modern `BitboardPatternBoard` engine, these 24 memory writes per node are replaced by whole-board bitwise **Chebyshev Dilation**.
+- **`Adj2` (2-Ring):** Count of stones in the 8 ray-aligned cells two steps away ($dx, dy \in \{-2, 0, 2\}$).
+In the modern `BitboardPatternBoard` engine, these 24 memory writes per move are removed; `CarbonBitboardAiPlayer` computes the same `adj1`/`adj2` sets from the `Occupied` row bitmasks when it generates candidates (`CarbonCandidates`, default on).
 
 #### Ahead-of-Time Compilation (AOT)
 A compilation process where intermediate code (C# IL) is translated into native machine code (WebAssembly bytecode) before deployment, eliminating runtime JIT overhead in the browser.
@@ -60,7 +60,7 @@ Classification of a score stored in the Transposition Table:
 A candidate move struct storing board coordinates $(X, Y)$ and an associated heuristic priority score.
 
 #### Carbon AI (Bitboard)
-The primary championship-grade Gomoku AI in Gomoku .NET, combining Michał Czardybon's Carbon Gomoku heuristics, directional ray bitboards with flat 1D memory (`BitboardPatternBoard`), Chebyshev dilation candidate bitmasks, an embedded VCF tactical solver (`QuickWinSearch`), a lock-free Transposition Table, and scalable **Lazy SMP parallel search** achieving up to $4.2\text{M NPS}$.
+The primary championship-grade Gomoku AI in Gomoku .NET, combining Michał Czardybon's Carbon Gomoku heuristics, directional ray bitboards with flat 1D memory and an undo journal (`BitboardPatternBoard`), incremental evaluation, Carbon's candidate set from row bitmasks, an embedded VCF tactical solver (`QuickWinSearch`), late move reductions, a lock-free Transposition Table, and **Lazy SMP parallel search**.
 
 #### Carbon-X
 An experimental bitboard research engine developed during engine investigation, combining primitive 15×15 bitboards (`Bitboard15`), lock-free transposition tables, and PVS search to evaluate pure bitboard throughput against Carbon heuristics.
@@ -68,8 +68,14 @@ An experimental bitboard research engine developed during engine investigation, 
 #### Carbon Gomoku
 The legendary C++ Gomoku engine authored by Tomasz Czardybon, known for winning the Gomocup international tournament and introducing 4-ray pattern bitboard tensors and closed-interval search.
 
+#### `CandSort`
+The candidate sort of `CarbonBitboardAiPlayer`: the same introsort as `Span<T>.Sort(Comparison<T>)`, with the comparison inlined instead of called through a delegate, so equal priorities keep exactly the same order.
+
+#### `CarbonSearchOptions`
+A record of switches for search features (`Pvs`, `Lmr`, `LmrFromMove`, `LmrMinDepth`, `LmrDeepFromMove`, `CarbonCandidates`), parsed from strings such as `"lmr=0,pvs=1"`, so a feature can be compared on and off in one build with the benchmark suite and A/B matches.
+
 #### Chebyshev Bitboard Mask
-A 32-bit row-level bitmask maintained with bitwise shifts and bitwise ORs in `BitboardPatternBoard` to track 1-ring and 2-ring neighbor proximity, replacing 24 array element writes per move with 5 bitwise operations.
+A 32-bit row-level candidate bitmask built with bitwise shifts and ORs from the `Occupied` rows. With `CarbonCandidates` (default) it covers Carbon's `adj1`/`adj2` cells; with `CarbonCandidates = 0` the full $5 \times 5$ square (Chebyshev distance 2). Either way it replaces 24 array element writes per move.
 
 #### Closed-Interval Negamax
 A formulation of the Negamax search algorithm where the search window $[\alpha, \beta]$ is inclusive (closed), and fail-soft returns exceed the boundary by $\pm 1$.
@@ -97,8 +103,11 @@ A move that simultaneously creates two open threes. Under Renju rules, this is a
 #### Exact5 Variant
 A Gomoku rule variant where exactly five stones in a row wins the game, but an overline ($6+$ stones) does not count as a win and the game continues.
 
+#### Engine Signature
+The recorded fixed-depth result (best move, score, node count) of 38 suite positions in `TestData/engine-signature.txt`, checked by `EngineSignatureTests` together with 64 forced wins. A pure speed-up must keep it; a deliberate change in the search regenerates it with `--update-signature`.
+
 #### Evaluation (`Evaluate()`)
-The static leaf evaluation function called at search depth $h = 0$, summing the empirical weights of all placed stones across 4 rays using `CarbonTables.Config` and `Rank`.
+The static leaf evaluation function called at search depth $h = 0$: the empirical weights (`CarbonTables.Config` and `Rank`) of all placed stones across 4 rays, own minus opponent. `BitboardPatternBoard` keeps the per-colour sums in `StoneScore` incrementally, so `Evaluate()` is $\mathcal{O}(1)$.
 
 ---
 
@@ -163,8 +172,11 @@ The premier, traditional golden-yellow wood harvested from *Torreya nucifera* tr
 #### Lazy SMP
 A lock-free parallel search algorithm where multiple worker threads simultaneously explore the game tree independently, coordinating organically by reading and writing to a shared transposition table without complex master-worker thread management or lock contention.
 
+#### Late Move Reductions (LMR)
+A search reduction: from the 4th searched move at a node, when the child's remaining depth is at least 3, a quiet move (no three or four for either side on its cell) is first searched 2 plies shallower with a zero-width window, and searched normally only if it then beats the best move. Not applied at the root or when the opponent has an open three. Default on (`CarbonSearchOptions.Lmr`).
+
 #### LockFreeTranspositionTable
-A 16-byte aligned, lock-free transposition table implementing atomic slot access and strict depth-protection against shallow worker overwrites, enabling linear multi-core scaling in Lazy SMP.
+A direct-mapped, lock-free transposition table with one 16-byte entry per slot, an XOR check against torn reads (`Volatile` reads and writes, no `Interlocked` counters), and strict depth-protection against shallow worker overwrites, shared by all Lazy SMP workers.
 
 #### LShape
 In Carbon's pattern bitboard, the precomputed 2-bit flag array tracking whether an 8-cell ray is truncated by the board boundary within distance 4.
@@ -177,7 +189,7 @@ A Transposition Table entry representing a beta cutoff score ($\ge \beta$).
 ### M
 
 #### MakeMove / UndoMove
-The complementary pair of operations that place a stone on `BitboardPatternBoard` and roll it back, incrementally updating 4-axis ray bitboards, occupied bitboards, threat tensors (`NSt`), and Zobrist hashes in $\mathcal{O}(1)$ time.
+The complementary pair of operations that place a stone on `BitboardPatternBoard` and roll it back. Make incrementally updates 4-axis ray bitboards, occupied bitboards, threat tensors (`NSt`), the stone score and the Zobrist hash in $\mathcal{O}(1)$ time; undo copies the changed cells back from the undo journal.
 
 #### Moore Neighborhood (`Adj1`)
 The 8 cells surrounding a central cell on a square two-dimensional grid.
@@ -198,7 +210,7 @@ The standard metric of engine search throughput, measuring how many game tree po
 The live 32-element threat tensor array maintained incrementally on `BitboardPatternBoard` (indexed by `(player << 4) | grade`), tracking the exact number of active board threats by player and threat category.
 
 #### Null Window Search (NWS)
-An alpha-beta search where the window width is reduced to 1 ($[v_A, v_B] = [-\beta, -(\text{best} + 1)]$) to rapidly test whether a candidate move can beat the current best score without exploring a full minimax tree.
+An alpha-beta search with a zero-width window, in Carbon's closed-interval form $[v_B, v_B]$ with $v_B = -(\text{best} + 1)$, that only tests whether a candidate move can beat the current best score. Used by late move reductions (and by the optional PVS); the normal child window $[-\beta, -(\text{best} + 1)]$ is not a null window.
 
 ---
 
@@ -233,11 +245,14 @@ The game-theoretic imperative that an engine must select the quickest route to v
 The $256 \times 256$ precomputed lookup table mapping 8-cell friendly and opponent ray bitmasks to heuristic move ordering priority scores.
 
 #### Principal Variation Search (PVS)
-An alpha-beta enhancement that searches the first (and presumed best) move with a full window and all alternative moves with a null window.
+An alpha-beta enhancement that searches the first (and presumed best) move with a full window and all alternative moves with a null window, re-searching those that beat it. In `CarbonBitboardAiPlayer` it exists only as an option (`CarbonSearchOptions.Pvs`, default off): it saved $3.4\%$ nodes and was even in a match.
 
 ---
 
 ### Q
+
+#### Quiet Move
+For late move reductions, a candidate cell where neither side would make a three or a four (`Status4` below `ThreatH` for both colours).
 
 #### `QuickWinSearch`
 The specialized recursive VCF (Victory by Continuous Fours) solver in Carbon Gomoku that discovers tactical checkmates up to 30 plies deep in sub-millisecond time.
@@ -247,7 +262,7 @@ The specialized recursive VCF (Victory by Continuous Fours) solver in Carbon Gom
 ### R
 
 #### `Rank` Table
-The 106-entry empirical weight array mapping canonical ray configurations into static positional scores used by leaf evaluation.
+The 107-entry empirical weight array mapping canonical ray configurations into static positional scores used by leaf evaluation.
 
 #### Renju Variant
 The asymmetrical tournament variant of Gomoku where Black is restricted by foul rules (3x3, 4x4, overlines) to balance the enormous first-mover advantage.
@@ -265,6 +280,9 @@ The 4-cell border of dummy cells encircling the playable board area, preventing 
 #### Simple AI
 A fast 1-ply heuristic Gomoku AI ported from Carbon Gomoku's `AISimple`. Performs instantaneous static evaluation of 5-tuples in 4 directions and handles immediate open-three and open-four threats without recursive game-tree search.
 
+#### `SearchStats`
+Per-search counters (interior nodes, leaves, quick-win calls and hits, TT probes, hits and cutoffs, beta and first-move cutoffs, candidates) filled by worker 0 when `CarbonBitboardAiPlayer.CollectStats` is set; used by `--suite --stats`.
+
 #### Smart Game Format (SGF)
 The international text-based standard format for board game records (Gomoku identifier `GM[11]`).
 
@@ -274,12 +292,25 @@ The $256 \times 256$ lookup table mapping 8-cell ray bitmasks into a 4-bit threa
 #### `STATUS4`
 The 10,000-cell tensor combining 4 single-ray `STATUS1` grades into a comprehensive composite tactical classification (`ThreatA` through `ThreatForbid`).
 
+#### `StoneScore`
+The two running sums (Black, White) of Carbon's stone score in `BitboardPatternBoard`, updated in make whenever a stone's pattern changes and restored by the undo journal; `Evaluate()` returns their difference from the side to move.
+
 ---
 
 ### T
 
 #### Transposition Table (TT)
 A high-speed hash table caching search depths, bounds, evaluations, and best moves to eliminate redundant search across transposed move orders.
+
+---
+
+### U
+
+#### Undo Journal
+The per-move buffer in `BitboardPatternBoard`: before a move, `MakePaddedMove` saves the 33 cells it changes (the played cell and $4 \times 8$ ray neighbours), the `NSt` counters and `StoneScore`; `UndoMove` copies them back instead of recomputing the patterns. Moves made before `Clone()` have no entry and are undone by recomputing.
+
+#### UpperBound
+A Transposition Table entry representing a fail-low score (all moves scored below $\alpha$).
 
 ---
 
@@ -311,7 +342,7 @@ Previous: [15 Benchmarks and performance](15-benchmarks-and-performance.md) · N
 
 
 ### Chebyshev Dilation
-A bitboard candidate-generation technique where 32-bit row bitmasks are expanded horizontally via shifts (`m | (m << 1) | (m >> 1)`) and OR-ed vertically across adjacent rows. It identifies all valid candidate intersections within Chebyshev distance 2 in single CPU cycles, eliminating 24 separate memory writes per node.
+A bitboard candidate-generation technique where 32-bit row bitmasks are expanded horizontally via shifts (`m | (m << 1) | (m >> 1)`) and OR-ed vertically across adjacent rows. It identifies all intersections within Chebyshev distance 2 in single CPU cycles, eliminating 24 separate memory writes per node. Since `CarbonCandidates` (default on), the engine uses the same shifts to build Carbon's smaller `adj1`/`adj2` set instead; the full dilation remains for `CarbonCandidates = 0`.
 
 ### Stockfish XOR-Checksum Transposition Slot
 A lock-free multi-threading transposition table technique where each 16-byte slot stores `Word0 = Key ^ Word1` and `Word1 = PackedData`. Readers verify that `Word0 ^ Word1 == Key`. If another thread modifies the slot concurrently during reading, the XOR-identity fails, discarding torn data without locks or spinlocks.

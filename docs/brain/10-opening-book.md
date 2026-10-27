@@ -226,8 +226,8 @@ Consider White's reply on a $15 \times 15$ board after three moves:
 | File | Member / Method | Description |
 |---|---|---|
 | [OpeningBook.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/OpeningBook.cs) | `TryGetMove()` | Symmetry-aware opening book lookup for both `PatternBoard` and `BitboardPatternBoard` |
-| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `FindBestMove()` | Queries direct bitboard opening book before invoking Lazy SMP search |
-| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `FindBestMove()` | Reference AI querying `OpeningBook.TryGetMove()` |
+| [CarbonBitboardAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonBitboardAiPlayer.cs) | `GetMoveAsync()` | Queries direct bitboard opening book before invoking Lazy SMP search |
+| [CarbonAiPlayer.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonAiPlayer.cs) | `GetMoveAsync()` | Reference AI querying `OpeningBook.TryGetMove()` |
 | [CarbonTables.Generated.cs](https://github.com/cjp-dev/Gomoku/blob/main/src/Gomoku.Core/AI/CarbonTables.Generated.cs) | `OpeningBookData` | Static binary table ported from Carbon Gomoku |
 
 ---
