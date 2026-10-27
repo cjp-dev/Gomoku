@@ -305,16 +305,17 @@ public sealed class BitboardPatternBoard
     public void MakePaddedMove(int xp, int yp)
     {
         SaveJournal(xp, yp);
-        ref Cell playedCell = ref GetCell(xp, yp);
-        GetNSt(0, playedCell.Status4_0)--;
-        GetNSt(1, playedCell.Status4_1)--;
+        ref Cell cells = ref MemoryMarshal.GetArrayDataReference(Cells);
+        ref int nst = ref MemoryMarshal.GetArrayDataReference(NSt);
+        int idx = (yp << 7) | xp;
+        ref Cell playedCell = ref Unsafe.Add(ref cells, idx);
+        Unsafe.Add(ref nst, playedCell.Status4_0)--;
+        Unsafe.Add(ref nst, 16 | playedCell.Status4_1)--;
 
         playedCell.Piece = Who;
-        int whoScore = (int)Who;
-        for (int k = 0; k < 4; k++)
-        {
-            StoneScore[whoScore] += DirScore(ref playedCell, k, whoScore);
-        }
+        int whoIdx = (int)Who;
+        StoneScore[whoIdx] += DirScore(ref playedCell, 0, whoIdx) + DirScore(ref playedCell, 1, whoIdx)
+            + DirScore(ref playedCell, 2, whoIdx) + DirScore(ref playedCell, 3, whoIdx);
         int bx = xp - Margin;
         int by = yp - Margin;
         Occupied[by] |= (1u << bx);
@@ -332,49 +333,75 @@ public sealed class BitboardPatternBoard
         if (xp + 2 > LowerRightCand.X) LowerRightCand = new Point(Math.Min(xp + 2, BoardWidth + Margin - 1), LowerRightCand.Y);
         if (yp + 2 > LowerRightCand.Y) LowerRightCand = new Point(LowerRightCand.X, Math.Min(yp + 2, BoardHeight + Margin - 1));
 
-        bool exact5 = Variant == GomokuVariant.Exact5;
-        int whoIdx = (int)Who;
+        ref byte s1 = ref MemoryMarshal.GetArrayDataReference(
+            Variant == GomokuVariant.Exact5 ? CarbonTables.Status1Exact5Flat : CarbonTables.Status1StandardFlat);
+        bool renju = Variant == GomokuVariant.Renju;
 
-        for (int k = 0; k < 4; k++)
-        {
-            int x = xp; int y = yp;
-            for (byte p = 16; p != 0; p <<= 1)
-            {
-                x -= DX[k]; y -= DY[k];
-                ref Cell c = ref GetCell(x, y);
-                ChangePattern(ref c, k, whoIdx, p, set: true);
-                if (c.Piece == PieceColor.Empty)
-                {
-                    c.Update1(k, exact5);
-                    GetNSt(0, c.Status4_0)--;
-                    GetNSt(1, c.Status4_1)--;
-                    c.Update4();
-                    if (Variant == GomokuVariant.Renju) CheckForbid(x, y);
-                    GetNSt(0, c.Status4_0)++;
-                    GetNSt(1, c.Status4_1)++;
-                }
-            }
-
-            x = xp; y = yp;
-            for (byte p = 8; p != 0; p >>= 1)
-            {
-                x += DX[k]; y += DY[k];
-                ref Cell c = ref GetCell(x, y);
-                ChangePattern(ref c, k, whoIdx, p, set: true);
-                if (c.Piece == PieceColor.Empty)
-                {
-                    c.Update1(k, exact5);
-                    GetNSt(0, c.Status4_0)--;
-                    GetNSt(1, c.Status4_1)--;
-                    c.Update4();
-                    if (Variant == GomokuVariant.Renju) CheckForbid(x, y);
-                    GetNSt(0, c.Status4_0)++;
-                    GetNSt(1, c.Status4_1)++;
-                }
-            }
-        }
+        MakeLine(ref cells, ref nst, ref s1, idx, 1, 0, whoIdx, renju);
+        MakeLine(ref cells, ref nst, ref s1, idx, Stride, 1, whoIdx, renju);
+        MakeLine(ref cells, ref nst, ref s1, idx, Stride + 1, 2, whoIdx, renju);
+        MakeLine(ref cells, ref nst, ref s1, idx, 1 - Stride, 3, whoIdx, renju);
 
         Who = Who.Opponent();
+    }
+
+    // The 4 cells before the played cell get pattern bits 16..128, the 4 after it 8..1 (as in Carbon).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void MakeLine(ref Cell cells, ref int nst, ref byte s1, int idx, int d, int k, int who, bool renju)
+    {
+        TouchCell(ref cells, ref nst, ref s1, idx - d, k, who, 16, renju);
+        TouchCell(ref cells, ref nst, ref s1, idx - 2 * d, k, who, 32, renju);
+        TouchCell(ref cells, ref nst, ref s1, idx - 3 * d, k, who, 64, renju);
+        TouchCell(ref cells, ref nst, ref s1, idx - 4 * d, k, who, 128, renju);
+        TouchCell(ref cells, ref nst, ref s1, idx + d, k, who, 8, renju);
+        TouchCell(ref cells, ref nst, ref s1, idx + 2 * d, k, who, 4, renju);
+        TouchCell(ref cells, ref nst, ref s1, idx + 3 * d, k, who, 2, renju);
+        TouchCell(ref cells, ref nst, ref s1, idx + 4 * d, k, who, 1, renju);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void TouchCell(ref Cell cells, ref int nst, ref byte s1, int cellIdx, int k, int who, byte p, bool renju)
+    {
+        ref Cell c = ref Unsafe.Add(ref cells, cellIdx);
+        ChangePattern(ref c, k, who, p, set: true);
+        if (c.Piece != PieceColor.Empty) return;
+
+        byte old0 = c.Status4_0, old1 = c.Status4_1;
+        switch (k)
+        {
+            case 0:
+                c.Status1_00 = Unsafe.Add(ref s1, (c.Pattern00 << 8) | c.Pattern01);
+                c.Status1_01 = Unsafe.Add(ref s1, (c.Pattern01 << 8) | c.Pattern00);
+                break;
+            case 1:
+                c.Status1_10 = Unsafe.Add(ref s1, (c.Pattern10 << 8) | c.Pattern11);
+                c.Status1_11 = Unsafe.Add(ref s1, (c.Pattern11 << 8) | c.Pattern10);
+                break;
+            case 2:
+                c.Status1_20 = Unsafe.Add(ref s1, (c.Pattern20 << 8) | c.Pattern21);
+                c.Status1_21 = Unsafe.Add(ref s1, (c.Pattern21 << 8) | c.Pattern20);
+                break;
+            default:
+                c.Status1_30 = Unsafe.Add(ref s1, (c.Pattern30 << 8) | c.Pattern31);
+                c.Status1_31 = Unsafe.Add(ref s1, (c.Pattern31 << 8) | c.Pattern30);
+                break;
+        }
+
+        ref byte s4 = ref MemoryMarshal.GetArrayDataReference(CarbonTables.Status4);
+        c.Status4_0 = Unsafe.Add(ref s4, ((c.Status1_00 * 10 + c.Status1_10) * 10 + c.Status1_20) * 10 + c.Status1_30);
+        c.Status4_1 = Unsafe.Add(ref s4, ((c.Status1_01 * 10 + c.Status1_11) * 10 + c.Status1_21) * 10 + c.Status1_31);
+        if (renju) CheckForbid(cellIdx & (Stride - 1), cellIdx >> 7);
+
+        if (c.Status4_0 != old0)
+        {
+            Unsafe.Add(ref nst, old0)--;
+            Unsafe.Add(ref nst, c.Status4_0)++;
+        }
+        if (c.Status4_1 != old1)
+        {
+            Unsafe.Add(ref nst, 16 | old1)--;
+            Unsafe.Add(ref nst, 16 | c.Status4_1)++;
+        }
     }
 
     private void SaveJournal(int xp, int yp)
