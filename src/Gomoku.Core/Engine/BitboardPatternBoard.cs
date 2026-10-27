@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Gomoku.Core.AI;
 using Gomoku.Core.Models;
 
@@ -144,6 +145,14 @@ public sealed class BitboardPatternBoard
     private readonly Point[] _remLRCand = new Point[MaxWidth * MaxHeight + 64];
     public readonly Point[] RemPlacedPoints = new Point[MaxWidth * MaxHeight + 64];
 
+    // Undo journal: before each move, the 33 cells it changes (the played cell and 4 x 8 neighbours)
+    // and the threat counters, so UndoMove copies them back instead of recomputing the patterns.
+    // Moves made before _journalBase (e.g. before Clone) have no entry and are undone by recomputing.
+    private const int JournalCells = 33;
+    private Cell[] _jCells = new Cell[64 * JournalCells];
+    private int[] _jNSt = new int[64 * 32];
+    private int _journalBase;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref Cell GetCell(int x, int y) => ref Cells[(y << 7) | x];
 
@@ -160,6 +169,7 @@ public sealed class BitboardPatternBoard
         MoveCount = 0;
         RemCount = 0;
         ZobristHash = 0UL;
+        _journalBase = 0;
 
         Array.Clear(NSt);
         Array.Clear(Occupied);
@@ -240,7 +250,8 @@ public sealed class BitboardPatternBoard
             RemCount = RemCount,
             ZobristHash = ZobristHash,
             UpperLeftCand = UpperLeftCand,
-            LowerRightCand = LowerRightCand
+            LowerRightCand = LowerRightCand,
+            _journalBase = MoveCount
         };
 
         Array.Copy(Cells, clone.Cells, Cells.Length);
@@ -261,6 +272,7 @@ public sealed class BitboardPatternBoard
 
     public void MakePaddedMove(int xp, int yp)
     {
+        SaveJournal(xp, yp);
         ref Cell playedCell = ref GetCell(xp, yp);
         GetNSt(0, playedCell.Status4_0)--;
         GetNSt(1, playedCell.Status4_1)--;
@@ -328,6 +340,61 @@ public sealed class BitboardPatternBoard
         Who = Who.Opponent();
     }
 
+    private void SaveJournal(int xp, int yp)
+    {
+        int slot = MoveCount - _journalBase;
+        if (slot < 0) return;
+        if ((slot + 1) * JournalCells > _jCells.Length)
+        {
+            Array.Resize(ref _jCells, _jCells.Length * 2);
+            Array.Resize(ref _jNSt, _jNSt.Length * 2);
+        }
+
+        ref Cell cells = ref MemoryMarshal.GetArrayDataReference(Cells);
+        ref Cell j = ref Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_jCells), slot * JournalCells);
+        int idx = (yp << 7) | xp;
+        j = Unsafe.Add(ref cells, idx);
+        int n = 1;
+        for (int k = 0; k < 4; k++)
+        {
+            int d = Delta[k];
+            for (int i = 1; i <= 4; i++)
+            {
+                Unsafe.Add(ref j, n++) = Unsafe.Add(ref cells, idx - i * d);
+                Unsafe.Add(ref j, n++) = Unsafe.Add(ref cells, idx + i * d);
+            }
+        }
+
+        NSt.AsSpan().CopyTo(_jNSt.AsSpan(slot * 32, 32));
+    }
+
+    private bool RestoreJournal(int xp, int yp)
+    {
+        int slot = MoveCount - _journalBase;
+        if (slot < 0) return false;
+
+        ref Cell cells = ref MemoryMarshal.GetArrayDataReference(Cells);
+        ref Cell j = ref Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_jCells), slot * JournalCells);
+        int idx = (yp << 7) | xp;
+        Unsafe.Add(ref cells, idx) = j;
+        int n = 1;
+        for (int k = 0; k < 4; k++)
+        {
+            int d = Delta[k];
+            for (int i = 1; i <= 4; i++)
+            {
+                Unsafe.Add(ref cells, idx - i * d) = Unsafe.Add(ref j, n++);
+                Unsafe.Add(ref cells, idx + i * d) = Unsafe.Add(ref j, n++);
+            }
+        }
+
+        _jNSt.AsSpan(slot * 32, 32).CopyTo(NSt);
+        return true;
+    }
+
+    // Index step of direction k in Cells: (DX[k], DY[k]) with the stride of 128.
+    private static ReadOnlySpan<int> Delta => [1, Stride, Stride + 1, 1 - Stride];
+
     public void UndoMove()
     {
         MoveCount--;
@@ -340,6 +407,13 @@ public sealed class BitboardPatternBoard
         int bx = xp - Margin;
         int by = yp - Margin;
         Occupied[by] ^= (1u << bx);
+
+        if (RestoreJournal(xp, yp))
+        {
+            Who = Who.Opponent();
+            ZobristHash ^= Zobrist.GetKey(Who, bx, by);
+            return;
+        }
 
         bool exact5 = Variant == GomokuVariant.Exact5;
         ref Cell cell = ref GetCell(xp, yp);
