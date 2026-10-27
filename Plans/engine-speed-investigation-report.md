@@ -19,6 +19,27 @@ This report records what was tried, how it was measured, and what was kept. Ever
 
 The browser runs measure the computer's first reply after H8 with the book off. Both engines played the same move.
 
+### Why the browser gained 12.8× and the suite 3.3×
+
+The difference comes mostly from the position, not from WASM. Running the same position (reply to H8, Freestyle, depth 12, 1 thread) with the desktop build gives 30.3 s before and 2.73 s after: **11.1×**. The time saved is the product of fewer nodes and more nodes per second:
+
+| | Fewer nodes | Higher NPS | Total |
+|---|--:|--:|--:|
+| Suite, desktop (38 positions, depths 5–10) | 14.9M → 6.5M = 2.3× | 764k → 1.11M = 1.45× | **3.3×** |
+| Reply to H8, depth 12, desktop | 29.6M → 5.0M = 5.9× | 975k → 1.83M = 1.88× | **11.1×** |
+| Reply to H8, depth 12, browser | 29.6M → 5.0M = 5.9× | 536k → 1.15M = 2.15× | **12.8×** |
+
+The browser and the desktop count exactly the same nodes.
+
+- **The reply to H8 saves far more nodes (5.9× against 2.3×).** Both search changes work best in a quiet, deep position.
+  - Late move reductions only shorten quiet moves. With one stone on the board almost every move is quiet, whereas the suite's mid-game positions (8–26 stones) are full of threats, which are never shortened.
+  - The saving of late move reductions also grows with depth. A reduced move cuts 2 plies off its whole subtree, and this repeats at every level, so depth 12 gains more than the suite's typical depth 8.
+  - Carbon's candidate set removes the most moves on an almost empty board. Later in the game the old 5×5 squares around the stones overlap, so the extra moves matter less.
+- **The reply to H8 also gains more per node (1.88× against 1.45×).** This was not profiled. A likely cause is that late move reductions move more of the work into cheap searches close to the leaves, and this position uses them the most.
+- **WASM adds only about 14% (2.15× against 1.88× per node).** A plausible reason, not measured, is that the speed-ups removed work that costs more under WASM AOT, such as calls through a delegate in the sort.
+
+So 3.3× is the typical gain over many kinds of positions, and 12.8× is close to the best case: a quiet opening searched deep.
+
 ## How it was measured
 
 The harness lives in `tools/Gomoku.Benchmark`. The full command list is in its `Program.cs`.

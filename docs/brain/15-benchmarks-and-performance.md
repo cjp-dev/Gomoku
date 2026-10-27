@@ -102,6 +102,25 @@ In total the suite went from about $18.9\text{ s}$ (stored baseline runs: $18.7$
 | 1 | $55.1\text{ s}$ ($536,000\text{ NPS}$) | $4.3\text{ s}$ ($1,150,000\text{ NPS}$) |
 | 4 | $29.0\text{ s}$ ($1,890,000\text{ NPS}$) | $3.2\text{ s}$ ($4,000,000\text{ NPS}$) |
 
+**Why the browser gained $12.8\times$ and the suite only $3.3\times$.** The difference comes mostly from the position, not from WebAssembly: the same position (reply to H8, Freestyle, depth 12, 1 thread) on the desktop build went from $30.3\text{ s}$ to $2.73\text{ s}$, which is $11.1\times$. The speed-up is the product of fewer nodes and more nodes per second:
+
+| | Fewer nodes | Higher NPS | Total |
+|---|--:|--:|--:|
+| Suite, desktop (38 positions, depths 5–10) | $14.9\text{M} \to 6.5\text{M}$ = $2.3\times$ | $764\text{k} \to 1.11\text{M}$ = $1.45\times$ | $3.3\times$ |
+| Reply to H8, depth 12, desktop | $29.6\text{M} \to 5.0\text{M}$ = $5.9\times$ | $975\text{k} \to 1.83\text{M}$ = $1.88\times$ | $11.1\times$ |
+| Reply to H8, depth 12, browser | $29.6\text{M} \to 5.0\text{M}$ = $5.9\times$ | $536\text{k} \to 1.15\text{M}$ = $2.15\times$ | $12.8\times$ |
+
+The browser and the desktop count exactly the same nodes.
+
+- **More nodes saved ($5.9\times$ against $2.3\times$).** Both search changes work best in a quiet, deep position.
+  - Late move reductions only shorten quiet moves. With one stone on the board almost every move is quiet, whereas the suite's mid-game positions (8–26 stones) are full of threats, which are never shortened.
+  - The saving of late move reductions grows with depth. A reduced move cuts 2 plies off its whole subtree, and this repeats at every level.
+  - Carbon's candidate set removes the most moves on an almost empty board, where the old $5 \times 5$ squares around the stones do not yet overlap.
+- **More gained per node ($1.88\times$ against $1.45\times$).** This was not profiled. A likely cause is that late move reductions move more of the work into cheap searches close to the leaves.
+- **WebAssembly adds only about 14%** ($2.15\times$ against $1.88\times$ per node). A plausible reason, not measured, is that the speed-ups removed work that costs more under WASM AOT, such as calls through a delegate in the sort.
+
+So $3.3\times$ is the typical gain over many kinds of positions, and $12.8\times$ is close to the best case: a quiet opening searched deep.
+
 **Lazy SMP scales poorly in time to depth.** NPS grows with the threads, but on the suite 4 and 8 threads reach the same depths only $\approx 1.6\times$ faster than 1 thread (and $4.3\text{ s} \to 3.2\text{ s}$ in the browser). The extra nodes mostly duplicate work.
 
 **Tried and rejected:**
