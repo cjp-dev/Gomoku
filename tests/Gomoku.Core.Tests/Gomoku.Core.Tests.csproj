@@ -23,5 +23,9 @@
     <ProjectReference Include="..\..\src\Gomoku.Core\Gomoku.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="TestData\*.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
 

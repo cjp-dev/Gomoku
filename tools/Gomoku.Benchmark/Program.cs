@@ -9,6 +9,39 @@ public static class Program
 {
     public static async Task Main(string[] args)
     {
+        if (args.Contains("--gen-suite"))
+        {
+            double target = double.Parse(SuiteBenchmark.Arg(args, "--target") ?? "1.0", System.Globalization.CultureInfo.InvariantCulture);
+            double signature = double.Parse(SuiteBenchmark.Arg(args, "--signature") ?? "0.03", System.Globalization.CultureInfo.InvariantCulture);
+            await SuiteBenchmark.GenerateAsync(target, signature);
+            return;
+        }
+
+        if (args.Contains("--update-signature"))
+        {
+            await SuiteBenchmark.UpdateSignatureAsync();
+            return;
+        }
+
+        if (args.Contains("--suite"))
+        {
+            await SuiteBenchmark.MainAsync(args);
+            return;
+        }
+
+        if (args.Contains("--compare"))
+        {
+            int i = Array.IndexOf(args, "--compare");
+            SuiteBenchmark.Compare(args[i + 1], args[i + 2]);
+            return;
+        }
+
+        if (args.Contains("--ab"))
+        {
+            await AbMatch.MainAsync(args);
+            return;
+        }
+
         if (args.Contains("--inspect"))
         {
             double timePerMove = 0.2;

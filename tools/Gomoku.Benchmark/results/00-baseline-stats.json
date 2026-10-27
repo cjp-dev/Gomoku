@@ -1,0 +1,389 @@
+{
+  "Label": "baseline-stats",
+  "Options": "default",
+  "Runs": 1,
+  "Positions": [
+    {
+      "Name": "Freestyle-o1-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 299068,
+      "Ms": 944.6961,
+      "Best": "9,8",
+      "Score": 189,
+      "Stats": "interior 53,764, leaves 218,764, quick-win 26,540/299,068, TT hits 41.6 % (cutoffs 3,140), first-move cutoffs 94.8 %, candidates 18.0"
+    },
+    {
+      "Name": "Freestyle-o1-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 412341,
+      "Ms": 1584.5229,
+      "Best": "7,5",
+      "Score": 37,
+      "Stats": "interior 156,743, leaves 201,831, quick-win 53,767/412,341, TT hits 15.9 % (cutoffs 10,154), first-move cutoffs 91.0 %, candidates 20.4"
+    },
+    {
+      "Name": "Freestyle-o1-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 534002,
+      "Ms": 849.4036,
+      "Best": "8,10",
+      "Score": 29987,
+      "Stats": "interior 173,792, leaves 291,210, quick-win 69,000/534,002, TT hits 23.2 % (cutoffs 11,021), first-move cutoffs 94.4 %, candidates 20.6"
+    },
+    {
+      "Name": "Freestyle-o1-p26",
+      "Depth": 5,
+      "CompletedDepth": 5,
+      "Nodes": 19138,
+      "Ms": 27.6843,
+      "Best": "6,10",
+      "Score": 29989,
+      "Stats": "interior 2,936, leaves 14,239, quick-win 1,963/19,138, TT hits 38.0 % (cutoffs 138), first-move cutoffs 90.9 %, candidates 21.3"
+    },
+    {
+      "Name": "Freestyle-o3-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 351142,
+      "Ms": 402.7732,
+      "Best": "5,10",
+      "Score": 157,
+      "Stats": "interior 77,637, leaves 210,520, quick-win 62,985/351,142, TT hits 32.7 % (cutoffs 4,203), first-move cutoffs 90.7 %, candidates 19.8"
+    },
+    {
+      "Name": "Freestyle-o3-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 640726,
+      "Ms": 805.4495,
+      "Best": "4,6",
+      "Score": 30,
+      "Stats": "interior 183,906, leaves 336,391, quick-win 120,429/640,726, TT hits 22.0 % (cutoffs 15,353), first-move cutoffs 92.5 %, candidates 21.4"
+    },
+    {
+      "Name": "Freestyle-o5-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 333329,
+      "Ms": 404.8123,
+      "Best": "5,10",
+      "Score": -13,
+      "Stats": "interior 105,671, leaves 190,222, quick-win 37,436/333,329, TT hits 22.3 % (cutoffs 6,462), first-move cutoffs 87.5 %, candidates 19.6"
+    },
+    {
+      "Name": "Freestyle-o5-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 502080,
+      "Ms": 682.4646,
+      "Best": "5,12",
+      "Score": 29989,
+      "Stats": "interior 185,376, leaves 260,735, quick-win 55,969/502,080, TT hits 22.6 % (cutoffs 13,860), first-move cutoffs 95.9 %, candidates 23.9"
+    },
+    {
+      "Name": "Freestyle-o8-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 520626,
+      "Ms": 611.0907,
+      "Best": "6,9",
+      "Score": -8,
+      "Stats": "interior 165,338, leaves 308,502, quick-win 46,786/520,626, TT hits 19.7 % (cutoffs 15,145), first-move cutoffs 86.4 %, candidates 22.0"
+    },
+    {
+      "Name": "Freestyle-o14-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 537358,
+      "Ms": 611.4004,
+      "Best": "6,5",
+      "Score": -8,
+      "Stats": "interior 163,267, leaves 318,927, quick-win 55,164/537,358, TT hits 20.9 % (cutoffs 12,888), first-move cutoffs 87.8 %, candidates 22.3"
+    },
+    {
+      "Name": "Freestyle-o16-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 367009,
+      "Ms": 460.5063,
+      "Best": "6,5",
+      "Score": 42,
+      "Stats": "interior 121,953, leaves 173,351, quick-win 71,705/367,009, TT hits 25.8 % (cutoffs 6,529), first-move cutoffs 93.2 %, candidates 20.3"
+    },
+    {
+      "Name": "Freestyle-o19-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 756992,
+      "Ms": 947.6763,
+      "Best": "8,6",
+      "Score": 48,
+      "Stats": "interior 293,019, leaves 389,031, quick-win 74,942/756,992, TT hits 20.8 % (cutoffs 18,278), first-move cutoffs 94.8 %, candidates 20.5"
+    },
+    {
+      "Name": "Freestyle-o19-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 479396,
+      "Ms": 611.8859,
+      "Best": "7,4",
+      "Score": 4,
+      "Stats": "interior 173,311, leaves 267,092, quick-win 38,993/479,396, TT hits 26.8 % (cutoffs 20,130), first-move cutoffs 92.1 %, candidates 17.5"
+    },
+    {
+      "Name": "Freestyle-o23-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 336742,
+      "Ms": 418.2647,
+      "Best": "6,10",
+      "Score": 20,
+      "Stats": "interior 113,827, leaves 166,604, quick-win 56,311/336,742, TT hits 28.1 % (cutoffs 4,751), first-move cutoffs 94.2 %, candidates 19.4"
+    },
+    {
+      "Name": "Freestyle-o23-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 287111,
+      "Ms": 409.0012,
+      "Best": "7,10",
+      "Score": 1,
+      "Stats": "interior 91,805, leaves 165,481, quick-win 29,825/287,111, TT hits 26.3 % (cutoffs 5,800), first-move cutoffs 93.7 %, candidates 21.7"
+    },
+    {
+      "Name": "Freestyle-o23-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 432040,
+      "Ms": 574.4379,
+      "Best": "10,12",
+      "Score": -2,
+      "Stats": "interior 127,737, leaves 249,747, quick-win 54,556/432,040, TT hits 24.4 % (cutoffs 11,274), first-move cutoffs 90.4 %, candidates 18.9"
+    },
+    {
+      "Name": "Freestyle-o23-p26",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 185185,
+      "Ms": 252.0895,
+      "Best": "11,10",
+      "Score": 29983,
+      "Stats": "interior 59,451, leaves 84,554, quick-win 41,180/185,185, TT hits 28.8 % (cutoffs 4,063), first-move cutoffs 94.3 %, candidates 21.2"
+    },
+    {
+      "Name": "Exact5-o2-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 372400,
+      "Ms": 478.235,
+      "Best": "8,9",
+      "Score": -8,
+      "Stats": "interior 119,012, leaves 219,868, quick-win 33,520/372,400, TT hits 21.3 % (cutoffs 8,766), first-move cutoffs 89.0 %, candidates 22.5"
+    },
+    {
+      "Name": "Exact5-o10-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 283539,
+      "Ms": 334.5124,
+      "Best": "8,5",
+      "Score": -16,
+      "Stats": "interior 76,182, leaves 159,607, quick-win 47,750/283,539, TT hits 22.2 % (cutoffs 4,335), first-move cutoffs 88.0 %, candidates 22.8"
+    },
+    {
+      "Name": "Exact5-o10-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 782211,
+      "Ms": 992.7622,
+      "Best": "6,4",
+      "Score": -34,
+      "Stats": "interior 248,799, leaves 398,232, quick-win 135,180/782,211, TT hits 20.5 % (cutoffs 17,423), first-move cutoffs 88.7 %, candidates 23.9"
+    },
+    {
+      "Name": "Exact5-o10-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 364181,
+      "Ms": 495.0624,
+      "Best": "9,5",
+      "Score": -28,
+      "Stats": "interior 103,357, leaves 173,825, quick-win 86,999/364,181, TT hits 23.5 % (cutoffs 6,970), first-move cutoffs 92.8 %, candidates 28.6"
+    },
+    {
+      "Name": "Exact5-o10-p26",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 109328,
+      "Ms": 141.2044,
+      "Best": "9,8",
+      "Score": -29988,
+      "Stats": "interior 31,660, leaves 42,445, quick-win 35,223/109,328, TT hits 38.2 % (cutoffs 2,398), first-move cutoffs 95.2 %, candidates 19.4"
+    },
+    {
+      "Name": "Exact5-o17-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 431346,
+      "Ms": 558.1622,
+      "Best": "10,6",
+      "Score": 20,
+      "Stats": "interior 142,266, leaves 223,894, quick-win 65,186/431,346, TT hits 26.6 % (cutoffs 6,638), first-move cutoffs 93.6 %, candidates 20.1"
+    },
+    {
+      "Name": "Exact5-o17-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 374363,
+      "Ms": 463.6702,
+      "Best": "10,7",
+      "Score": 1,
+      "Stats": "interior 113,379, leaves 218,955, quick-win 42,029/374,363, TT hits 25.8 % (cutoffs 7,563), first-move cutoffs 92.2 %, candidates 21.8"
+    },
+    {
+      "Name": "Exact5-o17-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 477175,
+      "Ms": 612.2619,
+      "Best": "12,10",
+      "Score": -2,
+      "Stats": "interior 153,006, leaves 274,299, quick-win 49,870/477,175, TT hits 24.2 % (cutoffs 17,375), first-move cutoffs 90.7 %, candidates 19.1"
+    },
+    {
+      "Name": "Exact5-o17-p26",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 176816,
+      "Ms": 224.8041,
+      "Best": "10,11",
+      "Score": 29983,
+      "Stats": "interior 57,077, leaves 81,469, quick-win 38,270/176,816, TT hits 29.4 % (cutoffs 3,638), first-move cutoffs 94.2 %, candidates 21.5"
+    },
+    {
+      "Name": "Exact5-o25-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 350837,
+      "Ms": 392.5235,
+      "Best": "5,10",
+      "Score": 157,
+      "Stats": "interior 77,572, leaves 210,245, quick-win 63,020/350,837, TT hits 32.7 % (cutoffs 4,198), first-move cutoffs 90.7 %, candidates 19.8"
+    },
+    {
+      "Name": "Exact5-o25-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 640755,
+      "Ms": 805.8423,
+      "Best": "4,6",
+      "Score": 30,
+      "Stats": "interior 183,915, leaves 336,340, quick-win 120,500/640,755, TT hits 22.0 % (cutoffs 15,356), first-move cutoffs 92.5 %, candidates 21.4"
+    },
+    {
+      "Name": "Renju-o4-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 151199,
+      "Ms": 200.0338,
+      "Best": "8,8",
+      "Score": -31,
+      "Stats": "interior 45,960, leaves 89,156, quick-win 16,083/151,199, TT hits 23.2 % (cutoffs 2,742), first-move cutoffs 85.2 %, candidates 18.5"
+    },
+    {
+      "Name": "Renju-o4-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 695001,
+      "Ms": 997.6264,
+      "Best": "5,6",
+      "Score": 29987,
+      "Stats": "interior 247,074, leaves 363,115, quick-win 84,812/695,001, TT hits 26.4 % (cutoffs 28,508), first-move cutoffs 96.2 %, candidates 22.9"
+    },
+    {
+      "Name": "Renju-o12-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 497644,
+      "Ms": 589.264,
+      "Best": "10,7",
+      "Score": 130,
+      "Stats": "interior 102,118, leaves 344,078, quick-win 51,448/497,644, TT hits 30.5 % (cutoffs 6,625), first-move cutoffs 83.2 %, candidates 17.0"
+    },
+    {
+      "Name": "Renju-o12-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 632607,
+      "Ms": 880.2542,
+      "Best": "11,7",
+      "Score": -20,
+      "Stats": "interior 206,408, leaves 340,582, quick-win 85,617/632,607, TT hits 24.0 % (cutoffs 21,059), first-move cutoffs 88.6 %, candidates 19.7"
+    },
+    {
+      "Name": "Renju-o12-p20",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 203330,
+      "Ms": 317.2346,
+      "Best": "12,7",
+      "Score": -29988,
+      "Stats": "interior 55,436, leaves 98,768, quick-win 49,126/203,330, TT hits 28.3 % (cutoffs 3,730), first-move cutoffs 89.3 %, candidates 17.5"
+    },
+    {
+      "Name": "Renju-o15-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 151067,
+      "Ms": 206.375,
+      "Best": "8,5",
+      "Score": -5,
+      "Stats": "interior 53,443, leaves 76,012, quick-win 21,612/151,067, TT hits 26.9 % (cutoffs 4,663), first-move cutoffs 94.2 %, candidates 19.2"
+    },
+    {
+      "Name": "Renju-o21-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 617340,
+      "Ms": 792.4773,
+      "Best": "6,9",
+      "Score": -21,
+      "Stats": "interior 195,711, leaves 357,282, quick-win 64,347/617,340, TT hits 20.2 % (cutoffs 15,246), first-move cutoffs 87.7 %, candidates 21.7"
+    },
+    {
+      "Name": "Renju-o21-p14",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 401082,
+      "Ms": 520.0409,
+      "Best": "6,10",
+      "Score": 57,
+      "Stats": "interior 94,175, leaves 238,498, quick-win 68,409/401,082, TT hits 37.8 % (cutoffs 12,369), first-move cutoffs 86.7 %, candidates 20.5"
+    },
+    {
+      "Name": "Renju-o21-p20",
+      "Depth": 7,
+      "CompletedDepth": 7,
+      "Nodes": 172212,
+      "Ms": 224.5755,
+      "Best": "6,10",
+      "Score": 8,
+      "Stats": "interior 44,107, leaves 116,813, quick-win 11,292/172,212, TT hits 22.6 % (cutoffs 4,450), first-move cutoffs 68.0 %, candidates 20.8"
+    },
+    {
+      "Name": "Renju-o21-p26",
+      "Depth": 6,
+      "CompletedDepth": 6,
+      "Nodes": 3548,
+      "Ms": 7.1905,
+      "Best": "8,5",
+      "Score": -29988,
+      "Stats": "interior 887, leaves 2,081, quick-win 580/3,548, TT hits 40.8 % (cutoffs 5), first-move cutoffs 91.7 %, candidates 18.3"
+    }
+  ],
+  "TotalNodes": 14882266,
+  "TotalMs": 20832.272199999996
+}

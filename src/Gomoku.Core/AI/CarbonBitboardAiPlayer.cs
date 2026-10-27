@@ -26,9 +26,19 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
     public int ThreadCount { get; }
     public LockFreeTranspositionTable Table { get; }
 
+    /// <summary>Search feature switches; see <see cref="CarbonSearchOptions"/>.</summary>
+    public CarbonSearchOptions Options { get; init; } = CarbonSearchOptions.Default;
+
+    /// <summary>When set, worker 0 fills <see cref="LastStats"/> during each search (benchmarks only).</summary>
+    public bool CollectStats { get; set; }
+
+    /// <summary>Counters of the last search when <see cref="CollectStats"/> is set; otherwise null.</summary>
+    public SearchStats? LastStats { get; private set; }
+
     private const int WorkerCounterStride = 8; // 64-byte cache-line spacing (8 x Int64)
 
     private readonly BitboardPatternBoard _pb = new();
+    private SearchStats? _stats;
     private long _totalNodes;
     private long[]? _activeWorkerNodes;
     private int _activeNumWorkers;
@@ -103,6 +113,8 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         _startTime = Environment.TickCount64;
         _terminate = false;
         _totalNodes = 0;
+        _stats = CollectStats ? new SearchStats() : null;
+        LastStats = _stats;
 
         // 1. Center opening
         if (state.MoveCount == 0)
@@ -1036,18 +1048,24 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
             return new Cand(0, 0, alpha - 1);
         }
 
+        SearchStats? st = workerId == 0 ? _stats : null;
+        if (st != null) st.QuickWinCalls++;
+
         int q = QuickWinSearch(pb);
         if (q != 0)
         {
+            if (st != null) st.QuickWinHits++;
             return new Cand(0, 0, (q > 0 ? WinMax : -WinMax) - q);
         }
 
         if (h == 0)
         {
+            if (st != null) st.Leaves++;
             return new Cand(0, 0, Evaluate(pb));
         }
 
         h--;
+        if (st != null) { st.InteriorNodes++; st.TtProbes++; }
 
         Span<Cand> cnd = stackalloc Cand[MaxCand];
         Point ttBest = Point.Empty;
@@ -1056,8 +1074,10 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         if (Table.TryProbe(zobristKey, out int ttDepth, out int ttScore, out BoundType ttBound, out Point probedMove))
         {
             ttBest = probedMove;
+            if (st != null) st.TtHits++;
             if ((ttDepth >= h && ((ttDepth ^ h) & 1) == 0) || Math.Abs(ttScore) >= WinMin)
             {
+                if (st != null) st.TtCutoffs++;
                 int bx = probedMove.IsValid(pb.BoardWidth, pb.BoardHeight) ? probedMove.X + BitboardPatternBoard.Margin : 0;
                 int by = probedMove.IsValid(pb.BoardWidth, pb.BoardHeight) ? probedMove.Y + BitboardPatternBoard.Margin : 0;
 
@@ -1079,6 +1099,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         }
 
         GenerateCand(pb, cnd, out int nCnd, ttBest);
+        if (st != null) st.CandidateSum += nCnd;
 
         bool checkRenjuForbid = pb.Variant == GomokuVariant.Renju && pb.Who == pb.FirstPlayer;
 
@@ -1171,6 +1192,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
 
                 if (value > beta)
                 {
+                    if (st != null) { st.BetaCutoffs++; if (i == 0) st.FirstMoveCutoffs++; }
                     Table.Store(zobristKey, h, value, BoundType.LowerBound, currentBestMove);
                     return new Cand(cx, cy, beta + 1);
                 }
