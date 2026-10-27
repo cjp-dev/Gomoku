@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Gomoku.Core.Engine;
 using Gomoku.Core.Models;
 
@@ -734,6 +735,14 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         }
     }
 
+    // A cell where neither side gets a three or a four (Status4 below ThreatH).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsQuiet(BitboardPatternBoard pb, int x, int y)
+    {
+        ref BitboardPatternBoard.Cell c = ref pb.GetCell(x, y);
+        return c.Status4_0 < CarbonTables.ThreatH && c.Status4_1 < CarbonTables.ThreatH;
+    }
+
     private void ForceOneCand(BitboardPatternBoard pb, Span<Cand> cnd, ref int nCnd, int player, byte targetStatus)
     {
         for (int i = 0; i < nCnd; i++)
@@ -1195,6 +1204,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         Point currentBestMove = Point.Empty;
         int nForbid = 0;
         int searched = 0;
+        bool lmr = Options.Lmr && pb.GetNSt((int)pb.Opp, CarbonTables.ThreatB) == 0;
 
         for (int i = 0; i < nCnd; i++)
         {
@@ -1207,6 +1217,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                 continue;
             }
 
+            bool reduce = lmr && searched >= 3 && h >= 3 && IsQuiet(pb, cx, cy);
             iterNodes++;
             pb.MakePaddedMove(cx, cy);
 
@@ -1215,7 +1226,20 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
             if (vB >= WinMin) vB++;
             if (vA <= -WinMin) vA--;
 
-            Cand m = SearchChild(workerId, pb, h, vA, vB, best.Value, beta, searched, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+            Cand m = default;
+            bool searchFully = true;
+            if (reduce && vA < vB)
+            {
+                m = Minimax(workerId, pb, h - 2, vB, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+                int reducedValue = -m.Value;
+                if (reducedValue >= WinMin) reducedValue--;
+                if (reducedValue <= -WinMin) reducedValue++;
+                searchFully = reducedValue > best.Value && !_terminate;
+            }
+            if (searchFully)
+            {
+                m = SearchChild(workerId, pb, h, vA, vB, best.Value, beta, searched, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+            }
             searched++;
             int value = -m.Value;
 

@@ -13,6 +13,14 @@ public sealed record CarbonSearchOptions
     public bool Pvs { get; init; }
 
     /// <summary>
+    /// B4: late move reductions. From the 4th searched move, at remaining depth 3 or more, a quiet move
+    /// (no three or four for either side on that cell) is first searched 2 plies shallower with a zero-width
+    /// window; only if it then looks better than the best move is it searched normally. 2 plies keep the
+    /// depth parity, which Carbon's table cutoffs require.
+    /// </summary>
+    public bool Lmr { get; init; } = true;
+
+    /// <summary>
     /// B6: Carbon's own candidate set (the 3x3 ring plus the cells two steps away along the four lines, with
     /// priority + 1 only next to a stone) instead of the full 5x5 square with priority + 1 everywhere.
     /// </summary>

@@ -1,0 +1,389 @@
+{
+  "Label": "b4-lmr-pvs",
+  "Options": "Pvs=1,Lmr=1,CarbonCandidates=1",
+  "Runs": 1,
+  "Positions": [
+    {
+      "Name": "Freestyle-o1-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 172109,
+      "Ms": 300.5896,
+      "Best": "9,8",
+      "Score": 189,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o1-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 312635,
+      "Ms": 790.352,
+      "Best": "7,5",
+      "Score": 37,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o1-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 396313,
+      "Ms": 848.9704,
+      "Best": "8,10",
+      "Score": 29987,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o1-p26",
+      "Depth": 5,
+      "CompletedDepth": 5,
+      "Nodes": 18025,
+      "Ms": 12.002,
+      "Best": "6,10",
+      "Score": 29989,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o3-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 245026,
+      "Ms": 147.4887,
+      "Best": "5,10",
+      "Score": 157,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o3-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 511066,
+      "Ms": 363.3527,
+      "Best": "4,6",
+      "Score": 30,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o5-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 274746,
+      "Ms": 177.2867,
+      "Best": "5,10",
+      "Score": -13,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o5-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 347465,
+      "Ms": 256.5473,
+      "Best": "5,12",
+      "Score": 29987,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o8-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 393648,
+      "Ms": 247.0454,
+      "Best": "6,9",
+      "Score": -10,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o14-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 439138,
+      "Ms": 272.5231,
+      "Best": "6,5",
+      "Score": -10,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o16-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 249685,
+      "Ms": 180.4146,
+      "Best": "6,5",
+      "Score": 42,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o19-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 332781,
+      "Ms": 259.8335,
+      "Best": "8,6",
+      "Score": 24,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o19-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 388997,
+      "Ms": 264.363,
+      "Best": "7,4",
+      "Score": 4,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o23-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 213397,
+      "Ms": 145.6305,
+      "Best": "6,10",
+      "Score": -2,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o23-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 188241,
+      "Ms": 136.3779,
+      "Best": "7,10",
+      "Score": 1,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o23-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 383239,
+      "Ms": 247.1792,
+      "Best": "10,12",
+      "Score": -2,
+      "Stats": null
+    },
+    {
+      "Name": "Freestyle-o23-p26",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 103220,
+      "Ms": 76.0394,
+      "Best": "11,10",
+      "Score": 29981,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o2-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 309116,
+      "Ms": 200.6654,
+      "Best": "8,9",
+      "Score": -10,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o10-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 159790,
+      "Ms": 104.5256,
+      "Best": "8,5",
+      "Score": -23,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o10-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 565965,
+      "Ms": 407.1034,
+      "Best": "6,4",
+      "Score": -34,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o10-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 287701,
+      "Ms": 229.8005,
+      "Best": "9,5",
+      "Score": -28,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o10-p26",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 123177,
+      "Ms": 99.2675,
+      "Best": "9,3",
+      "Score": -29963,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o17-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 277962,
+      "Ms": 192.7271,
+      "Best": "10,6",
+      "Score": -2,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o17-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 268725,
+      "Ms": 192.0609,
+      "Best": "10,7",
+      "Score": 1,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o17-p20",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 391279,
+      "Ms": 255.8397,
+      "Best": "12,10",
+      "Score": -2,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o17-p26",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 116480,
+      "Ms": 86.9011,
+      "Best": "10,11",
+      "Score": 29977,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o25-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 244920,
+      "Ms": 144.0986,
+      "Best": "5,10",
+      "Score": 157,
+      "Stats": null
+    },
+    {
+      "Name": "Exact5-o25-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 511062,
+      "Ms": 358.6787,
+      "Best": "4,6",
+      "Score": 30,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o4-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 112081,
+      "Ms": 83.2318,
+      "Best": "8,8",
+      "Score": -31,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o4-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 457457,
+      "Ms": 380.9599,
+      "Best": "5,6",
+      "Score": -5,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o12-p8",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 396792,
+      "Ms": 242.2765,
+      "Best": "10,7",
+      "Score": 130,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o12-p14",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 470227,
+      "Ms": 366.2529,
+      "Best": "11,7",
+      "Score": -20,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o12-p20",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 83702,
+      "Ms": 86.4643,
+      "Best": "12,7",
+      "Score": 70,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o15-p8",
+      "Depth": 10,
+      "CompletedDepth": 10,
+      "Nodes": 77990,
+      "Ms": 60.2555,
+      "Best": "8,5",
+      "Score": -5,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o21-p8",
+      "Depth": 8,
+      "CompletedDepth": 8,
+      "Nodes": 344933,
+      "Ms": 246.3653,
+      "Best": "6,9",
+      "Score": -21,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o21-p14",
+      "Depth": 9,
+      "CompletedDepth": 9,
+      "Nodes": 287425,
+      "Ms": 205.493,
+      "Best": "6,10",
+      "Score": 60,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o21-p20",
+      "Depth": 7,
+      "CompletedDepth": 7,
+      "Nodes": 69715,
+      "Ms": 47.6601,
+      "Best": "6,10",
+      "Score": 8,
+      "Stats": null
+    },
+    {
+      "Name": "Renju-o21-p26",
+      "Depth": 6,
+      "CompletedDepth": 6,
+      "Nodes": 2878,
+      "Ms": 1.9917,
+      "Best": "8,5",
+      "Score": -29988,
+      "Stats": null
+    }
+  ],
+  "TotalNodes": 10529108,
+  "TotalMs": 8777.5019
+}
