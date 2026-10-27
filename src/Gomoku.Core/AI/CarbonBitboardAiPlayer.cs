@@ -538,32 +538,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         }
     }
 
-    private int Evaluate(BitboardPatternBoard pb)
-    {
-        int pBlack = 0, pWhite = 0;
-        int remCount = pb.RemCount;
-
-        for (int i = 0; i < remCount; i++)
-        {
-            Point pt = pb.RemPlacedPoints[i];
-            ref BitboardPatternBoard.Cell c = ref pb.GetCell(pt.X, pt.Y);
-            int a = (int)c.Piece;
-            if (a is not (0 or 1)) continue;
-
-            int stoneScore = 0;
-            for (int k = 0; k < 4; k++)
-            {
-                byte patMe = c.GetPattern(k, a);
-                byte patOpp = c.GetPattern(k, 1 - a);
-                stoneScore += CarbonTables.Rank[CarbonTables.GetConfig(patMe, patOpp)];
-            }
-
-            if (a == 0) pBlack += stoneScore;
-            else pWhite += stoneScore;
-        }
-
-        return pb.Who == PieceColor.Black ? pBlack - pWhite : pWhite - pBlack;
-    }
+    private static int Evaluate(BitboardPatternBoard pb) => pb.Evaluate();
 
     private int QuickWinSearch(BitboardPatternBoard pb)
     {

@@ -126,6 +126,12 @@ public sealed class BitboardPatternBoard
     public readonly int[] NSt = new int[32]; // Flat (player << 4) | grade
     public readonly uint[] Occupied = new uint[MaxHeight + 8];
 
+    /// <summary>
+    /// Running sum of Carbon's stone score (Rank of each stone's pattern in each direction) per colour,
+    /// kept up to date by make/undo so the evaluation needs no loop over the stones.
+    /// </summary>
+    public readonly int[] StoneScore = new int[2];
+
     public int BoardWidth { get; private set; }
     public int BoardHeight { get; private set; }
     public GomokuVariant Variant { get; private set; }
@@ -151,6 +157,7 @@ public sealed class BitboardPatternBoard
     private const int JournalCells = 33;
     private Cell[] _jCells = new Cell[64 * JournalCells];
     private int[] _jNSt = new int[64 * 32];
+    private int[] _jScore = new int[64 * 2];
     private int _journalBase;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -158,6 +165,29 @@ public sealed class BitboardPatternBoard
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref int GetNSt(int player, int grade) => ref NSt[(player << 4) | grade];
+
+    /// <summary>Carbon's score of a stone of colour <paramref name="a"/> in direction <paramref name="k"/>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int DirScore(ref Cell c, int k, int a) =>
+        CarbonTables.Rank[CarbonTables.GetConfig(c.GetPattern(k, a), c.GetPattern(k, 1 - a))];
+
+    /// <summary>Applies a pattern change to a cell and keeps <see cref="StoneScore"/> up to date if it holds a stone.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ChangePattern(ref Cell c, int k, int player, byte p, bool set)
+    {
+        int a = (int)c.Piece;
+        if (a <= 1)
+        {
+            StoneScore[a] -= DirScore(ref c, k, a);
+            if (set) c.SetPatternOr(k, player, p); else c.SetPatternXor(k, player, p);
+            StoneScore[a] += DirScore(ref c, k, a);
+        }
+        else if (set) c.SetPatternOr(k, player, p);
+        else c.SetPatternXor(k, player, p);
+    }
+
+    /// <summary>Carbon's evaluation from the side to move: own stone score minus the opponent's.</summary>
+    public int Evaluate() => Who == PieceColor.Black ? StoneScore[0] - StoneScore[1] : StoneScore[1] - StoneScore[0];
 
     public void Start(int width, int height, GomokuVariant variant = GomokuVariant.Freestyle, PieceColor firstPlayer = PieceColor.Black)
     {
@@ -173,6 +203,7 @@ public sealed class BitboardPatternBoard
 
         Array.Clear(NSt);
         Array.Clear(Occupied);
+        Array.Clear(StoneScore);
 
         // Fill board with initial cells and margins
         for (int y = 0; y < height + 8; y++)
@@ -257,6 +288,7 @@ public sealed class BitboardPatternBoard
         Array.Copy(Cells, clone.Cells, Cells.Length);
         Array.Copy(NSt, clone.NSt, NSt.Length);
         Array.Copy(Occupied, clone.Occupied, Occupied.Length);
+        Array.Copy(StoneScore, clone.StoneScore, StoneScore.Length);
         Array.Copy(_remMove, clone._remMove, _remMove.Length);
         Array.Copy(_remULCand, clone._remULCand, _remULCand.Length);
         Array.Copy(_remLRCand, clone._remLRCand, _remLRCand.Length);
@@ -278,6 +310,11 @@ public sealed class BitboardPatternBoard
         GetNSt(1, playedCell.Status4_1)--;
 
         playedCell.Piece = Who;
+        int whoScore = (int)Who;
+        for (int k = 0; k < 4; k++)
+        {
+            StoneScore[whoScore] += DirScore(ref playedCell, k, whoScore);
+        }
         int bx = xp - Margin;
         int by = yp - Margin;
         Occupied[by] |= (1u << bx);
@@ -305,7 +342,7 @@ public sealed class BitboardPatternBoard
             {
                 x -= DX[k]; y -= DY[k];
                 ref Cell c = ref GetCell(x, y);
-                c.SetPatternOr(k, whoIdx, p);
+                ChangePattern(ref c, k, whoIdx, p, set: true);
                 if (c.Piece == PieceColor.Empty)
                 {
                     c.Update1(k, exact5);
@@ -323,7 +360,7 @@ public sealed class BitboardPatternBoard
             {
                 x += DX[k]; y += DY[k];
                 ref Cell c = ref GetCell(x, y);
-                c.SetPatternOr(k, whoIdx, p);
+                ChangePattern(ref c, k, whoIdx, p, set: true);
                 if (c.Piece == PieceColor.Empty)
                 {
                     c.Update1(k, exact5);
@@ -348,6 +385,7 @@ public sealed class BitboardPatternBoard
         {
             Array.Resize(ref _jCells, _jCells.Length * 2);
             Array.Resize(ref _jNSt, _jNSt.Length * 2);
+            Array.Resize(ref _jScore, _jScore.Length * 2);
         }
 
         ref Cell cells = ref MemoryMarshal.GetArrayDataReference(Cells);
@@ -366,6 +404,8 @@ public sealed class BitboardPatternBoard
         }
 
         NSt.AsSpan().CopyTo(_jNSt.AsSpan(slot * 32, 32));
+        _jScore[2 * slot] = StoneScore[0];
+        _jScore[2 * slot + 1] = StoneScore[1];
     }
 
     private bool RestoreJournal(int xp, int yp)
@@ -389,6 +429,8 @@ public sealed class BitboardPatternBoard
         }
 
         _jNSt.AsSpan(slot * 32, 32).CopyTo(NSt);
+        StoneScore[0] = _jScore[2 * slot];
+        StoneScore[1] = _jScore[2 * slot + 1];
         return true;
     }
 
@@ -427,6 +469,11 @@ public sealed class BitboardPatternBoard
         GetNSt(0, cell.Status4_0)++;
         GetNSt(1, cell.Status4_1)++;
 
+        int stone = (int)cell.Piece;
+        for (int k = 0; k < 4; k++)
+        {
+            StoneScore[stone] -= DirScore(ref cell, k, stone);
+        }
         cell.Piece = PieceColor.Empty;
 
         Who = Who.Opponent();
@@ -440,7 +487,7 @@ public sealed class BitboardPatternBoard
             {
                 x -= DX[k]; y -= DY[k];
                 ref Cell c = ref GetCell(x, y);
-                c.SetPatternXor(k, whoIdx, p);
+                ChangePattern(ref c, k, whoIdx, p, set: false);
                 if (c.Piece == PieceColor.Empty)
                 {
                     c.Update1(k, exact5);
@@ -458,7 +505,7 @@ public sealed class BitboardPatternBoard
             {
                 x += DX[k]; y += DY[k];
                 ref Cell c = ref GetCell(x, y);
-                c.SetPatternXor(k, whoIdx, p);
+                ChangePattern(ref c, k, whoIdx, p, set: false);
                 if (c.Piece == PieceColor.Empty)
                 {
                     c.Update1(k, exact5);
@@ -561,6 +608,15 @@ public sealed class BitboardPatternBoard
 
     public bool CheckConsistency()
     {
+        int[] score = new int[2];
+        for (int i = 0; i < RemCount; i++)
+        {
+            ref Cell s = ref GetCell(RemPlacedPoints[i].X, RemPlacedPoints[i].Y);
+            int a = (int)s.Piece;
+            for (int k = 0; k < 4; k++) score[a] += DirScore(ref s, k, a);
+        }
+        if (score[0] != StoneScore[0] || score[1] != StoneScore[1]) return false;
+
         for (int y = Margin; y < BoardHeight + Margin; y++)
         {
             for (int x = Margin; x < BoardWidth + Margin; x++)
