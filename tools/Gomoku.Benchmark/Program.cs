@@ -23,6 +23,12 @@ public static class Program
             return;
         }
 
+        if (args.Contains("--tactical"))
+        {
+            await SuiteBenchmark.TacticalAsync(args);
+            return;
+        }
+
         if (args.Contains("--suite"))
         {
             await SuiteBenchmark.MainAsync(args);

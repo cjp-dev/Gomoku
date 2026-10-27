@@ -9,6 +9,15 @@ public sealed record CarbonSearchOptions
 {
     public static CarbonSearchOptions Default { get; } = new();
 
+    /// <summary>B2: principal variation search (zero-width window after the first move, re-search on fail-high).</summary>
+    public bool Pvs { get; init; }
+
+    /// <summary>
+    /// B6: Carbon's own candidate set (the 3x3 ring plus the cells two steps away along the four lines, with
+    /// priority + 1 only next to a stone) instead of the full 5x5 square with priority + 1 everywhere.
+    /// </summary>
+    public bool CarbonCandidates { get; init; } = true;
+
     /// <summary>
     /// Parses "name=1,other=0" (names are the property names, case-insensitive); unknown names throw.
     /// </summary>

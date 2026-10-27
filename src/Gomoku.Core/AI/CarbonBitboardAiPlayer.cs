@@ -645,6 +645,12 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         int minY = Math.Max(0, pb.UpperLeftCand.Y - BitboardPatternBoard.Margin);
         int maxY = Math.Min(pb.BoardHeight - 1, pb.LowerRightCand.Y - BitboardPatternBoard.Margin);
 
+        if (Options.CarbonCandidates)
+        {
+            GenerateCarbonCand(pb, cnd, ref nCnd, ttFirstX, ttFirstY, minY, maxY, boardMask);
+            goto doneScan;
+        }
+
         for (int by = minY; by <= maxY; by++)
         {
             uint mask = pb.GetCandidateMask(by, dilated, boardMask);
@@ -689,6 +695,40 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                 {
                     cnd[nCnd++] = cnd[i];
                     if (nCnd >= MaxCand - 1) break;
+                }
+            }
+        }
+    }
+
+    // Carbon's candidates (AICarbonMove.cpp): adj1 = a stone in the 3x3 ring, adj2 = a stone two steps away
+    // along one of the four lines; prior = sum of the pattern priors + (adj1 != 0).
+    private static void GenerateCarbonCand(BitboardPatternBoard pb, Span<Cand> cnd, ref int nCnd, int ttFirstX, int ttFirstY, int minY, int maxY, uint boardMask)
+    {
+        uint[] occ = pb.Occupied;
+        int last = pb.BoardHeight - 1;
+        for (int by = minY; by <= maxY; by++)
+        {
+            uint up = by > 0 ? occ[by - 1] : 0, row = occ[by], down = by < last ? occ[by + 1] : 0;
+            uint up2 = by > 1 ? occ[by - 2] : 0, down2 = by < last - 1 ? occ[by + 2] : 0;
+            uint near = up | row | down;
+            uint ring = (near | (near << 1) | (near >> 1)) & boardMask;
+            uint far2 = up2 | down2;
+            uint two = ((row << 2) | (row >> 2) | far2 | (far2 << 2) | (far2 >> 2)) & boardMask;
+            uint mask = (ring | two) & ~row & boardMask;
+            int yp = by + BitboardPatternBoard.Margin;
+
+            while (mask != 0)
+            {
+                int bx = BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                int xp = bx + BitboardPatternBoard.Margin;
+                if (xp == ttFirstX && yp == ttFirstY) continue;
+
+                short pr = (short)(pb.GetCell(xp, yp).Prior() - 1 + (int)((ring >> bx) & 1));
+                if (pr > 1)
+                {
+                    cnd[nCnd++] = new Cand(xp, yp, pr);
+                    if (nCnd >= MaxCand - 1) return;
                 }
             }
         }
@@ -868,6 +908,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         BoundType bound = BoundType.UpperBound;
         Point currentBestMove = Point.Empty;
         int nForbid = 0;
+        int searched = 0;
         int nodeCheckCounter = 1000;
 
         for (int i = 0; i < nCnd; i++)
@@ -894,7 +935,8 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
             if (vB >= WinMin) vB++;
             if (vA <= -WinMin) vA--;
 
-            Cand m = Minimax(workerId, pb, h, vA, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+            Cand m = SearchChild(workerId, pb, h, vA, vB, best.Value, beta, searched, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+            searched++;
             int value = -m.Value;
 
             if (value >= WinMin) value--;
@@ -968,6 +1010,32 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         }
 
         return best;
+    }
+
+    /// <summary>
+    /// Searches a child with the window [vA, vB]. With <see cref="CarbonSearchOptions.Pvs"/>, every move after the
+    /// first is first searched with the zero-width window [vB, vB]: a fail-high means it is no better than
+    /// <paramref name="best"/>; an exact result is best + 1; a fail-low means at least best + 2, which is re-searched
+    /// with the full window unless it already beats <paramref name="beta"/>.
+    /// </summary>
+    private Cand SearchChild(int workerId, BitboardPatternBoard pb, int h, int vA, int vB, int best, int beta, int searched,
+        ref int nodeCheckCounter, ref long iterNodes, CancellationToken cancellationToken, CancellationToken moveNowToken)
+    {
+        if (!Options.Pvs || searched == 0 || vA >= vB)
+        {
+            return Minimax(workerId, pb, h, vA, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+        }
+
+        Cand m = Minimax(workerId, pb, h, vB, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+        int value = -m.Value;
+        if (value >= WinMin) value--;
+        if (value <= -WinMin) value++;
+
+        if (value > best + 1 && value <= beta && !_terminate)
+        {
+            m = Minimax(workerId, pb, h, vA, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+        }
+        return m;
     }
 
     private Cand Minimax(
@@ -1126,6 +1194,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
         BoundType bound = BoundType.UpperBound;
         Point currentBestMove = Point.Empty;
         int nForbid = 0;
+        int searched = 0;
 
         for (int i = 0; i < nCnd; i++)
         {
@@ -1146,7 +1215,8 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
             if (vB >= WinMin) vB++;
             if (vA <= -WinMin) vA--;
 
-            Cand m = Minimax(workerId, pb, h, vA, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+            Cand m = SearchChild(workerId, pb, h, vA, vB, best.Value, beta, searched, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+            searched++;
             int value = -m.Value;
 
             if (value >= WinMin) value--;

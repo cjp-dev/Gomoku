@@ -142,6 +142,21 @@ public static class SuiteBenchmark
         }
     }
 
+    /// <summary><c>--tactical [--options x]</c>: every recorded forced win must still be found at its depth.</summary>
+    public static async Task TacticalAsync(string[] args)
+    {
+        CarbonSearchOptions options = CarbonSearchOptions.Parse(Arg(args, "--options"));
+        int found = 0, total = 0;
+        foreach (SuitePosition p in Load(TacticalPath))
+        {
+            total++;
+            PositionResult r = await SearchAsync(p, options, collectStats: false);
+            if (r.Score >= CarbonBitboardAiPlayer.WinMin) found++;
+            else Console.WriteLine($"  missed: {p.Name} at depth {p.Depth} (score {r.Score})");
+        }
+        Console.WriteLine($"Tactical ({options}): {found}/{total} forced wins found");
+    }
+
     public static void Print(SuiteRun run)
     {
         Console.WriteLine();
