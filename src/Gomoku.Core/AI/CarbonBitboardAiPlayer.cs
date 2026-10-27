@@ -796,7 +796,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
 
         if (nCnd > 1)
         {
-            rootCnd[..nCnd].Sort((a, b) => b.Value.CompareTo(a.Value));
+            CandSort.SortDescending(rootCnd[..nCnd]);
 
             if (workerId == 1 && nCnd > 2)
             {
@@ -1105,7 +1105,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
 
         if (nCnd > 1)
         {
-            cnd[..nCnd].Sort((a, b) => b.Value.CompareTo(a.Value));
+            CandSort.SortDescending(cnd[..nCnd]);
         }
 
         bool usedFallback = false;

@@ -73,6 +73,7 @@ public static class SuiteBenchmark
         BoardState state = ToState(p.Variant, p.Moves);
         CarbonBitboardAiPlayer ai = new(threads) { Options = options, CollectStats = collectStats };
         var legal = RuleEngine.Instance.GetLegalMoves(state);
+        ai.Table.Clear(); // touch the fresh table's pages before timing, so page faults are not measured
 
         long start = Stopwatch.GetTimestamp();
         Move best = await ai.GetMoveAsync(state, SearchLimits.FixedDepth(p.Depth, useOpeningBook: false), legal);
@@ -312,7 +313,7 @@ public static class SuiteBenchmark
 
     private static string FindRepoFile(params string[] parts)
     {
-        string? dir = AppContext.BaseDirectory;
+        string? dir = Environment.GetEnvironmentVariable("GOMOKU_REPO") ?? AppContext.BaseDirectory;
         while (dir != null && !File.Exists(Path.Combine(dir, "Gomoku.slnx")))
         {
             dir = Path.GetDirectoryName(dir);

@@ -8,7 +8,7 @@
       "Depth": 9,
       "CompletedDepth": 9,
       "Nodes": 299068,
-      "Ms": 298.7229,
+      "Ms": 310.3078,
       "Best": "9,8",
       "Score": 189,
       "Stats": null
@@ -18,7 +18,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 412341,
-      "Ms": 507.4654,
+      "Ms": 537.1164,
       "Best": "7,5",
       "Score": 37,
       "Stats": null
@@ -28,7 +28,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 534002,
-      "Ms": 703.4501,
+      "Ms": 769.185,
       "Best": "8,10",
       "Score": 29987,
       "Stats": null
@@ -38,7 +38,7 @@
       "Depth": 5,
       "CompletedDepth": 5,
       "Nodes": 19138,
-      "Ms": 23.3561,
+      "Ms": 24.0148,
       "Best": "6,10",
       "Score": 29989,
       "Stats": null
@@ -48,7 +48,7 @@
       "Depth": 9,
       "CompletedDepth": 9,
       "Nodes": 351142,
-      "Ms": 375.4182,
+      "Ms": 384.131,
       "Best": "5,10",
       "Score": 157,
       "Stats": null
@@ -58,7 +58,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 640726,
-      "Ms": 755.4875,
+      "Ms": 790.9121,
       "Best": "4,6",
       "Score": 30,
       "Stats": null
@@ -68,7 +68,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 333329,
-      "Ms": 351.3843,
+      "Ms": 376.3235,
       "Best": "5,10",
       "Score": -13,
       "Stats": null
@@ -78,7 +78,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 502080,
-      "Ms": 633.1815,
+      "Ms": 673.9386,
       "Best": "5,12",
       "Score": 29989,
       "Stats": null
@@ -88,7 +88,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 520626,
-      "Ms": 563.2543,
+      "Ms": 601.8492,
       "Best": "6,9",
       "Score": -8,
       "Stats": null
@@ -98,7 +98,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 537358,
-      "Ms": 587.5056,
+      "Ms": 607.6487,
       "Best": "6,5",
       "Score": -8,
       "Stats": null
@@ -108,7 +108,7 @@
       "Depth": 10,
       "CompletedDepth": 10,
       "Nodes": 367009,
-      "Ms": 426.2227,
+      "Ms": 452.9476,
       "Best": "6,5",
       "Score": 42,
       "Stats": null
@@ -118,7 +118,7 @@
       "Depth": 10,
       "CompletedDepth": 10,
       "Nodes": 756992,
-      "Ms": 895.4347,
+      "Ms": 953.5909,
       "Best": "8,6",
       "Score": 48,
       "Stats": null
@@ -128,7 +128,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 479396,
-      "Ms": 569.202,
+      "Ms": 588.5355,
       "Best": "7,4",
       "Score": 4,
       "Stats": null
@@ -138,7 +138,7 @@
       "Depth": 10,
       "CompletedDepth": 10,
       "Nodes": 336742,
-      "Ms": 381.4584,
+      "Ms": 405.09,
       "Best": "6,10",
       "Score": 20,
       "Stats": null
@@ -148,7 +148,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 287111,
-      "Ms": 340.1412,
+      "Ms": 368.3364,
       "Best": "7,10",
       "Score": 1,
       "Stats": null
@@ -158,7 +158,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 432040,
-      "Ms": 514.3693,
+      "Ms": 532.7517,
       "Best": "10,12",
       "Score": -2,
       "Stats": null
@@ -168,7 +168,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 185185,
-      "Ms": 234.2988,
+      "Ms": 244.2008,
       "Best": "11,10",
       "Score": 29983,
       "Stats": null
@@ -178,7 +178,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 372400,
-      "Ms": 417.0953,
+      "Ms": 431.9985,
       "Best": "8,9",
       "Score": -8,
       "Stats": null
@@ -188,7 +188,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 283539,
-      "Ms": 317.9261,
+      "Ms": 322.9832,
       "Best": "8,5",
       "Score": -16,
       "Stats": null
@@ -198,7 +198,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 782211,
-      "Ms": 949.1993,
+      "Ms": 991.7361,
       "Best": "6,4",
       "Score": -34,
       "Stats": null
@@ -208,7 +208,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 364181,
-      "Ms": 473.3335,
+      "Ms": 498.6601,
       "Best": "9,5",
       "Score": -28,
       "Stats": null
@@ -218,7 +218,7 @@
       "Depth": 9,
       "CompletedDepth": 9,
       "Nodes": 109328,
-      "Ms": 135.8112,
+      "Ms": 142.1693,
       "Best": "9,8",
       "Score": -29988,
       "Stats": null
@@ -228,7 +228,7 @@
       "Depth": 10,
       "CompletedDepth": 10,
       "Nodes": 431346,
-      "Ms": 506.843,
+      "Ms": 528.4524,
       "Best": "10,6",
       "Score": 20,
       "Stats": null
@@ -238,7 +238,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 374363,
-      "Ms": 444.9363,
+      "Ms": 473.1561,
       "Best": "10,7",
       "Score": 1,
       "Stats": null
@@ -248,7 +248,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 477175,
-      "Ms": 585.2765,
+      "Ms": 611.2952,
       "Best": "12,10",
       "Score": -2,
       "Stats": null
@@ -258,7 +258,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 176816,
-      "Ms": 220.5463,
+      "Ms": 238.8899,
       "Best": "10,11",
       "Score": 29983,
       "Stats": null
@@ -268,7 +268,7 @@
       "Depth": 9,
       "CompletedDepth": 9,
       "Nodes": 350837,
-      "Ms": 377.6871,
+      "Ms": 389.6747,
       "Best": "5,10",
       "Score": 157,
       "Stats": null
@@ -278,7 +278,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 640755,
-      "Ms": 769.7807,
+      "Ms": 797.4731,
       "Best": "4,6",
       "Score": 30,
       "Stats": null
@@ -288,7 +288,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 151199,
-      "Ms": 180.8195,
+      "Ms": 186.1693,
       "Best": "8,8",
       "Score": -31,
       "Stats": null
@@ -298,7 +298,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 695001,
-      "Ms": 960.5432,
+      "Ms": 980.5772,
       "Best": "5,6",
       "Score": 29987,
       "Stats": null
@@ -308,7 +308,7 @@
       "Depth": 9,
       "CompletedDepth": 9,
       "Nodes": 497644,
-      "Ms": 558.5399,
+      "Ms": 567.1066,
       "Best": "10,7",
       "Score": 130,
       "Stats": null
@@ -318,7 +318,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 632607,
-      "Ms": 839.4583,
+      "Ms": 892.5213,
       "Best": "11,7",
       "Score": -20,
       "Stats": null
@@ -328,7 +328,7 @@
       "Depth": 9,
       "CompletedDepth": 9,
       "Nodes": 203330,
-      "Ms": 284.4531,
+      "Ms": 299.4902,
       "Best": "12,7",
       "Score": -29988,
       "Stats": null
@@ -338,7 +338,7 @@
       "Depth": 10,
       "CompletedDepth": 10,
       "Nodes": 151067,
-      "Ms": 191.891,
+      "Ms": 202.0086,
       "Best": "8,5",
       "Score": -5,
       "Stats": null
@@ -348,7 +348,7 @@
       "Depth": 8,
       "CompletedDepth": 8,
       "Nodes": 617340,
-      "Ms": 751.2993,
+      "Ms": 801.327,
       "Best": "6,9",
       "Score": -21,
       "Stats": null
@@ -358,7 +358,7 @@
       "Depth": 9,
       "CompletedDepth": 9,
       "Nodes": 401082,
-      "Ms": 512.3628,
+      "Ms": 523.4562,
       "Best": "6,10",
       "Score": 57,
       "Stats": null
@@ -368,7 +368,7 @@
       "Depth": 7,
       "CompletedDepth": 7,
       "Nodes": 172212,
-      "Ms": 225.2703,
+      "Ms": 224.5429,
       "Best": "6,10",
       "Score": 8,
       "Stats": null
@@ -378,12 +378,12 @@
       "Depth": 6,
       "CompletedDepth": 6,
       "Nodes": 3548,
-      "Ms": 4.7608,
+      "Ms": 5.0202,
       "Best": "8,5",
       "Score": -29988,
       "Stats": null
     }
   ],
   "TotalNodes": 14882266,
-  "TotalMs": 17868.1865
+  "TotalMs": 18729.5881
 }
