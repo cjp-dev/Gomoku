@@ -1217,7 +1217,8 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
                 continue;
             }
 
-            bool reduce = lmr && searched >= 3 && h >= 3 && IsQuiet(pb, cx, cy);
+            bool reduce = lmr && searched >= Options.LmrFromMove && h >= Options.LmrMinDepth && IsQuiet(pb, cx, cy);
+            int reduction = Options.LmrDeepFromMove > 0 && searched >= Options.LmrDeepFromMove && h >= 5 ? 4 : 2;
             iterNodes++;
             pb.MakePaddedMove(cx, cy);
 
@@ -1230,7 +1231,7 @@ public sealed class CarbonBitboardAiPlayer : IPlayer
             bool searchFully = true;
             if (reduce && vA < vB)
             {
-                m = Minimax(workerId, pb, h - 2, vB, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
+                m = Minimax(workerId, pb, h - reduction, vB, vB, ref nodeCheckCounter, ref iterNodes, cancellationToken, moveNowToken);
                 int reducedValue = -m.Value;
                 if (reducedValue >= WinMin) reducedValue--;
                 if (reducedValue <= -WinMin) reducedValue++;

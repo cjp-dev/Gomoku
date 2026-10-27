@@ -128,6 +128,8 @@ public static class SuiteBenchmark
         string? only = Arg(args, "--only");
 
         List<SuitePosition> suite = Load(SuitePath);
+        int offset = int.Parse(Arg(args, "--depth-offset") ?? "0", CultureInfo.InvariantCulture);
+        if (offset != 0) suite = [.. suite.Select(p => p with { Depth = Math.Max(1, p.Depth + offset) })];
         if (only != null) suite = [.. suite.Where(p => p.Name.Contains(only, StringComparison.OrdinalIgnoreCase))];
 
         Console.WriteLine($"Suite: {suite.Count} positions, {runs} runs, {threads} thread(s), options {options}");

@@ -20,6 +20,15 @@ public sealed record CarbonSearchOptions
     /// </summary>
     public bool Lmr { get; init; } = true;
 
+    /// <summary>LMR: the first searched move that may be reduced (0-based).</summary>
+    public int LmrFromMove { get; init; } = 3;
+
+    /// <summary>LMR: the smallest remaining depth at which moves are reduced.</summary>
+    public int LmrMinDepth { get; init; } = 3;
+
+    /// <summary>LMR: from this searched move on, reduce 4 plies instead of 2 (at remaining depth 5 or more); 0 = never.</summary>
+    public int LmrDeepFromMove { get; init; }
+
     /// <summary>
     /// B6: Carbon's own candidate set (the 3x3 ring plus the cells two steps away along the four lines, with
     /// priority + 1 only next to a stone) instead of the full 5x5 square with priority + 1 everywhere.
@@ -40,12 +49,18 @@ public sealed record CarbonSearchOptions
         foreach (string part in text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             string[] kv = part.Split('=', 2, StringSplitOptions.TrimEntries);
-            bool on = kv.Length == 1 || kv[1] is "1" or "true" or "on";
             var property = typeof(CarbonSearchOptions).GetProperties()
-                .FirstOrDefault(p => p.PropertyType == typeof(bool) && string.Equals(p.Name, kv[0], StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault(p => (p.PropertyType == typeof(bool) || p.PropertyType == typeof(int)) && string.Equals(p.Name, kv[0], StringComparison.OrdinalIgnoreCase))
                 ?? throw new ArgumentException($"Unknown search option '{kv[0]}'.");
             options = options with { };
-            property.SetValue(options, on);
+            if (property.PropertyType == typeof(int))
+            {
+                property.SetValue(options, int.Parse(kv[1], System.Globalization.CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                property.SetValue(options, kv.Length == 1 || kv[1] is "1" or "true" or "on");
+            }
         }
 
         return options;
@@ -54,8 +69,8 @@ public sealed record CarbonSearchOptions
     public override string ToString()
     {
         var flags = typeof(CarbonSearchOptions).GetProperties()
-            .Where(p => p.PropertyType == typeof(bool))
-            .Select(p => $"{p.Name}={((bool)p.GetValue(this)! ? 1 : 0)}");
+            .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(int))
+            .Select(p => p.GetValue(this) is bool b ? $"{p.Name}={(b ? 1 : 0)}" : $"{p.Name}={p.GetValue(this)}");
         string text = string.Join(",", flags);
         return text.Length > 0 ? text : "default";
     }
