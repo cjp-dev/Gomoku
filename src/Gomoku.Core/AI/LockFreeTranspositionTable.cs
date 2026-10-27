@@ -10,6 +10,8 @@ namespace Gomoku.Core.AI;
 /// multi-threaded access (Lazy SMP) and zero-overhead single-threaded search.
 /// Utilizes the Stockfish XOR-checksum technique (Word0 = Key ^ Word1) to prevent
 /// torn reads without requiring locks or mutexes.
+/// There are no shared hit/store counters: every thread would write the same cache line on every probe
+/// (use <see cref="CarbonBitboardAiPlayer.CollectStats"/> for counts).
 /// </summary>
 public sealed class LockFreeTranspositionTable
 {
@@ -65,12 +67,8 @@ public sealed class LockFreeTranspositionTable
     private readonly Entry[] _table;
     private readonly ulong _mask;
     private byte _currentAge;
-    private long _hits;
-    private long _stores;
 
     public int Capacity { get; }
-    public long Hits => Volatile.Read(ref _hits);
-    public long Stores => Volatile.Read(ref _stores);
 
     public LockFreeTranspositionTable(int capacity = DefaultCapacity)
     {
@@ -84,16 +82,12 @@ public sealed class LockFreeTranspositionTable
     public void NewSearch()
     {
         _currentAge = (byte)((_currentAge + 1) & 0x7F);
-        Volatile.Write(ref _hits, 0);
-        Volatile.Write(ref _stores, 0);
     }
 
     public void Clear()
     {
         Array.Clear(_table);
         _currentAge = 0;
-        Volatile.Write(ref _hits, 0);
-        Volatile.Write(ref _stores, 0);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -109,7 +103,6 @@ public sealed class LockFreeTranspositionTable
         if ((keyXorData ^ data) == key)
         {
             Entry.UnpackData(data, out bestMove, out depth, out bound, out eval, out _);
-            Interlocked.Increment(ref _hits);
             return true;
         }
 
@@ -164,6 +157,5 @@ public sealed class LockFreeTranspositionTable
 
         Volatile.Write(ref entry.Data, newData);
         Volatile.Write(ref entry.KeyXorData, newKeyXorData);
-        Interlocked.Increment(ref _stores);
     }
 }

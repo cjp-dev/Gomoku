@@ -184,7 +184,7 @@ public class AiTests
         Move best = await ai.GetMoveAsync(state, limits, legalMoves);
         best.Position.Should().NotBe(Point.Empty);
 
-        ai.Table.Stores.Should().BeGreaterThan(0);
+        ai.Table.TryProbe(Zobrist.ComputeHash(state), out _, out _, out _, out _).Should().BeTrue("the root result is stored");
     }
 
     [Fact]
